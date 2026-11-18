@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T22:47:00Z'
+updated_date: '2026-11-18T22:51:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -216,6 +216,30 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `sh -c 'cd crates/server && cargo test --test dispatch 2>&1 | tail -20'` exited 0 at 2026-11-18T22:51:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 18da1c97edb1 with uncommitted changes:
+
+```text
+test tab::tab_list_with_an_unknown_session_is_no_such_target ... ok
+test setting::setting_show_an_unknown_name_is_no_such_target ... ok
+test cross_cutting::unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given ... ok
+test setting::an_override_is_still_there_for_a_fresh_tree_and_context_over_the_same_settings ... ok
+test api::api_call_reaches_setting_set_with_its_required_target ... ok
+test api::api_call_reaches_setting_unset_with_its_required_target ... ok
+test tab::tab_new_with_position_one_places_the_new_tab_first ... ok
+test tab::tab_show_with_an_ambiguous_target_is_ambiguous_target ... ok
+test tab::tab_show_returns_the_tabs_record ... ok
+test tab::tab_new_with_no_position_appends_at_the_end_as_before ... ok
+test cross_cutting::every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... ok
+test tab::tab_show_with_an_unknown_target_is_no_such_target ... ok
+test tab::tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order ... ok
+test tab::tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing ... ok
+test cross_cutting::every_nothing_or_identifier_returning_method_matches_its_declared_shape ... ok
+test cross_cutting::every_described_method_gets_a_response_with_no_panic ... ok
+test api::api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
+
+test result: ok. 85 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 ```
 <!-- SECTION:NOTES:END -->
 

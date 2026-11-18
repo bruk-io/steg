@@ -1,11 +1,11 @@
 ---
 id: TASK-1.123
 title: 'Server tests: bound the remaining waits found by TASK-1.113''s sweep'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-17T01:33:00Z'
-updated_date: '2026-11-18T20:55:00Z'
+updated_date: '2026-11-18T22:17:00Z'
 labels:
   - size-3
   - review-passed

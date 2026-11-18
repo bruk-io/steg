@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T23:14:00Z'
+updated_date: '2026-11-18T23:22:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -477,6 +477,41 @@ ok      build (steg-app) (0.9s)
 wait    test (steg-app) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
 ok      test (steg-app) (1.6s)
 ok      tool tests (47.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T23:22:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 39063591a155:
+
+```text
+ok      format check (0.3s)
+ok      lint (3.9s)
+ok      boundaries (0.3s)
+ok      foundations (0.3s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (91.6s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (0.7s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (0.7s)
+ok      test (steg-server) (58.3s)
+ok      test (steg-server, race-fixture) (61.0s)
+ok      test (steg-server, pty-race-fixture) (86.2s)
+ok      test (steg-server, accept-backoff-fixture) (72.7s)
+ok      build (steg) (1.5s)
+ok      test (steg) (4.6s)
+ok      test (steg, fixtures) (12.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (1.6s)
+ok      tool tests (39.8s)
 ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.0s)

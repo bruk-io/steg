@@ -132,3 +132,9 @@ Seven small decisions, each with a recommendation. None blocks the build; all ar
 - `api_call.rs`'s own test: `echo '{"direction": "right"}' | steg api call pane.split` (with an explicit prior `pane.split -- /bin/cat` target set up, or run against the default current-pane-less target and accept whatever the real `NoSuchTarget`/success outcome is — settled during the build once a real session exists to target) — asserts the JSON on stdin reaches the server as `pane.split`'s own `direction` parameter, not nested under a second key, by asserting on the real effect (a new pane appears in the expected direction) rather than only on the exit status.
 - `Connection::call_unvalidated`'s own unit test: builds a request with extra keys `api.call`'s own description doesn't declare, asserts it still encodes (where `Connection::call` with the same keys would have already returned an `ApiError` before this test could even reach the assertion) — the direct proof that this path really does skip `validate`, not merely that the CLI happens to work.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-2 sections 5, 6 and 8, doc-16 and the task's five criteria by @bruk.o: ok. The sdk gains connect_handshaken beside an untouched connect() (arbitrate again exactly once when a connection closes before its hello) and call_unvalidated for api call; the CLI's exit status is read from the description's own errors table; --json prints the reply unchanged. It stays inside crates/steg and crates/sdk, touches no package boundary, and leaves crates/app's own start-up on the old path as a named follow-up. Status 130 is the default signal disposition, at the orchestrator's request (the first plan added a handler and libc). Four status choices go to the engineer with the plan.
+<!-- SECTION:NOTES:END -->

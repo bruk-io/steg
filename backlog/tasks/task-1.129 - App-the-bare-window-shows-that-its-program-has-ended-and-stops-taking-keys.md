@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:31:00Z'
+updated_date: '2026-11-18T02:32:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -552,6 +552,20 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Check passed: `cargo test -p steg-app -- writer_disarm_makes_every_later_send` exited 0 at 2026-11-18T02:32:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129 on task-1.129-app-the-bare-window-shows-that-its at 2dd9f5117641 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::writer_disarm_makes_every_later_send_a_silent_no_op_with_no_disconnected_either ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.40s
 ```
 <!-- SECTION:NOTES:END -->
 

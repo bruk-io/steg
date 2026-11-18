@@ -1,14 +1,13 @@
 ---
 id: TASK-1.132
 title: 'Tools: only a few just check runs at a time on one machine'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
 updated_date: '2026-11-18T03:58:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -774,6 +773,8 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 64, 63 without the Asdlc-Worker trailer.
+
+Fixed all four review findings (1 Important, 3 Nits) and widened every wall-clock margin in test_quiet_slots.py - detail in the task's notes. Full tools suite (329 tests) and a full just check passed locally after merging origin/main; CI green on PR #75 (run 44232766603, ~16 minutes). No leftover processes at any point (checked ps after every control and finally). No departures from the approved plan.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

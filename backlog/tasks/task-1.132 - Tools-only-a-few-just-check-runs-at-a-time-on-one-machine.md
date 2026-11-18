@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:19:00Z'
+updated_date: '2026-11-18T03:20:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -20,6 +20,8 @@ asdlc_branch: task-1.132-tools-only-a-few-just-check-runs-at-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd9a4c4cb7361'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -557,6 +559,15 @@ created: 2026-11-18T03:19:00Z
 ---
 
 CI sighting (not mine): the first CI run on PR #75 failed at test (steg-server) with signal::tests::send_reaches_the_whole_process_group_not_only_the_leader - "the backgrounded child, in the same process group, must be gone too." Not one of the three named known flakes (login_env grandchild, stuck-pane timing, terminal-scrolling), but the same flavour (process-group/signal timing). Unrelated to this task's own change (tools/ and the justfile comment only; nothing in crates/server touched). Reran the job once per the standing guidance; it passed clean on the rerun (CI itself runs on an isolated runner with no slot contention, since CI defaults to no limit). Noting the sighting for the record; not investigating further as it is not this task's own code.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T03:20:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.132: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

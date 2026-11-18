@@ -316,6 +316,14 @@ tools/tests/functional/test_quiet_slots.py:262: AssertionError
 FAILED tools/tests/functional/test_quiet_slots.py::test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots
 1 failed in 0.12s
 ```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots'` exited 0 at 2026-11-18T02:45:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpMH0CMk` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 0.15s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

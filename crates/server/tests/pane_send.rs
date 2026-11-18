@@ -28,8 +28,8 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value, json};
 use steg_sdk::{
-    ClientKind, Connection, ErrorCode, Incoming, PaneAttached, Response, ScreenUpdate,
-    WireRole as Role, description, parse_server_hello,
+    ClientKind, Connection, EndReason, ErrorCode, Incoming, PaneAttached, Response, ScreenUpdate,
+    WireRole as Role, description, key_names, parse_server_hello,
 };
 use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
@@ -282,6 +282,59 @@ fn attach(stream: &mut UnixStream, connection: &mut Connection, pane: &str) -> P
     attached
 }
 
+/// The tab a `new_pane_running`/`attach` pane path names, as its own
+/// target string (`session/tab`, the pane's own last segment dropped) -
+/// `tab.declare-size`'s own target - the same shape `attach.rs`'s own
+/// `tab_path_of` already has.
+fn tab_path_of(pane_path: &str) -> String {
+    let (tab_path, _pane) = pane_path
+        .rsplit_once('/')
+        .expect("a pane path is always session/tab/pane");
+    tab_path.to_string()
+}
+
+/// `tab.declare-size` - the same bounded call-and-read-reply shape every
+/// other method in this file uses, over the sdk's own typed helper.
+fn declare_size(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    tab: &str,
+    columns: u16,
+    rows: u16,
+) -> Response {
+    let (id, bytes) = connection
+        .declare_size(Some(tab), columns, rows)
+        .expect("a valid call");
+    stream.write_all(&bytes).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        if let Some(Incoming::Reply {
+            id: reply_id,
+            response,
+        }) = connection.poll()
+        {
+            assert_eq!(reply_id, id, "the reply must carry the id this call minted");
+            return response;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for tab.declare-size's reply"
+        );
+        stream
+            .set_read_timeout(Some(Duration::from_millis(200)))
+            .unwrap();
+        let mut buf = [0_u8; 65536];
+        match stream.read(&mut buf) {
+            Ok(0) => panic!("server closed before replying"),
+            Ok(n) => connection.receive(&buf[..n]),
+            Err(e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut => {}
+            Err(e) => panic!("read failed: {e}"),
+        }
+    }
+}
+
 /// Reads one `Incoming::StreamControl` for `wanted_stream`, decoded as a
 /// `ScreenUpdate` - bounded, via a real read with a timeout, never a
 /// sleep-poll. The same shape `attach.rs`'s own `next_update` already
@@ -375,6 +428,193 @@ fn wait_for_marker(
     }
 }
 
+/// Reads updates on `wanted_stream` until `Ended` arrives, discarding
+/// anything else first - the same shape `attach.rs`'s own `next_ended`
+/// already has (TASK-1.128): a program exiting on its own ends the
+/// pane's own *attachment* stream (`ProgramExited`, doc-14) even though
+/// the pane itself stays, R97 - this is the event to wait on for "the
+/// real exit has happened", not a poll of `pane.show`.
+fn next_ended(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    wanted_stream: u32,
+    timeout: Duration,
+) -> EndReason {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        assert!(
+            !remaining.is_zero(),
+            "Ended never arrived on stream {wanted_stream}"
+        );
+        if let ScreenUpdate::Ended { reason } =
+            next_update(stream, connection, wanted_stream, remaining)
+        {
+            return reason;
+        }
+    }
+}
+
+/// Reads and applies whatever updates arrive on `attachment_stream` for
+/// `window`, then returns - never panics on its own; the caller compares
+/// `held` before and after to see whether anything changed. A bounded
+/// wait for the *absence* of an event cannot be anything but a window of
+/// real time (there is no "nothing happened" event to wait on) - the
+/// same shape `attach.rs`'s own `assert_nothing_more_arrives_on` already
+/// uses for the identical reason.
+fn drain_updates_for(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    held: &mut steg_sdk::Screen,
+    attachment_stream: u32,
+    window: Duration,
+) {
+    let quiet_until = Instant::now() + window;
+    while Instant::now() < quiet_until {
+        stream
+            .set_read_timeout(Some(Duration::from_millis(50)))
+            .unwrap();
+        let mut buf = [0_u8; 65536];
+        match stream.read(&mut buf) {
+            Ok(0) => panic!("the server closed while waiting to see if anything else arrived"),
+            Ok(n) => connection.receive(&buf[..n]),
+            Err(e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut => {}
+            Err(e) => panic!("read failed: {e}"),
+        }
+        while let Some(incoming) = connection.poll() {
+            if let Incoming::StreamControl { stream: s, payload } = incoming
+                && s == attachment_stream
+            {
+                let update: ScreenUpdate = serde_json::from_slice(&payload)
+                    .expect("a screen update always deserialises");
+                apply_update(held, update);
+            }
+        }
+    }
+}
+
+/// Polls `attached`'s own stream until some line of `held`'s own text,
+/// trimmed of the leading/trailing padding `od`'s own fixed-width
+/// columns add, equals `expected_line` exactly - unlike
+/// [`wait_for_marker`]'s substring match, an exact-line comparison is
+/// what lets [`pane_send_delivers_each_named_key_with_its_documented_
+/// bytes`] tell one named key's own hex dump apart from another's with
+/// no risk of one being a substring of another.
+fn wait_for_exact_line(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    held: &mut steg_sdk::Screen,
+    attachment_stream: u32,
+    expected_line: &str,
+    timeout: Duration,
+) {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if screen_text(held)
+            .lines()
+            .any(|line| line.trim() == expected_line)
+        {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "never saw the line {expected_line:?}; last screen was: {:?}",
+            screen_text(held)
+        );
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        let update = next_update(stream, connection, attachment_stream, remaining);
+        apply_update(held, update);
+    }
+}
+
+/// The non-empty, trimmed lines of `screen`'s own text - a one-byte-
+/// per-line hex dump (see
+/// [`pane_send_delivers_each_named_key_with_its_documented_bytes`]'s own
+/// shell program) produces one blank line between invocations, checked
+/// directly while building this test; skipping empty lines after
+/// trimming is all that takes to get a clean, ordered "one line per byte
+/// actually read" transcript.
+fn hex_lines(screen: &steg_sdk::Screen) -> Vec<String> {
+    screen_text(screen)
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.len() == 2 && line.chars().all(|c| c.is_ascii_hexdigit()))
+        .map(str::to_string)
+        .collect()
+}
+
+/// Waits until `hex_lines(held)` holds at least `wanted` lines, applying
+/// every update along the way - bounded, via real reads, never a
+/// sleep-poll.
+fn wait_for_hex_line_count(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    held: &mut steg_sdk::Screen,
+    attachment_stream: u32,
+    wanted: usize,
+    timeout: Duration,
+) {
+    let deadline = Instant::now() + timeout;
+    while hex_lines(held).len() < wanted {
+        assert!(
+            Instant::now() < deadline,
+            "never saw {wanted} hex-dump lines; last screen was: {:?}",
+            screen_text(held)
+        );
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        let update = next_update(stream, connection, attachment_stream, remaining);
+        apply_update(held, update);
+    }
+}
+
+/// doc-2's own documented byte sequence for each named key - written
+/// here independently of [`steg_sdk::named_key_bytes`], the function
+/// [`pane_send_delivers_each_named_key_with_its_documented_bytes`]
+/// actually exercises through the real pipeline: this table and that
+/// function must never be the same definition read twice, or a wrong
+/// byte sequence in the sdk's own table could never disagree with
+/// itself. Only the *name* list this test iterates
+/// ([`steg_sdk::key_names`]) comes from the sdk - so a key added there
+/// is covered automatically, but what each one is supposed to send is
+/// restated here, by hand, from doc-9's own xterm/ECMA-48 convention,
+/// the same source `crates/sdk/src/keys.rs`'s own table cites.
+fn documented_bytes(name: &str) -> &'static [u8] {
+    match name {
+        "enter" => b"\r",
+        "tab" => b"\t",
+        "backspace" => b"\x7f",
+        "escape" => b"\x1b",
+        "left" => b"\x1b[D",
+        "right" => b"\x1b[C",
+        "up" => b"\x1b[A",
+        "down" => b"\x1b[B",
+        "home" => b"\x1b[H",
+        "end" => b"\x1b[F",
+        "pageup" => b"\x1b[5~",
+        "pagedown" => b"\x1b[6~",
+        "insert" => b"\x1b[2~",
+        "delete" => b"\x1b[3~",
+        "f1" => b"\x1bOP",
+        "f2" => b"\x1bOQ",
+        "f3" => b"\x1bOR",
+        "f4" => b"\x1bOS",
+        "f5" => b"\x1b[15~",
+        "f6" => b"\x1b[17~",
+        "f7" => b"\x1b[18~",
+        "f8" => b"\x1b[19~",
+        "f9" => b"\x1b[20~",
+        "f10" => b"\x1b[21~",
+        "f11" => b"\x1b[23~",
+        "f12" => b"\x1b[24~",
+        other => panic!(
+            "{other} is in steg_sdk::key_names() but this test has no documented bytes for it \
+             - add a case above"
+        ),
+    }
+}
+
 /// A program that prints `GOT:<line>` for every line it reads from its
 /// own stdin - deterministic proof that bytes reached the program
 /// (through its pty) and in what order, independent of whatever the
@@ -447,40 +687,184 @@ fn pane_send_delivers_text_then_a_key_in_order_without_a_client_attached() {
 }
 
 #[test]
-fn pane_send_refuses_a_pane_with_no_running_program() {
+fn pane_send_delivers_each_named_key_with_its_documented_bytes() {
     let (socket_path, dir, stop, handle) = start_server();
-    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
-    let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "exit 0"]);
+    let (mut sender_stream, mut sender_connection) = connect_and_handshake(&socket_path);
+    // `stty -icanon` so this pane's own pty delivers every byte as soon
+    // as it arrives, rather than buffering a whole line (none of these
+    // ESC sequences end in a newline); `min 1 time 0`, spelled out
+    // rather than left at whatever `-icanon` happened to leave them,
+    // since those two values do double duty between canonical and
+    // non-canonical mode and leaving them unset can make a read block
+    // waiting for more bytes than a short key sequence ever sends
+    // (found while building this test). `-echo` so the raw bytes are
+    // never echoed back onto the screen itself, which a VT100 emulator
+    // would read as real control sequences - most of these keys *are*
+    // valid cursor-movement/function-key sequences, not printable text,
+    // so an echoed one would move the cursor rather than show up as
+    // text. `-icrnl` so a real carriage return (`enter`'s own `\r`) is
+    // not translated to `\n` before this program ever sees it (also
+    // found directly while building this test - without it, `enter`
+    // reads back as `0a`, not `0d`).
+    //
+    // One `dd`+`od` pair per byte, not one long-running `od`: `od`
+    // itself turned out to buffer its *input* internally and never
+    // flush until either its own buffer filled or it saw end-of-file -
+    // neither ever happens on an open pty with a few bytes at a time
+    // (confirmed directly: a single long-running `od -An -tx1` here
+    // produced nothing at all for a 3-byte write, for minutes). `dd
+    // bs=1 count=1` reads exactly one byte and closes its own stdout,
+    // which gives the `od` downstream of it the end-of-file it needs to
+    // flush that one byte immediately - one hex-digit pair per line,
+    // the unit [`hex_lines`] reads back.
+    let pane = new_pane_running(
+        &mut sender_stream,
+        &mut sender_connection,
+        vec![
+            "sh",
+            "-c",
+            "stty -icanon -echo -icrnl min 1 time 0; printf 'READY\\n'; \
+             while :; do dd bs=1 count=1 2>/dev/null | od -An -tx1; done",
+        ],
+    );
 
-    // Waits for the real exit (R97: the pane stays, with no program
-    // running) by polling `pane.show`'s own `program_status` - bounded,
-    // no event for this exists on the client side.
-    let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
+    let (mut observer_stream, mut observer_connection) = connect_and_handshake(&socket_path);
+    let attached = attach(&mut observer_stream, &mut observer_connection, &pane);
+    let mut held = attached.snapshot;
+
+    // A tall terminal, declared once: 26 named keys each print a
+    // hex-digit line plus a blank line, and the default 24-row screen
+    // (DEFAULT_PANE_SIZE) would start scrolling well before the last
+    // one - found directly while building this test, where the keys
+    // after the screen's own height stopped being found at all, since
+    // `hex_lines` only ever reads the *active* screen, never
+    // scrollback. Comfortably more rows than this test could ever need.
+    let response = declare_size(
+        &mut observer_stream,
+        &mut observer_connection,
+        &tab_path_of(&pane),
+        80,
+        1000,
+    );
+    assert!(
+        matches!(response, Response::Ok(_)),
+        "tab.declare-size: {response:?}"
+    );
+    wait_for_exact_line(
+        &mut observer_stream,
+        &mut observer_connection,
+        &mut held,
+        attached.stream,
+        "READY",
+        Duration::from_secs(15),
+    );
+
+    // How many hex-dump lines (one per byte actually read) have already
+    // been matched against an earlier key in this loop - the next key's
+    // own bytes must land in the lines *after* this point, never
+    // re-matched against a previous key's own leftover output.
+    let mut consumed = 0_usize;
+    for name in key_names() {
+        let expected_bytes = documented_bytes(&name);
+        let expected_hex: Vec<String> =
+            expected_bytes.iter().map(|b| format!("{b:02x}")).collect();
+
         let mut params = Map::new();
         params.insert("target".to_string(), json!(pane));
-        let response = call_and_read_reply(&mut stream, &mut connection, "pane.show", params);
-        let Response::Ok(record) = response else {
-            panic!("pane.show failed: {response:?}")
-        };
-        if record["program_status"] == json!("ended") {
-            break;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "the real `exit 0` never reached Ended within the bound"
+        params.insert("key".to_string(), json!(name));
+        let response = call_and_read_reply(
+            &mut sender_stream,
+            &mut sender_connection,
+            "pane.send",
+            params,
         );
-        std::thread::sleep(Duration::from_millis(20));
+        assert!(
+            matches!(response, Response::Ok(Value::Null)),
+            "pane.send --key {name}: {response:?}"
+        );
+
+        wait_for_hex_line_count(
+            &mut observer_stream,
+            &mut observer_connection,
+            &mut held,
+            attached.stream,
+            consumed + expected_hex.len(),
+            Duration::from_secs(15),
+        );
+        let lines = hex_lines(&held);
+        let actual = &lines[consumed..consumed + expected_hex.len()];
+        assert_eq!(actual, expected_hex.as_slice(), "key {name:?}");
+        consumed += expected_hex.len();
     }
+
+    stop_server(&dir, &stop, handle);
+}
+
+#[test]
+fn pane_send_refuses_a_pane_with_no_running_program() {
+    let (socket_path, dir, stop, handle) = start_server();
+    let (mut sender_stream, mut sender_connection) = connect_and_handshake(&socket_path);
+    let pane = new_pane_running(
+        &mut sender_stream,
+        &mut sender_connection,
+        vec!["sh", "-c", "exit 0"],
+    );
+
+    // Attached *before* the program exits, so this connection's own
+    // snapshot/updates cover the whole of the program's short life.
+    let (mut observer_stream, mut observer_connection) = connect_and_handshake(&socket_path);
+    let attached = attach(&mut observer_stream, &mut observer_connection, &pane);
+    // Never mutated (unlike the other tests' own `held`): the whole
+    // point below is that nothing can arrive on this stream again once
+    // `Ended` does, so this binding is read, never updated.
+    let held = attached.snapshot;
+
+    // Waits for the real exit through the pane's own attachment stream
+    // (TASK-1.128's `Ended`), not by polling `pane.show` - the plan's
+    // own choice, changed here (Departure, named in the notes): the
+    // event already exists and needs no sleep-poll in its place.
+    let reason = next_ended(
+        &mut observer_stream,
+        &mut observer_connection,
+        attached.stream,
+        Duration::from_secs(15),
+    );
+    assert_eq!(reason, EndReason::ProgramExited { exit_code: 0 });
+
+    // What a screen read can prove here, honestly: once the program has
+    // ended, the attachment's own stream is already `Ended` and closed
+    // on both sides (doc-14) - nothing can arrive on it again, whether
+    // or not `pane.send` is refused. So this is corroboration, not the
+    // proof: a hypothetical bug that let bytes through anyway would
+    // still write them to a pty with nothing left running to read or
+    // echo them (the worker's own `PaneCommand::Input` arm is a no-op
+    // once `current` is `None` - confirmed directly against
+    // `crates/server/src/pane.rs`), so an unchanged screen cannot tell
+    // "refused" apart from "silently accepted and had nothing to show
+    // for it" on its own. The error code, asserted below, is the real
+    // proof.
+    let before = screen_text(&held);
 
     let mut params = Map::new();
     params.insert("target".to_string(), json!(pane));
     params.insert("text".to_string(), json!("x"));
-    let response = call_and_read_reply(&mut stream, &mut connection, "pane.send", params);
+    let response = call_and_read_reply(
+        &mut sender_stream,
+        &mut sender_connection,
+        "pane.send",
+        params,
+    );
     let Response::Error(error) = response else {
         panic!("expected pane.send to refuse an already-ended pane, got {response:?}")
     };
     assert_eq!(error.code, ErrorCode::ProgramNotRunning);
+
+    assert_eq!(
+        screen_text(&held),
+        before,
+        "corroboration only (see above): nothing should have reached this already-`Ended` \
+         stream regardless"
+    );
 
     stop_server(&dir, &stop, handle);
 }
@@ -488,14 +872,56 @@ fn pane_send_refuses_a_pane_with_no_running_program() {
 #[test]
 fn pane_send_refuses_text_and_key_together() {
     let (socket_path, dir, stop, handle) = start_server();
-    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
-    let pane = new_pane_running(&mut stream, &mut connection, echo_lines_program());
+    let (mut sender_stream, mut sender_connection) = connect_and_handshake(&socket_path);
+    let pane = new_pane_running(
+        &mut sender_stream,
+        &mut sender_connection,
+        echo_lines_program(),
+    );
+
+    // This pane is still running, so this is the real proof (unlike the
+    // already-ended pane above): bytes that actually reached it would
+    // be echoed back by its own program and show up here.
+    let (mut observer_stream, mut observer_connection) = connect_and_handshake(&socket_path);
+    let attached = attach(&mut observer_stream, &mut observer_connection, &pane);
+    let mut held = attached.snapshot;
+    let before = screen_text(&held);
 
     let mut params = Map::new();
     params.insert("target".to_string(), json!(pane));
     params.insert("text".to_string(), json!("hello"));
     params.insert("key".to_string(), json!("enter"));
-    let response = call_and_read_reply(&mut stream, &mut connection, "pane.send", params);
+    let response = call_and_read_reply(
+        &mut sender_stream,
+        &mut sender_connection,
+        "pane.send",
+        params,
+    );
+
+    // Checked *before* the error code, deliberately: this is the real
+    // proof (see above), and keeping it first means a control that
+    // removes the both-given check (so `response` itself would wrongly
+    // become `Ok`, text's own bytes delivered) still fails here, on the
+    // thing that actually matters, rather than only on the response
+    // shape a step below never gets to run.
+    //
+    // A window bounded below, not a sleep used as a wait - the same
+    // shape `attach.rs`'s own `assert_nothing_more_arrives_on` already
+    // uses to prove an absence: there is no event to wait on for
+    // "nothing happened".
+    drain_updates_for(
+        &mut observer_stream,
+        &mut observer_connection,
+        &mut held,
+        attached.stream,
+        Duration::from_millis(500),
+    );
+    assert_eq!(
+        screen_text(&held),
+        before,
+        "text and key given together must deliver nothing at all, not one or the other"
+    );
+
     let Response::Error(error) = response else {
         panic!("expected pane.send to refuse text and key together, got {response:?}")
     };

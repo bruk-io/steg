@@ -140,6 +140,14 @@ FAILED tools/tests/functional/test_quiet_slots.py::test_two_heavy_steps_with_one
 FAILED tools/tests/functional/test_quiet_slots.py::test_the_variable_sets_how_many_run_at_once
 2 failed in 1.82s
 ```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_two_heavy_steps_with_one_slot_do_not_overlap tools/tests/functional/test_quiet_slots.py::test_the_variable_sets_how_many_run_at_once'` exited 0 at 2026-11-18T02:43:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmptVJ9ft` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed in 3.47s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

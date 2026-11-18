@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T23:48:00Z'
+updated_date: '2026-11-18T23:52:00Z'
 labels:
   - size-2
   - changes-requested
@@ -535,6 +535,53 @@ Minor addition beyond the plan's literal file list, not a design change: mod.rs'
 Checks recorded on the board: crates/kernel's target:: tests (5 new, all passing); crates/sdk's full test suite (176 passing, including the 3 new ClientRecord tests); crates/server's dispatch integration suite (85 passing, including the 8 new client:: tests); each new functional test's own control - the client-model not-yet arm, and the --all/kind filter - temporarily removed at the final head, confirmed failing (exit 101, recorded), then restored and confirmed passing (exit 0, recorded), per AC #4's own wording; just check green at the final head (recorded, exit 0), re-run after each rebase onto a fast-moving origin/main (TASK-1.88 and TASK-1.139 building beside this task, both recording their own checks - no actual code commits from either landed on main yet, only board metadata, confirmed by inspection before each rebase).
 
 CI green on the pushed head (191fbf5), 13m36s, https://github.com/bruk-io/steg/actions/runs/44420282004/job/135211117386.
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch client:: 2>&1'` exited 101 at 2026-11-18T23:52:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 191fbf539235 with uncommitted changes, last 40 of 105 lines:
+
+```text
+thread 'client::client_show_an_unknown_target_is_no_such_target_and_an_ambiguous_one_is_ambiguous_target' (63779653) panicked at crates/server/tests/dispatch/client.rs:191:5:
+assertion `left == right` failed
+  left: NotImplementedYet
+ right: NoSuchTarget
+
+---- client::client_list_returns_every_connected_client_by_default_except_cli stdout ----
+
+thread 'client::client_list_returns_every_connected_client_by_default_except_cli' (63779651) panicked at crates/server/tests/dispatch/fixtures.rs:54:35:
+expected Response::Ok, got ApiError { code: NotImplementedYet, message: "not implemented yet: waiting on a client model (TASK-1.42)", candidates: [] }
+
+---- client::client_show_reports_the_sessions_it_views stdout ----
+
+thread 'client::client_show_reports_the_sessions_it_views' (63779655) panicked at crates/server/tests/dispatch/fixtures.rs:54:35:
+expected Response::Ok, got ApiError { code: NotImplementedYet, message: "not implemented yet: waiting on a client model (TASK-1.42)", candidates: [] }
+
+---- client::client_list_with_all_includes_cli_clients_too stdout ----
+
+thread 'client::client_list_with_all_includes_cli_clients_too' (63779652) panicked at crates/server/tests/dispatch/fixtures.rs:54:35:
+expected Response::Ok, got ApiError { code: NotImplementedYet, message: "not implemented yet: waiting on a client model (TASK-1.42)", candidates: [] }
+
+---- client::client_list_matches_exactly_the_fields_the_description_declares stdout ----
+
+thread 'client::client_list_matches_exactly_the_fields_the_description_declares' (63779650) panicked at crates/server/tests/dispatch/fixtures.rs:54:35:
+expected Response::Ok, got ApiError { code: NotImplementedYet, message: "not implemented yet: waiting on a client model (TASK-1.42)", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::client_list_and_show_change_nothing_in_the_tree
+    client::client_list_matches_exactly_the_fields_the_description_declares
+    client::client_list_returns_every_connected_client_by_default_except_cli
+    client::client_list_with_all_includes_cli_clients_too
+    client::client_show_an_unknown_target_is_no_such_target_and_an_ambiguous_one_is_ambiguous_target
+    client::client_show_matches_exactly_the_fields_the_description_declares
+    client::client_show_reports_the_sessions_it_views
+    client::client_show_resolves_by_id_label_position_and_suffix
+
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test dispatch`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

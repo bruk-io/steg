@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:01:00Z'
+updated_date: '2026-11-18T00:13:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -720,6 +720,41 @@ test result: FAILED. 202 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
 error: test failed, to rerun pass `-p steg-server --lib`
 full output: .quiet/test-steg-server-accept-backoff-fixture.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T00:13:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at a9b0d46ddae8 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (3.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (55.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (30.6s)
+ok      test (steg-server) (56.1s)
+ok      test (steg-server, race-fixture) (57.1s)
+ok      test (steg-server, pty-race-fixture) (62.3s)
+ok      test (steg-server, accept-backoff-fixture) (57.5s)
+ok      build (steg) (1.5s)
+ok      test (steg) (3.2s)
+ok      test (steg, fixtures) (9.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (4.8s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (1.1s)
+ok      tool tests (13.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

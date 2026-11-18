@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:08:00Z'
+updated_date: '2026-11-18T00:20:00Z'
 labels:
   - size-2
   - changes-requested
@@ -2064,6 +2064,47 @@ ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Commits since the review: 2, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app a_full_queue_reports_disconnected_exactly_once` exited 101 at 2026-11-18T00:20:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 9c7f5b6ba880 with uncommitted changes:
+
+```text
+warning: unused import: `Ordering`
+  --> crates/app/src/client.rs:11:37
+   |
+11 | use std::sync::atomic::{AtomicBool, Ordering};
+   |                                     ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 1 warning (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls ... FAILED
+
+failures:
+
+---- client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls stdout ----
+
+thread 'client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls' (55724114) panicked at crates/app/src/client.rs:755:9:
+assertion `left == right` failed: a full queue must report the connection lost exactly once, not once per failed try_send
+  left: 719
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 63 filtered out; finished in 0.50s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 2, all with the Asdlc-Worker trailer.

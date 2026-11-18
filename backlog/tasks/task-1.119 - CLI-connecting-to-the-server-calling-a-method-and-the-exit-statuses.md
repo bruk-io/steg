@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T04:36:00Z'
+updated_date: '2026-11-18T04:44:00Z'
 labels:
   - size-2
   - changes-requested
@@ -925,6 +925,34 @@ Note for TASK-1.50/1.51: a bare, one-segment target (just a tab or pane id) is r
 Follow-up named, not built here: move crates/app/src/startup.rs's own run/attach_over onto local_socket::connect_handshaken and delete its local hello-sending/reading, so the app gets the same retry-once protection - left for its own task since crates/app is off limits here.
 
 Checks: local just check was not green at several points on this shared dev machine - crates/server/tests/attach.rs's own stuck-pane timing test (an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane) failed repeatedly under this machine's concurrent load (6 users, other workers' builds, load average up to ~11), but passed reliably - together with its whole 23-test file - when run alone or against a clean origin/main worktree under matched conditions, confirming it is a pre-existing, environment-dependent flake unrelated to this PR (nothing here touches crates/server/src or crates/server/tests). CI is green on 5a456f3a (bruk-io/steg#77) - the clean check for this head, confirmed by the engineer. crates/sdk and crates/steg's own full test suites passed repeatedly throughout, including after merging TASK-1.130's description/methods.rs split.
+
+Check FAILED: `cargo test -p steg-sdk --lib --features local-socket -- a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello` exited 101 at 2026-11-18T04:44:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-2f782de52c6eac3e)
+
+running 1 test
+test local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello ... FAILED
+
+failures:
+
+---- local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello stdout ----
+
+thread 'local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello' (58777657) panicked at crates/sdk/src/local_socket.rs:627:9:
+a hello that was actually decoded must surface as a genuine error, never as ClosedBeforeHello (which would claim no server ever answered) and never as a success (which would hand back a stream whose own state is now unknown): Err(ClosedBeforeHello)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

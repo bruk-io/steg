@@ -96,6 +96,17 @@ pub struct Attached {
     pub connection: Connection,
     pub shutdown_handle: UnixStream,
     pub snapshot: steg_sdk::Screen,
+    /// The attachment's own stream id (`PaneAttached.stream`) - what the writer's own
+    /// `Connection::send_data`/`Connection::open_stream` need (TASK-1.121 plan §3: the
+    /// writer is a second `Connection` instance, seeded the same way the reader's was).
+    pub stream_id: u32,
+    /// A clone of the connected socket, for the writer's own `Connection` to write
+    /// through directly - the same socket, a second handle (TASK-1.117's plan §1: "two
+    /// `Connection` instances... writing directly over its own cloned handle").
+    pub write_handle: UnixStream,
+    /// `{session}/{tab}` - `tab.declare-size`'s own target (TASK-1.114 §2: declaring a
+    /// size targets a tab, not the pane this startup attached to).
+    pub tab_target: String,
 }
 
 /// Resolves the binary `ConnectOptions::binary` autostarts (TASK-1.117's plan
@@ -270,8 +281,9 @@ fn attach_over(
     let tab_id = first_id(&tabs, "tab.list")?;
 
     let (tab_id, pane_id) = resolve_pane(&mut stream, &mut connection, &session_id, tab_id)?;
+    let tab_target = format!("{session_id}/{tab_id}");
 
-    let attach_target = format!("{session_id}/{tab_id}/{pane_id}");
+    let attach_target = format!("{tab_target}/{pane_id}");
     let (id, bytes) = connection
         .attach(Some(&attach_target))
         .map_err(|err| StartupError::Protocol(format!("pane.attach: {err:?}")))?;
@@ -295,6 +307,9 @@ fn attach_over(
     let attached: PaneAttached = serde_json::from_value(attached_value)
         .map_err(|err| StartupError::Protocol(format!("pane.attach: {err}")))?;
     connection.open_stream(attached.stream);
+    let write_handle = stream
+        .try_clone()
+        .map_err(|err| StartupError::Protocol(format!("could not clone the socket: {err}")))?;
 
     // The "too late" decision point from the module doc: this is the last step before
     // declaring success, and the same lock `interrupt` uses to shut the connection down
@@ -339,6 +354,9 @@ fn attach_over(
         connection,
         shutdown_handle,
         snapshot: attached.snapshot,
+        stream_id: attached.stream,
+        write_handle,
+        tab_target,
     })
 }
 

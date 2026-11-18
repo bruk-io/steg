@@ -1,46 +1,59 @@
-//! Steg.app: a GPUI window with one terminal, read-only (TASK-1.117, part 1 of three -
-//! typing, resizing and the latency budget are later tasks). A client of the server like
-//! any other, through the sdk and the public API, with no private channel.
+//! Steg.app: a GPUI window with one terminal (TASK-1.117's bare, read-only window; typing,
+//! resizing and the IME, TASK-1.121; the latency budget, TASK-1.122). A client of the
+//! server like any other, through the sdk and the public API, with no private channel.
 
 mod client;
+mod ime;
+mod keys;
 mod metrics;
 mod model;
+mod size;
 mod startup;
 mod terminal_element;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::ops::Range;
 use std::rc::Rc;
 use std::thread::JoinHandle;
 
 use futures::StreamExt as _;
 use gpui::{
-    App, Application, AsyncWindowContext, Context, FocusHandle, Focusable, IntoElement,
-    ParentElement as _, Render, Styled as _, Subscription, Task, TitlebarOptions, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, prelude::*, px, size,
+    App, Application, AsyncWindowContext, Bounds, Context, EntityInputHandler, FocusHandle,
+    Focusable, IntoElement, KeyDownEvent, ParentElement as _, Pixels, Render, Styled as _,
+    Subscription, Task, TitlebarOptions, UTF16Selection, Window, WindowAppearance, WindowBounds,
+    WindowOptions, div, prelude::*, px, size,
 };
 use steg_ui::foundations::{self, Appearance, Theme};
 
-use crate::client::{Client, ClientEvent};
+use crate::client::{Client, ClientEvent, Writer};
+use crate::ime::ImeState;
 use crate::metrics::CellMetrics;
 use crate::model::Model;
+use crate::size::GridSize;
 use crate::startup::{Attached, ShutdownSlot, StartupError};
 use crate::terminal_element::RowCache;
 
 /// Everything this window holds once attached: the model a background thread feeds, the
-/// metrics and row cache painting needs, and the client whose own `stop` ends the reader
-/// thread.
+/// metrics and row cache painting needs, the client whose own `stop` ends the reader
+/// thread, and TASK-1.121's own addition - the writer, the tab this attachment's size is
+/// declared for, the size last actually declared (the coalescer's own state, `size.rs`),
+/// and the terminal element's own last-painted bounds (read back by `bounds_for_range`).
 struct AttachedState {
     model: Rc<RefCell<Model>>,
     metrics: CellMetrics,
     row_cache: Rc<RefCell<RowCache>>,
     client: Client,
     _receive_task: Task<()>,
+    writer: Writer,
+    declared_size: Cell<GridSize>,
+    last_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+    _resize_subscription: Subscription,
 }
 
 /// What the window shows right now (TASK-1.117's plan §3/§6).
 enum Phase {
     Connecting,
-    Attached(AttachedState),
+    Attached(Box<AttachedState>),
     Disconnected(String),
 }
 
@@ -60,6 +73,9 @@ pub struct AppWindow {
     startup_shutdown: ShutdownSlot,
     _startup_task: Task<()>,
     _appearance_subscription: Subscription,
+    /// The IME's own composition state (TASK-1.121 plan §2) - meaningless before
+    /// `Phase::Attached`, harmless either way (nothing reads it until then).
+    ime: ImeState,
 }
 
 impl AppWindow {
@@ -94,6 +110,7 @@ impl AppWindow {
             startup_shutdown,
             _startup_task: startup_task,
             _appearance_subscription: appearance_subscription,
+            ime: ImeState::default(),
         }
     }
 
@@ -129,11 +146,49 @@ impl AppWindow {
         let metrics = CellMetrics::measure(window);
         let model = Rc::new(RefCell::new(Model::from_snapshot(attached.snapshot)));
         let row_cache = terminal_element::row_cache();
-        let (client, mut receiver) = Client::start(
+
+        // One shared event channel for both threads (review finding 1): the reader's own
+        // `Disconnected` and the writer thread's own now travel the exact same path to the
+        // window, so either side losing the connection is handled identically.
+        let (events, mut receiver) = futures::channel::mpsc::unbounded();
+        let client = Client::start(
             attached.stream,
             attached.connection,
             attached.shutdown_handle,
+            events.clone(),
         );
+
+        // The writer: a second, encode-only `Connection`, seeded the same way the reader's
+        // was (`Connection::open_stream` on the same id) - TASK-1.121 plan §3, TASK-1.117's
+        // plan §1's own slot for this; now (review finding 1) its own dedicated thread, fed
+        // by a bounded queue, never a socket write on this thread. Its own `tab.declare-
+        // size` reply lands on the reader's connection instead (`client.rs`'s own `drain`,
+        // which tolerates it).
+        let mut writer_connection =
+            steg_sdk::Connection::new(steg_sdk::WireRole::Client, steg_sdk::description());
+        writer_connection.open_stream(attached.stream_id);
+        let mut writer = Writer::new(
+            attached.write_handle,
+            writer_connection,
+            attached.stream_id,
+            attached.tab_target,
+            events,
+        );
+
+        // Declared once on open (TASK-1.121 plan §4), from whatever the window's own
+        // viewport already is - before any resize has happened, so the grid starts
+        // filling the window rather than waiting for the first one.
+        let declared_size = size::grid_size(
+            f32::from(window.viewport_size().width),
+            f32::from(window.viewport_size().height),
+            f32::from(metrics.cell_width),
+            f32::from(metrics.line_height),
+        );
+        writer.declare_size(declared_size.columns, declared_size.rows);
+
+        let resize_subscription = cx.observe_window_bounds(window, |this, window, _cx| {
+            this.on_resize(window);
+        });
 
         let weak = cx.weak_entity();
         let receive_task = window.spawn(cx, async move |cx: &mut AsyncWindowContext| {
@@ -149,13 +204,17 @@ impl AppWindow {
             }
         });
 
-        self.phase = Phase::Attached(AttachedState {
+        self.phase = Phase::Attached(Box::new(AttachedState {
             model,
             metrics,
             row_cache,
             client,
+            writer,
+            declared_size: Cell::new(declared_size),
+            last_bounds: Rc::new(Cell::new(None)),
+            _resize_subscription: resize_subscription,
             _receive_task: receive_task,
-        });
+        }));
         cx.notify();
     }
 
@@ -197,7 +256,200 @@ impl AppWindow {
         drop(self.startup_thread.take());
         if let Phase::Attached(state) = &mut self.phase {
             state.client.stop();
+            state.writer.stop();
         }
+    }
+
+    /// The resize coalescer's own window-level half (TASK-1.121 plan §4): computes the
+    /// viewport's own grid size and, if it differs from what was last actually declared,
+    /// declares it. A no-op before attachment (nothing to declare for yet) - registered as
+    /// a `Subscription` only once attached (`apply_startup_result`), so this is reachable
+    /// only while `Phase::Attached` anyway; the `let else` is defensive, not expected.
+    fn on_resize(&mut self, window: &mut Window) {
+        let Phase::Attached(state) = &mut self.phase else {
+            return;
+        };
+        let viewport = window.viewport_size();
+        let computed = size::grid_size(
+            f32::from(viewport.width),
+            f32::from(viewport.height),
+            f32::from(state.metrics.cell_width),
+            f32::from(state.metrics.line_height),
+        );
+        if let Some(next) = size::declare_if_changed(state.declared_size.get(), computed) {
+            state.declared_size.set(next);
+            state.writer.declare_size(next.columns, next.rows);
+        }
+    }
+
+    /// Sends `bytes` as input, if attached - a no-op otherwise (there is no writer before
+    /// `Phase::Attached`, and nowhere for a keystroke typed before then to go).
+    fn send_bytes(&mut self, bytes: Vec<u8>) {
+        if let Phase::Attached(state) = &mut self.phase {
+            state.writer.send_input(bytes);
+        }
+    }
+
+    /// The raw key path (TASK-1.121 plan §1): `keys::key_to_bytes` over the keystroke's own
+    /// three public fields, sent if it maps to anything. Stops propagation exactly when it
+    /// does - the one invariant that guarantees a keystroke this maps never also reaches
+    /// `replace_text_in_range` (`keys.rs`'s own doc comment on the dedup rule GPUI's own
+    /// macOS backend already enforces).
+    fn on_key_down(&mut self, event: &KeyDownEvent, _window: &mut Window, cx: &mut Context<Self>) {
+        let keystroke = &event.keystroke;
+        if is_paste_keystroke(keystroke) {
+            // The one line that reads the real clipboard - `send_pasted_text` is the
+            // rest, and is what review's own second round asked be testable without one
+            // (its own module-level doc). Consumed either way once recognised as the
+            // gesture, even when the clipboard holds nothing - never falls through to
+            // `key_to_bytes` (which would return `None` for it regardless, `keys.rs`'s
+            // own `modifiers.platform` check) or to the IME path.
+            if let Phase::Attached(state) = &mut self.phase {
+                let clipboard_text = cx.read_from_clipboard().and_then(|item| item.text());
+                send_pasted_text(&mut state.writer, clipboard_text.as_deref());
+            }
+            cx.stop_propagation();
+            return;
+        }
+        if let Some(bytes) = keys::key_to_bytes(
+            &keystroke.key,
+            keystroke.key_char.as_deref(),
+            keystroke.modifiers,
+        ) {
+            self.send_bytes(bytes);
+            cx.stop_propagation();
+        }
+    }
+}
+
+/// A plain Cmd-V: the command key and nothing else besides the key itself (not Cmd-Shift-V,
+/// not Cmd-Option-V) - the exact gesture the approved plan names, no more.
+fn is_paste_keystroke(keystroke: &gpui::Keystroke) -> bool {
+    keystroke.key == "v"
+        && keystroke.modifiers.platform
+        && !keystroke.modifiers.control
+        && !keystroke.modifiers.shift
+        && !keystroke.modifiers.alt
+        && !keystroke.modifiers.function
+}
+
+/// The testable half of Cmd-V (review's own second round: "pull the mechanism out of the
+/// gpui handler into a function that takes the clipboard text as an argument... and the
+/// writer, so the handler is one line"). Plain bytes, no bracketed paste (approved plan's
+/// "For the engineer" §3): `clipboard_text`, normalised the same way a committed IME
+/// composition already is (`ime::normalize_line_endings`'s own doc - a pasted document is
+/// exactly the kind of text with CRLF or bare CR line endings that doc describes), sent as
+/// one `send_input` call on the same writer ordinary input already goes through - so a
+/// paste interleaved with typing keeps the order the UI issued them in, the same guarantee
+/// review finding 1 gave `Writer`'s own single queue. Sends nothing - not even an empty
+/// frame - when the clipboard held no text, or held an empty string: there is nothing a
+/// real paste of nothing would ever produce, so nothing is the honest thing to send.
+fn send_pasted_text(writer: &mut Writer, clipboard_text: Option<&str>) {
+    let Some(text) = clipboard_text.filter(|text| !text.is_empty()) else {
+        return;
+    };
+    writer.send_input(ime::normalize_line_endings(text).into_bytes());
+}
+
+impl EntityInputHandler for AppWindow {
+    /// No editable text buffer exists here (`ime.rs`'s own module doc) - an honest "nothing
+    /// selectable" the IME already tolerates.
+    fn text_for_range(
+        &mut self,
+        _range: Range<usize>,
+        _adjusted_range: &mut Option<Range<usize>>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<String> {
+        None
+    }
+
+    fn selected_text_range(
+        &mut self,
+        _ignore_disabled_input: bool,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<UTF16Selection> {
+        None
+    }
+
+    /// Real, not hard-coded `None` - this is what lets GPUI's own macOS backend ever learn
+    /// a composition is open (`keys.rs`'s own doc comment on the dedup rule), and the
+    /// composition's own real length, not a fixed `0..0` (`ime.rs`'s own doc on
+    /// `marked_range_utf16` - review finding: a multi-character composition needs its real
+    /// length for AppKit's own next `setMarkedText:` call to land correctly).
+    fn marked_text_range(
+        &self,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Range<usize>> {
+        self.ime.marked_range_utf16()
+    }
+
+    fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {
+        self.ime.unmark();
+    }
+
+    /// Committed text - the one path a resolved composition or a plain, non-composing
+    /// insert ever takes (`ime.rs`'s own doc on `ImeState::commit`).
+    fn replace_text_in_range(
+        &mut self,
+        _range: Option<Range<usize>>,
+        text: &str,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let bytes = self.ime.commit(text);
+        self.send_bytes(bytes);
+        cx.notify();
+    }
+
+    /// Marked (uncommitted) text: tracked so `is_composing` is real, sent nowhere (`ime.rs`'s
+    /// own stated gap - no preview is drawn for it yet either).
+    fn replace_and_mark_text_in_range(
+        &mut self,
+        _range: Option<Range<usize>>,
+        new_text: &str,
+        _new_selected_range: Option<Range<usize>>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.ime.mark(new_text);
+        cx.notify();
+    }
+
+    /// The terminal's own current cursor cell, so the IME's candidate window anchors there
+    /// rather than the window's origin - `None` only before the first paint (`terminal_
+    /// element::terminal`'s own doc on `last_bounds`).
+    fn bounds_for_range(
+        &mut self,
+        _range_utf16: Range<usize>,
+        _element_bounds: Bounds<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Bounds<Pixels>> {
+        let Phase::Attached(state) = &self.phase else {
+            return None;
+        };
+        let bounds = state.last_bounds.get()?;
+        let cursor = state.model.borrow().cursor();
+        let metrics = &state.metrics;
+        Some(Bounds::new(
+            gpui::point(
+                bounds.origin.x + metrics.cell_width * f32::from(cursor.x),
+                bounds.origin.y + metrics.line_height * f32::from(cursor.y),
+            ),
+            gpui::size(metrics.cell_width, metrics.line_height),
+        ))
+    }
+
+    fn character_index_for_point(
+        &mut self,
+        _point: gpui::Point<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<usize> {
+        None
     }
 }
 
@@ -208,7 +460,7 @@ impl Focusable for AppWindow {
 }
 
 impl Render for AppWindow {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = Theme::with_default_session(self.appearance);
         match &self.phase {
             Phase::Connecting => placeholder(&theme, "connecting…"),
@@ -220,12 +472,19 @@ impl Render for AppWindow {
                     Appearance::Dark => foundations::steg_dark(theme.session()),
                     Appearance::Light => foundations::steg_light(theme.session()),
                 };
-                div().size_full().child(terminal_element::terminal(
-                    Rc::clone(&state.model),
-                    state.metrics.clone(),
-                    terminal_theme,
-                    Rc::clone(&state.row_cache),
-                ))
+                div()
+                    .size_full()
+                    .track_focus(&self.focus_handle)
+                    .on_key_down(cx.listener(Self::on_key_down))
+                    .child(terminal_element::terminal(
+                        Rc::clone(&state.model),
+                        state.metrics.clone(),
+                        terminal_theme,
+                        Rc::clone(&state.row_cache),
+                        self.focus_handle.clone(),
+                        cx.entity(),
+                        Rc::clone(&state.last_bounds),
+                    ))
             }
         }
     }
@@ -280,4 +539,195 @@ fn main() {
         }
         cx.activate(true);
     });
+}
+
+#[cfg(test)]
+mod paste_keystroke_tests {
+    use gpui::Modifiers;
+
+    use super::is_paste_keystroke;
+
+    fn keystroke(key: &str, modifiers: Modifiers) -> gpui::Keystroke {
+        gpui::Keystroke {
+            modifiers,
+            key: key.to_owned(),
+            key_char: None,
+        }
+    }
+
+    #[test]
+    fn a_plain_cmd_v_is_the_paste_keystroke() {
+        let modifiers = Modifiers {
+            platform: true,
+            ..Modifiers::default()
+        };
+        assert!(is_paste_keystroke(&keystroke("v", modifiers)));
+    }
+
+    #[test]
+    fn v_with_no_command_key_is_not_the_paste_keystroke() {
+        assert!(!is_paste_keystroke(&keystroke("v", Modifiers::default())));
+    }
+
+    #[test]
+    fn a_different_key_with_the_command_key_is_not_the_paste_keystroke() {
+        let modifiers = Modifiers {
+            platform: true,
+            ..Modifiers::default()
+        };
+        assert!(!is_paste_keystroke(&keystroke("c", modifiers)));
+    }
+
+    /// Cmd-Shift-V, Cmd-Option-V and the like are a different gesture - the approved
+    /// plan names plain Cmd-V only, no more.
+    #[test]
+    fn cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke() {
+        for modifiers in [
+            Modifiers {
+                platform: true,
+                shift: true,
+                ..Modifiers::default()
+            },
+            Modifiers {
+                platform: true,
+                alt: true,
+                ..Modifiers::default()
+            },
+            Modifiers {
+                platform: true,
+                control: true,
+                ..Modifiers::default()
+            },
+        ] {
+            assert!(!is_paste_keystroke(&keystroke("v", modifiers)));
+        }
+    }
+}
+
+#[cfg(test)]
+mod send_pasted_text_tests {
+    use std::io::Read as _;
+    use std::os::unix::net::UnixStream;
+
+    use steg_sdk::{Connection, Incoming, WireRole};
+
+    use super::{Writer, send_pasted_text};
+
+    /// A real socket pair standing in for the server (testing-rust.md: a real socket in
+    /// one process is cheap and is not a double) - the same shape `client.rs`'s own
+    /// `start_writer` uses, duplicated here since it is private to that module's own
+    /// tests.
+    fn writer_and_server() -> (UnixStream, Connection, Writer) {
+        let (server_side, app_side) = UnixStream::pair().expect("a socket pair");
+        // Bounded, like `client.rs`'s own `start_writer`: a test expecting a frame that
+        // never arrives (a real regression, not only this file's own temporary control)
+        // must fail with a read error, not hang the test process until something kills it.
+        server_side
+            .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+            .expect("set a read timeout");
+        let mut writer_connection = Connection::new(WireRole::Client, steg_sdk::description());
+        writer_connection.open_stream(7);
+        let (events, _receiver) = futures::channel::mpsc::unbounded();
+        let writer = Writer::new(
+            app_side,
+            writer_connection,
+            7,
+            "sess/tab-1".to_owned(),
+            events,
+        );
+        let mut server_connection = Connection::new(WireRole::Server, steg_sdk::description());
+        server_connection.open_stream(7);
+        (server_side, server_connection, writer)
+    }
+
+    fn read_one(server_side: &mut UnixStream, server_connection: &mut Connection) -> Incoming {
+        loop {
+            if let Some(incoming) = server_connection.poll() {
+                return incoming;
+            }
+            let mut buf = [0_u8; 65536];
+            let n = server_side
+                .read(&mut buf)
+                .expect("read what the writer wrote");
+            assert_ne!(n, 0, "the writer's own handle closed with nothing to read");
+            server_connection.receive(&buf[..n]);
+        }
+    }
+
+    /// Half a second, bounded, non-panicking: nothing ever arriving is this test's own
+    /// passing case (the empty/non-text clipboard tests below), not a broken harness -
+    /// the same shape `client.rs`'s own `try_read_reply` uses.
+    fn nothing_arrives_within_bound(server_side: &mut UnixStream) -> bool {
+        server_side
+            .set_read_timeout(Some(std::time::Duration::from_millis(200)))
+            .expect("set a read timeout");
+        let mut buf = [0_u8; 64];
+        matches!(
+            server_side.read(&mut buf),
+            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock
+                || err.kind() == std::io::ErrorKind::TimedOut
+        )
+    }
+
+    #[test]
+    fn text_with_crlf_and_bare_lf_arrives_normalised_as_one_send() {
+        let (mut server_side, mut server_connection, mut writer) = writer_and_server();
+        send_pasted_text(&mut writer, Some("one\r\ntwo\nthree"));
+
+        let Incoming::Data { stream, bytes } = read_one(&mut server_side, &mut server_connection)
+        else {
+            panic!("expected a data frame, not something else decoded off the same bytes");
+        };
+        assert_eq!(stream, 7);
+        assert_eq!(
+            bytes, b"one\rtwo\rthree",
+            "both the CRLF and the bare LF should become a single \\r, the same \
+             normalisation a committed IME composition already gets",
+        );
+    }
+
+    #[test]
+    fn a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own() {
+        let (mut server_side, mut server_connection, mut writer) = writer_and_server();
+        writer.send_input(b"before".to_vec());
+        send_pasted_text(&mut writer, Some("pasted"));
+        writer.send_input(b"after".to_vec());
+
+        let first = read_one(&mut server_side, &mut server_connection);
+        let second = read_one(&mut server_side, &mut server_connection);
+        let third = read_one(&mut server_side, &mut server_connection);
+
+        assert!(
+            matches!(&first, Incoming::Data { bytes, .. } if bytes == b"before"),
+            "expected the input before the paste, got {first:?}"
+        );
+        assert!(
+            matches!(&second, Incoming::Data { bytes, .. } if bytes == b"pasted"),
+            "expected the paste as exactly one send, got {second:?}"
+        );
+        assert!(
+            matches!(&third, Incoming::Data { bytes, .. } if bytes == b"after"),
+            "expected the input after the paste, got {third:?}"
+        );
+    }
+
+    #[test]
+    fn no_clipboard_text_sends_nothing() {
+        let (mut server_side, _server_connection, mut writer) = writer_and_server();
+        send_pasted_text(&mut writer, None);
+        assert!(
+            nothing_arrives_within_bound(&mut server_side),
+            "a clipboard with no text at all must send nothing, not an empty frame",
+        );
+    }
+
+    #[test]
+    fn an_empty_clipboard_string_sends_nothing() {
+        let (mut server_side, _server_connection, mut writer) = writer_and_server();
+        send_pasted_text(&mut writer, Some(""));
+        assert!(
+            nothing_arrives_within_bound(&mut server_side),
+            "an empty clipboard string must send nothing, not an empty frame",
+        );
+    }
 }

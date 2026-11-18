@@ -1,15 +1,22 @@
-//! The terminal's own drawable state: a grid of rows, fixed at its own row count, and a
-//! cursor (TASK-1.117's plan, part 1). No `Screen.size`/`ScreenUpdate::Delta.size` field
-//! exists until TASK-1.114 lands, so the row count is read once, from the attach
-//! snapshot, and never recomputed from an update's own content - a later task teaches the
-//! model to track a reported size instead. There is no equivalent fixed column count:
-//! see [`Model::from_snapshot`]'s own doc for why deriving one from a row's content is not
-//! reliable, and what bounds columns instead.
+//! The terminal's own drawable state: a grid of rows, a cursor, and the terminal's own size
+//! as the server reports it (TASK-1.121 plan, section 4 - TASK-1.117's part 1 read only a
+//! row count, derived from the attach snapshot and fixed for its own life, before
+//! `Screen.size` existed to read instead). The row count comes straight from `Screen.size`,
+//! never from a row's own content: a blank row (nothing printed into it yet, the common
+//! case right after `pane.attach`) reports zero runs, which a "count the rows with content"
+//! rule would misread as zero rows - `Screen.size` is authoritative regardless of content.
+//!
+//! **Settled, not a gap: a `Delta` never carries a size at all** (doc-14's own "the size of
+//! a terminal" section, reworded once this landed on main): a size change always arrives as
+//! a `Full` resync instead, even when nothing else changed - the server tracks each
+//! attachment's own last-told size and sends a whole screen, not a bare field on a `Delta`,
+//! the moment it goes stale. `apply`'s own `Delta` arm therefore never touches `size`, by
+//! design, not by an omission this task owed a follow-up for.
 //!
 //! Plain data: no `gpui::Window`/`Context` parameter anywhere in this file, which is what
 //! lets it be tested without a window (TASK-1.117's plan, §4).
 
-use steg_sdk::{Cursor, Row, Screen, ScreenUpdate, Wide};
+use steg_sdk::{Cursor, Row, Screen, ScreenUpdate, Size, Wide};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// How many columns one run's own text spans: one cell per grapheme cluster it covers,
@@ -38,52 +45,32 @@ pub(crate) fn run_columns(run: &steg_sdk::Run) -> u16 {
     }
 }
 
-/// The terminal's drawable state: a fixed grid, sized once, and its rows and cursor as the
-/// server last reported them.
+/// The terminal's drawable state: a grid, its own size as the server last reported it, and
+/// its rows and cursor.
 pub struct Model {
-    row_count: u16,
+    size: Size,
     grid: Vec<Row>,
     cursor: Cursor,
 }
 
 impl Model {
-    /// Builds the model from `pane.attach`'s own snapshot: its row count is fixed, here,
-    /// for the rest of part 1's life (TASK-1.117's plan §4: part 1 never declares a size
-    /// and never recomputes one from an update). A row's own *column* width is not a
-    /// reliable stand-in for the pane's own column count, corrected after building this
-    /// against a real server: a blank row (nothing printed into it yet, the common case
-    /// right after `pane.attach`, before a shell's first prompt has reached the model)
-    /// reports zero runs and so zero columns, which a "first row's width" rule would
-    /// wrongly read as "this pane is zero columns wide" - observed directly (the model's
-    /// own `columns` came back `0` against a freshly attached pane, which painted nothing
-    /// at all even once real rows arrived, because the paint loop capped every row's own
-    /// width to that wrong `0`). There is no column count on the wire to read instead on
-    /// this branch alone (`pane.list`'s own `size` field is TASK-1.114's, not populated
-    /// here) - so this model tracks only the row count, which `screen.rows.len()` always
-    /// gives correctly regardless of content, and leaves how many columns of a row's own
-    /// content fit the window to the painter's own pixel bound instead (`terminal_element`
-    /// §2), never to a count derived from a row that might legitimately be blank.
+    /// Builds the model from `pane.attach`'s own snapshot: its size comes straight from
+    /// `screen.size` (module doc - never derived from a row's own content, which may
+    /// legitimately be blank).
     #[must_use]
     pub fn from_snapshot(screen: Screen) -> Self {
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "a terminal's own row count is bounded by its own scrollback/screen \
-                      size, never near u16::MAX"
-        )]
-        let row_count = screen.rows.len() as u16;
         Self {
-            row_count,
+            size: screen.size,
             grid: screen.rows,
             cursor: screen.cursor,
         }
     }
 
-    /// The grid's own fixed row count (TASK-1.117's plan §4: part 1 never declares one,
-    /// and never recomputes it from an update - see this type's own doc for why there is
-    /// no equivalent fixed column count here).
+    /// The grid's own row count, as the server's own `Screen.size` last reported it (module
+    /// doc: authoritative, not derived from content).
     #[must_use]
     pub fn row_count(&self) -> u16 {
-        self.row_count
+        self.size.rows()
     }
 
     #[must_use]
@@ -97,9 +84,9 @@ impl Model {
     }
 
     /// Applies one update: only the rows a `Delta` names, or the whole grid on a `Full`
-    /// resync - O(rows changed), never O(screen), on a delta (TASK-1.117's plan §2).
-    /// `(columns, rows)` is never touched here - that is the whole point of this type for
-    /// part 1 (§4's own "no size logic at all").
+    /// resync - O(rows changed), never O(screen), on a delta (TASK-1.117's plan §2). A
+    /// `Full` resync's own `size` replaces this model's size, since a fresh `Screen` always
+    /// carries one; a `Delta` never does (module doc).
     pub fn apply(&mut self, update: ScreenUpdate) {
         match update {
             ScreenUpdate::Unchanged => {}
@@ -112,6 +99,7 @@ impl Model {
                 self.cursor = cursor;
             }
             ScreenUpdate::Full { screen, .. } => {
+                self.size = screen.size;
                 self.grid = screen.rows;
                 self.cursor = screen.cursor;
             }
@@ -181,12 +169,22 @@ mod tests {
         runs
     }
 
+    /// A snapshot whose own `size` is derived from `rows.len()` - fine for every test below
+    /// that is about row content or the cursor, not about size tracking itself, where that
+    /// derivation would defeat the point (`snapshot_with_size`, below, is for those).
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "no test fixture's own row count approaches u16::MAX"
+    )]
     fn snapshot(rows: Vec<Row>) -> Screen {
-        // TASK-1.114: `Screen` now carries its own `size`, unused by this
-        // file's own logic (module doc above) - an arbitrary valid size
-        // keeps this fixture compiling, 80 columns matching every row
-        // built by this test module's own `narrow_run`/`wide_run` helpers.
-        let size = Size::new(80, rows.len() as u16);
+        let size = Size::new(0, rows.len() as u16);
+        snapshot_with_size(rows, size)
+    }
+
+    /// A snapshot with an explicit `size`, independent of `rows`'s own length or content -
+    /// what every test about size tracking itself needs: `Screen.size` is authoritative
+    /// regardless of what a row happens to hold (module doc).
+    fn snapshot_with_size(rows: Vec<Row>, size: Size) -> Screen {
         Screen {
             rows,
             cursor: cursor(),
@@ -214,26 +212,37 @@ mod tests {
     }
 
     #[test]
-    fn from_snapshot_reads_its_fixed_row_count_once() {
-        let model = Model::from_snapshot(snapshot(vec![
-            row(vec![narrow_run("12345")]),
-            row(vec![narrow_run("     ")]),
-        ]));
+    fn from_snapshot_reads_its_row_count_from_the_snapshots_own_size() {
+        // The size's own `rows` (2) differs from `rows.len()` (also 2 here, but given
+        // through `snapshot_with_size` rather than derived) - the point this proves is
+        // that `from_snapshot` reads `screen.size`, not `screen.rows.len()`.
+        let model = Model::from_snapshot(snapshot_with_size(
+            vec![
+                row(vec![narrow_run("12345")]),
+                row(vec![narrow_run("     ")]),
+            ],
+            Size::new(5, 2),
+        ));
         assert_eq!(model.row_count(), 2);
     }
 
     #[test]
     fn a_blank_first_row_does_not_change_the_row_count() {
-        // Found by running the real app against a real server (TASK-1.117): a pane
-        // attached before its shell had printed anything has every row's own run list
-        // empty, so a row count derived from content, not `rows.len()`, would read as 0 -
-        // this is the regression this test pins down (`Model::from_snapshot`'s own doc).
-        let model = Model::from_snapshot(snapshot(vec![row(Vec::new()), row(Vec::new())]));
+        // Found by running the real app against a real server (TASK-1.117, before
+        // `Screen.size` existed to read instead): a pane attached before its shell had
+        // printed anything has every row's own run list empty, so a row count derived
+        // from content would read as 0. `Screen.size` is authoritative regardless -
+        // the explicit size here (2) is what this test actually trusts, not the blank
+        // rows it's given alongside it.
+        let model = Model::from_snapshot(snapshot_with_size(
+            vec![row(Vec::new()), row(Vec::new())],
+            Size::new(80, 2),
+        ));
         assert_eq!(model.row_count(), 2);
     }
 
     #[test]
-    fn a_delta_touches_only_the_rows_it_names_and_never_resizes_the_grid() {
+    fn a_delta_touches_only_the_rows_it_names_and_leaves_the_size_unchanged() {
         let mut model = Model::from_snapshot(snapshot(vec![
             row(vec![narrow_run("aaaaa")]),
             row(vec![narrow_run("bbbbb")]),
@@ -247,21 +256,38 @@ mod tests {
         assert_eq!(model.rows()[0], row(vec![narrow_run("aaaaa")]));
         assert_eq!(model.rows()[1], row(vec![narrow_run("BBBBB")]));
         assert_eq!(model.rows()[2], row(vec![narrow_run("ccccc")]));
-        // The fixed row count from `from_snapshot` is unchanged - no field on
-        // `ScreenUpdate` on this branch could have changed it anyway, which is the point
-        // this test proves: nothing in `apply` re-derives it from a delta's own content.
+        // `ScreenUpdate::Delta` never carries a `size` field at all (module doc, doc-14's
+        // own "the size of a terminal" section) - a size change always arrives as a `Full`
+        // instead, so this is the model's own settled behaviour, not a placeholder.
         assert_eq!(model.row_count(), 3);
     }
 
     #[test]
-    fn a_full_update_replaces_the_whole_grid_but_not_the_fixed_row_count_it_was_built_with() {
+    fn a_full_update_replaces_the_whole_grid_and_its_own_reported_size() {
         let mut model = Model::from_snapshot(snapshot(vec![row(vec![narrow_run("aaaaa")])]));
         model.apply(ScreenUpdate::Full {
-            screen: snapshot(vec![row(vec![narrow_run("zzzzz")])]),
+            screen: snapshot_with_size(
+                vec![
+                    row(vec![narrow_run("zzzzz")]),
+                    row(vec![narrow_run("yyyyy")]),
+                ],
+                Size::new(5, 2),
+            ),
             seq: 7,
         });
-        assert_eq!(model.rows(), &[row(vec![narrow_run("zzzzz")])]);
-        assert_eq!(model.row_count(), 1);
+        assert_eq!(
+            model.rows(),
+            &[
+                row(vec![narrow_run("zzzzz")]),
+                row(vec![narrow_run("yyyyy")])
+            ],
+        );
+        // The size this model was *built* with (one row) is not what it reports after a
+        // `Full` resync - the resync's own `screen.size` (two rows) is, since a fresh
+        // `Screen` always carries one and `apply`'s own `Full` arm reads it (module doc:
+        // this replaces TASK-1.117's "but not the fixed row count it was built with" test,
+        // which this same scenario would now falsify).
+        assert_eq!(model.row_count(), 2);
     }
 
     #[test]

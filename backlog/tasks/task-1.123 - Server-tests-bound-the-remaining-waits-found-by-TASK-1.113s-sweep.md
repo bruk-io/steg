@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-17T01:33:00Z'
-updated_date: '2026-11-18T19:21:00Z'
+updated_date: '2026-11-18T19:27:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -411,6 +411,51 @@ test eight_simultaneous_starts_leave_exactly_one_server ... ok
 test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
 
 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+```
+
+Check passed: `cargo test -p steg --features fixtures` exited 0 at 2026-11-18T19:27:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.123 on task-1.123-server-tests-bound-the-remaining-waits at c9289ac47d97 with uncommitted changes, last 40 of 190 lines:
+
+```text
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 22 tests
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::one_scoped_temp_dir_can_hand_out_two_different_paths ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test server_start_help_prints_the_generated_help_and_starts_nothing ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test on_demand_given_after_no_on_demand_wins ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach ... ok
+test no_on_demand_given_after_on_demand_wins ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s
+
+   Doc-tests steg
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

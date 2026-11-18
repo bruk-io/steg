@@ -4,7 +4,7 @@ title: 'ui atoms: label, key cap, swatch and cursor'
 status: To Do
 assignee: []
 created_date: '2026-11-16T02:45:00Z'
-updated_date: '2026-11-16T02:59:00Z'
+updated_date: '2026-11-18T04:42:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -27,3 +27,9 @@ Design page: Atoms (Label, Key cap, Swatch, Cursor): the four that do not react 
 - [ ] #2 Every state and variant the design's card draws is shown in the gallery, in light and in dark, each labelled as the card labels it; the pull request carries the gallery images (and a recording where the component moves or reacts), and the notes list the card's states against what the gallery shows, one by one
 - [ ] #3 It is given plain values and reports what the user did (R118); every colour, size, corner and duration comes from foundations through the theme (R120, R123); the level and colour checks pass with no exemption
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Note by @bruk.o, 2026-11-18: TASK-1.127 builds the terminal cursor's dissolve (the Cursor atom's motion, design card 07) in crates/app, on the terminal's own cell grid, with two pure functions (the state of the six pieces at a time in the cycle; the pieces' geometry in a cell). This task's Cursor atom is the static component in crates/ui. When planning, read what TASK-1.127 landed and say whether the atom reuses those functions (which would mean moving them to crates/ui) or draws only the steady and hollow states.
+<!-- SECTION:NOTES:END -->

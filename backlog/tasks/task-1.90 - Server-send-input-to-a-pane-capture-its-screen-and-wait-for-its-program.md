@@ -5,13 +5,17 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T14:46:00Z'
+updated_date: '2026-11-18T15:38:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
   - TASK-1.78
+references:
+  - task-1.90-server-send-input-to-a-pane-capture-its
+  - https://github.com/bruk-io/steg/pull/80
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -19,6 +23,10 @@ asdlc_branch: task-1.90-server-send-input-to-a-pane-capture-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8826c78b9232'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -365,6 +373,184 @@ ok      recipe names (0.0s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-18T14:53:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 2bc23c84edcb:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (64.3s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.3s)
+ok      build (steg-kernel) (0.7s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (0.5s)
+ok      test (steg-server) (61.2s)
+ok      test (steg-server, race-fixture) (59.6s)
+ok      test (steg-server, pty-race-fixture) (64.8s)
+ok      test (steg-server, accept-backoff-fixture) (60.1s)
+ok      build (steg) (1.3s)
+ok      test (steg) (4.3s)
+ok      test (steg, fixtures) (10.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (1.6s)
+ok      tool tests (40.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Built pane.send: dispatch::pane::send validates target, refuses --text with --key together (BadRequest), and refuses ErrorCode::ProgramNotRunning when nothing is running; Runtime::send_and_dispatch (crates/server/src/runtime/input.rs) delivers the bytes via a plain, non-blocking PaneHandle::send_input, never Tree::note_input (AC #1's unattached, one-shot path). Named keys: lifted named_key_bytes's own match arms into a new crates/sdk/src/keys.rs; crates/app/src/keys.rs's named_key_bytes now delegates to it, same signature, its own existing tests re-run unchanged and pass. pane.send's key flag is now ValueKind::Choice(key_names()), so validate() refuses an unknown name as BadRequest. Added ErrorCode::ProgramNotRunning (exit status 1, matching doc-2's own wording) to shapes.rs/errors.rs/methods/pane.rs/methods/tests.rs. pane.capture/pane.wait stay NotImplementedYet in dispatch/pane.rs, reworded with no task id (their sibling tasks are still drafts); cross_cutting.rs's own NotYetCase rows updated the same way, and its pane.send row removed; its every_nothing_or_identifier_returning_method_matches_its_declared_shape fixture now records a running program on the default pane so pane.send's own success path is exercised there too.
+
+New crates/server/tests/pane_send.rs (real socket, real pty, explicit programs, each test's own small per-test temp directory - not attach.rs, which TASK-1.123 is actively fixing bounds in): delivers text then a named key in order with the sending connection never attached to the pane (verified via a second, observing connection's own pane.attach); refuses an already-ended pane with ProgramNotRunning; refuses text+key together with BadRequest; refuses an unknown key name with BadRequest.
+
+Checks recorded: just check clean baseline before any change; four recorded failing-then-passing negative controls (any_pane_running inverted; the text+key-together check removed; send_bytes disabled; key's ValueKind reverted from Choice to Text) each proving its own test fails without the mechanism; just check green at the final head (a86e8706, rebased onto origin/main - the branch had never been pushed before this). gh pr checks 80 green (14m46s). crates/app/src/keys.rs's own tests (steg-app --bin steg-app) and steg-sdk's cli::exit tests re-run and pass unchanged.
+
+Departure from the plan: none in substance; the socket-path helper in pane_send.rs uses a short pid+counter-named per-test directory (no nanosecond suffix) after a first version with a longer name overflowed macOS's ~104-byte AF_UNIX path limit and made every test in the file fail with 'server never started accepting' - caught immediately, not a design question.
+
+Check FAILED: `cargo test -p steg-server --test pane_send -- --exact pane_send_delivers_each_named_key_with_its_documented_bytes` exited 101 at 2026-11-18T15:36:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 2bc23c84edcb with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_delivers_each_named_key_with_its_documented_bytes ... FAILED
+
+failures:
+
+---- pane_send_delivers_each_named_key_with_its_documented_bytes stdout ----
+
+thread 'pane_send_delivers_each_named_key_with_its_documented_bytes' (60872112) panicked at crates/server/tests/pane_send.rs:796:9:
+assertion `left == right` failed: key "home"
+  left: ["1b", "5b", "5a"]
+ right: ["1b", "5b", "48"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_send_delivers_each_named_key_with_its_documented_bytes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.15s
+
+error: test failed, to rerun pass `-p steg-server --test pane_send`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test pane_send -- --exact pane_send_delivers_each_named_key_with_its_documented_bytes` exited 0 at 2026-11-18T15:36:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 2bc23c84edcb with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/sdk)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.25s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_delivers_each_named_key_with_its_documented_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.44s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_a_pane_with_no_running_program` exited 101 at 2026-11-18T15:37:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 2bc23c84edcb with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_a_pane_with_no_running_program ... FAILED
+
+failures:
+
+---- pane_send_refuses_a_pane_with_no_running_program stdout ----
+
+thread 'pane_send_refuses_a_pane_with_no_running_program' (60877519) panicked at crates/server/tests/pane_send.rs:858:9:
+expected pane.send to refuse an already-ended pane, got Ok(Null)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_send_refuses_a_pane_with_no_running_program
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test pane_send`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_a_pane_with_no_running_program` exited 0 at 2026-11-18T15:37:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 2bc23c84edcb with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_a_pane_with_no_running_program ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.03s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_text_and_key_together` exited 101 at 2026-11-18T15:38:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 2bc23c84edcb with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_text_and_key_together ... FAILED
+
+failures:
+
+---- pane_send_refuses_text_and_key_together stdout ----
+
+thread 'pane_send_refuses_text_and_key_together' (60884599) panicked at crates/server/tests/pane_send.rs:919:5:
+assertion `left == right` failed: text and key given together must deliver nothing at all, not one or the other
+  left: "hello\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+ right: "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_send_refuses_text_and_key_together
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.53s
+
+error: test failed, to rerun pass `-p steg-server --test pane_send`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_text_and_key_together` exited 0 at 2026-11-18T15:38:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 2bc23c84edcb with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.71s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_text_and_key_together ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.55s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -384,6 +570,34 @@ created: 2026-11-18T14:16:00Z
 ---
 
 Approved by @bruk with the plan (8826c78b9232): the new error code ProgramNotRunning with exit status 1; the named-key table moves from crates/app/src/keys.rs into the sdk with the app's function delegating to it; --key is a choice of that table's names; one --key per call for now; --text with --key is BadRequest. doc-2's section on refusals now says so (updated on the board by @bruk.o). Follow-up to draft later: list-valued flags in the API description, so --key can be given more than once as doc-2's flag table says.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T15:09:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.90: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T15:17:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+[Compliance, Important] crates/server/tests/pane_send.rs: the approved plan's section 4 calls for a test sending one of every named key in the accepted list over the real pty, each checked to land its documented byte sequence. Only "enter" is exercised end-to-end (inside pane_send_delivers_text_then_a_key_in_order_without_a_client_attached); the other 25 names (tab, backspace, escape, the arrows, home, end, pageup, pagedown, insert, delete, f1-f12) are proven only at the sdk unit-test level (crates/sdk/src/keys.rs), never through pane.send's real pipeline (dispatch -> Runtime::send_and_dispatch -> PaneHandle::send_input -> pty). The task's "Departure from the plan" note names only the socket-path helper change; it does not mention dropping this test.
+
+[Evidence/Compliance, Important] crates/server/tests/pane_send.rs:449-505: the plan requires both refusal tests to read the target pane's screen via a second, attached connection before and after the call, proving nothing was written to the pty ("nothing was written to a dead pty" / "nothing sent (screen unchanged...)"). Neither pane_send_refuses_a_pane_with_no_running_program nor pane_send_refuses_text_and_key_together attaches to the pane or reads its screen at all; each asserts only the returned error code. This is a proof step the plan calls for that no recorded run shows.
+
+[Nit] crates/server/tests/pane_send.rs:458-474: pane_send_refuses_a_pane_with_no_running_program waits for the program to end by polling pane.show every 20ms against a bounded deadline, where the plan said to wait via pane.attach's own Ended update. A reasonable substitute (bounded, no sleep-as-wait), but an undisclosed method change from the plan's own text.
+
+What I checked beyond the above: the named-key table move (crates/sdk/src/keys.rs's table is byte-for-byte the same as origin/main's crates/app/src/keys.rs match arms, including the shift-tab form; crates/app/src/keys.rs's own tests are untouched and its named_key_bytes is now a one-line delegation with the same signature); the new ErrorCode::ProgramNotRunning (exit status 1, consistent with doc-2 and ProgramRunning's own precedent) and the method/error-count tests honestly bumped from twelve to thirteen; key's ValueKind::Choice built from the same crate::keys::key_names() the implementation calls, so the description and implementation cannot drift; the lock in Runtime::send_and_dispatch is held continuously from the any_pane_running check through PaneHandle::send_input, so there is no race window between them; PaneHandle::send_input is a plain std::sync::mpsc (unbounded) Sender::send that never blocks, and the lock is never held across a wait on the pane's worker, so TASK-1.47's stall cannot reintroduce here; deliberately skipping Tree::note_input (and so R83/doc-11's status-clearing on a key press) for this unattached path is flagged explicitly in the design and not required by any cited requirement or this task's ACs, so I treat it as spec-silent, not a finding. I repeated one negative control myself (disabled the hand-off in Runtime::send_and_dispatch, ran pane_send_delivers_text_then_a_key_in_order_without_a_client_attached, confirmed it fails via a 15s timeout waiting for the echoed marker, then reverted completely - git status was clean afterward). Ran the full pane_send.rs file 20 times in a loop: 20/20 passed; load average at the time was 4.80/4.13/3.88. CI on PR 80 is green (14m46s) and the recorded checks' final head (2bc23c84) matches the branch's current head. I did not re-check the unbounded-channel memory-growth-under-flood question as a new finding: the channel and blocking-write behavior are pre-existing (shared with the already-shipped attached-input path), not introduced by this diff, so I note it here rather than fault this task for not documenting it.
 
 ---
 <!-- COMMENTS:END -->

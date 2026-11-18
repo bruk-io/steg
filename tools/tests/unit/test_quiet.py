@@ -14,6 +14,7 @@ from steg_tools.quiet import (
     split_arguments,
     tail,
     timed_out_report,
+    wait_bound_seconds,
     wait_line,
 )
 
@@ -121,3 +122,11 @@ def test_the_wait_line_names_the_count_and_has_no_bound_by_default() -> None:
 def test_the_wait_line_names_the_bound_when_one_is_set() -> None:
     line = wait_line("tests (steg-server)", 2, 120.0)
     assert "told it may wait up to 120s (STEG_CHECK_SLOT_WAIT_S)" in line
+
+
+def test_wait_bound_is_unset_by_default() -> None:
+    assert wait_bound_seconds({}) is None
+
+
+def test_wait_bound_honours_the_variable() -> None:
+    assert wait_bound_seconds({"STEG_CHECK_SLOT_WAIT_S": "45"}) == 45.0

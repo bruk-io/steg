@@ -1,7 +1,7 @@
 ---
 id: TASK-1.132
 title: 'Tools: only a few just check runs at a time on one machine'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
@@ -10,6 +10,9 @@ labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.132-tools-only-a-few-just-check-runs-at-a
+  - https://github.com/bruk-io/steg/pull/75
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
@@ -511,6 +514,12 @@ Check passed: `just test-tools` exited 0 at 2026-11-18T02:59:39+00:00 in /Users/
 ```text
 ok      tool tests (22.4s)
 ```
+
+Built per the approved, engineer-tightened plan. The limiter: each heavy cargo step (build/test/clippy) takes one of STEG_CHECK_SLOTS machine-wide slots (default 2; 0 = no limit, no lock touched at all; unset defaults to no limit under CI). A waiter races all slots at once (one daemon thread per slot, each a single blocking flock, no polling) so it gets whichever frees first, never a fixed one. A crashed or killed holder frees its slot with no cleanup code - the kernel drops the flock when the holder's own fd closes, since the slot is held only by the steg-quiet parent, never inherited into the cargo child. STEG_CHECK_SLOT_WAIT_S optionally bounds the wait, unset by default.
+
+Checks recorded on the task: an initial just test-tools baseline; the implementation's own unit/functional tests passing; ten mechanism-removed-then-restored control pairs (20 record-check calls, detail in the task's notes) covering lock acquisition, the SIGKILL release property, the first-to-free race, the no-limit path, heavy-step detection, and each of the five pure functions; a full just check recorded live against the real default lock directory while five other workers were building. CI on PR #75 failed once on an unrelated flaky server test (signal::tests::send_reaches_the_whole_process_group_not_only_the_leader, not in the named known-flakes list, not touched by this change) and passed clean on rerun - noted on the task, not investigated further.
+
+No departures from the approved plan.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:00:00Z'
+updated_date: '2026-11-18T03:19:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -540,6 +540,14 @@ WHAT THIS DOES NOT FIX: CPU/disk contention from non-cargo work on the machine (
 Checks recorded: an initial just test-tools baseline before any change; the full implementation's own just test-tools and the new functional/unit tests passing; ten mechanism-removed-then-restored control pairs (20 record-check calls) covering lock acquisition (tests a, d), the SIGKILL release property (test c, via a scratch edit that made the slot's fd inheritable into the fake-cargo child - showing the slot is NOT freed without the deliberate close-on-exec/close_fds=True this task relies on), the first-to-free race (test e, via a scratch fallback to a fixed slot - showing the waiter gets stuck behind the long holder instead of the quick one), the no-limit path (test f), heavy-step detection (test g), and each of the five pure functions (heavy_cargo_command, effective_slot_count, lock_directory, wait_bound_seconds, wait_line) with their own unit tests. Tree was clean between every pair and at the end (git status, and ps checked for leftover processes after the SIGKILL and cheap-step tests, which deliberately kill or race real subprocesses). Finally, a full just check recorded with the limiter live for the first time, against the real default lock directory, while five other workers were building on this machine - completed clean in under 8 minutes with no wait needed that particular run (the other workers' heavy steps didn't happen to collide with mine at the moments that mattered, but the mechanism was live throughout).
 
 No departures from the approved plan.
+
+---
+
+created: 2026-11-18T03:19:00Z
+
+---
+
+CI sighting (not mine): the first CI run on PR #75 failed at test (steg-server) with signal::tests::send_reaches_the_whole_process_group_not_only_the_leader - "the backgrounded child, in the same process group, must be gone too." Not one of the three named known flakes (login_env grandchild, stuck-pane timing, terminal-scrolling), but the same flavour (process-group/signal timing). Unrelated to this task's own change (tools/ and the justfile comment only; nothing in crates/server touched). Reran the job once per the standing guidance; it passed clean on the rerun (CI itself runs on an isolated runner with no slot contention, since CI defaults to no limit). Noting the sighting for the record; not investigating further as it is not this task's own code.
 
 ---
 <!-- COMMENTS:END -->

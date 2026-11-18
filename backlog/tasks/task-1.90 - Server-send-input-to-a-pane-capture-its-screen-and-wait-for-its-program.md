@@ -1,10 +1,11 @@
 ---
 id: TASK-1.90
 title: 'Server: send input to a pane, capture its screen, and wait for its program'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-16T04:33:00Z'
+updated_date: '2026-11-18T13:48:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -14,6 +15,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.90-server-send-input-to-a-pane-capture-its
 ---
 
 ## Description

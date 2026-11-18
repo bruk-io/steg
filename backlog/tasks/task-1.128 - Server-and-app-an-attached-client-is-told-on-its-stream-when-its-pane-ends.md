@@ -5,14 +5,18 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:20:00Z'
+updated_date: '2026-11-18T00:52:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.125
   - TASK-1.114
   - TASK-1.117
+references:
+  - task-1.128-server-and-app-an-attached-client-is
+  - https://github.com/bruk-io/steg/pull/73
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -20,6 +24,10 @@ asdlc_branch: task-1.128-server-and-app-an-attached-client-is
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ffc63839f742'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -791,6 +799,266 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Built per the plan (server/sdk half): ScreenUpdate::Ended/EndReason (sdk), Outbound::end_stream (a safe stream half-close that defers teardown until the writer has actually drained the final frame), the pane worker's ended flag/flush_ended/MarkClosing, force_end's new pass 0, finish_attach's TASK-1.125-race fix, and five new attach.rs socket-level tests. Full details and rationale are in the two commit messages.
+
+Two real bugs found and fixed during the build, beyond the plan's own text:
+
+1. The Arm handler's late-end branch (attaching to an already-ended pane) sent only Ended, with no catch-up content - found by a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content flaking under heavy machine load (the program fully ended before arm() ran, a real window since attach/arm are two separate calls). Fixed: Arm now sends a fresh Full read from the terminal before Ended on that path. Updated the two tests this changes the shape of (both now documented with why).
+
+2. call_and_read_reply (crates/server/tests/attach.rs, pre-existing) fell through to a blocking read on any non-matching poll() result, not only on None - harmless before this task, since nothing used to produce an extra StreamControl frame on an attached stream around the same time as a pane.close/pane.detach reply. My own new forced-close test exposed it (detaching_a_pane_that_already_closed_still_releases_the_stream also started failing intermittently). Fixed to drain every already-decoded frame before reading more, the same shape reply_within already used.
+
+One platform quirk, not a bug, worth recording for whoever touches outbound.rs's own tests next: on this machine (macOS), UnixStream::set_read_timeout returns EINVAL once the socket's own peer has already closed - not a value-rounding issue, confirmed with a minimal, unrelated repro. My own new flush_ended_still_delivers_its_frame_when_the_attachments_own_queue_is_already_full test hit this by re-setting the read timeout inside its own read loop, racing the writer thread finishing and dropping its own end of the pair; fixed by setting it once, before the writer thread (and so that peer) can possibly exist.
+
+Checks recorded via asdlc record-check against TASK-1.128, each as just check at a clean tree:
+- One early run caught a race from editing screen.rs/lib.rs while a background record-check was still reading them (noise, not a real baseline - don't read that first exit-101 entry as a finding).
+- Two genuinely clean just check runs recorded (exit 0) before the final two commits; a third, final exit-0 run recorded at the pushed head (commit 2ca675d7).
+- Two environmental flakes observed and confirmed unrelated by rerunning in isolation (always passed alone): login_env's own known grandchild flake, and a pre-existing, unrelated stuck-pane timing test (an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane) - both coincided with TASK-1.121's own concurrent just check running on this same machine at the time (confirmed via ps).
+- CI's first run failed on a third, also pre-existing and unrelated test (runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap, a terminal-scrolling timing assertion) - reran it myself (gh run rerun --failed) and it passed clean on the second attempt; not something I changed.
+
+Contract-change requests from the plan (doc-14's own wording, decision-2's addendum, PROTOCOL_VERSION's confirmation) are still open for you - none of those are mine to edit.
+
+The app's own placeholder arm in crates/app/src/model.rs is the one, intentionally minimal touch in crates/app this task makes - DRAFT-1 is where the real behaviour lands, once this and TASK-1.121 are both merged.
+
+Check FAILED: `cargo test -p steg-server --test attach -- pane_close_force_reports_ended_closed_not_the_signals_own_exit_code --exact` exited 101 at 2026-11-18T00:48:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes, last 40 of 44 lines:
+
+```text
+    |      ----------- variant in this enum
+...
+404 |     MarkClosing,
+    |     ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `mark_closing` is never used
+   --> crates/server/src/pane.rs:714:19
+    |
+508 | impl PaneHandle {
+    | --------------- method in this implementation
+...
+714 |     pub(crate) fn mark_closing(&self) {
+    |                   ^^^^^^^^^^^^
+
+warning: `steg-server` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... FAILED
+
+failures:
+
+---- pane_close_force_reports_ended_closed_not_the_signals_own_exit_code stdout ----
+
+thread 'pane_close_force_reports_ended_closed_not_the_signals_own_exit_code' (55919651) panicked at crates/server/tests/attach.rs:1963:5:
+assertion `left == right` failed: a forced close must report Closed, never the signal's own exit code
+  left: ProgramExited { exit_code: 1 }
+ right: Closed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_force_reports_ended_closed_not_the_signals_own_exit_code
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach -- pane_close_force_reports_ended_closed_not_the_signals_own_exit_code --exact` exited 0 at 2026-11-18T00:48:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.33s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach -- a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code --exact` exited 101 at 2026-11-18T00:49:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... FAILED
+
+failures:
+
+---- a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code stdout ----
+
+thread 'a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code' (55926172) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 4.991071917s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 5.05s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach -- two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit --exact` exited 101 at 2026-11-18T00:49:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... FAILED
+
+failures:
+
+---- two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit stdout ----
+
+thread 'two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit' (55929681) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 4.992545583s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 5.05s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach -- a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code --exact` exited 0 at 2026-11-18T00:49:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.34s
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach -- two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit --exact` exited 0 at 2026-11-18T00:49:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.65s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach -- attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else --exact` exited 101 at 2026-11-18T00:51:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else ... FAILED
+
+failures:
+
+---- attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else stdout ----
+
+thread 'attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else' (55947372) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 4.999999958s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 5.05s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach -- attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else --exact` exited 0 at 2026-11-18T00:51:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.34s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach -- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach --exact` exited 101 at 2026-11-18T00:52:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes:
+
+```text
+warning: unused imports: `EndReason` and `ScreenUpdate`
+  --> crates/server/src/connection.rs:19:40
+   |
+19 |     ClientId, Connection, Description, EndReason, Frame, Handshake, Incoming, PROTOCOL_VERSION,
+   |                                        ^^^^^^^^^
+20 |     PaneId, Refusal, Request, Response, ScreenUpdate, WireRole as Role, check_hello, description,
+   |                                         ^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... FAILED
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (55961553) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 15s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 19.90s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach -- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach --exact` exited 0 at 2026-11-18T00:52:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 7.29s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -802,6 +1070,36 @@ created: 2026-11-17T22:51:00Z
 ---
 
 Plan approved by @bruk (ffc63839f742, size-3): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T00:36:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.128: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T00:45:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Evidence, Important] AC #4's own text ("each with a recorded failing control and passing run") and the plan's Proof section promise a recorded failing-before/passing-after run for each of the five new attach.rs socket-level tests, including the forced-close test that is the only proof of force_end's new pass-0 ordering. The task's recorded `just check` history (implementation notes) shows failing runs only at the pane.rs unit-test level (e.g. "Ended must arrive after any screen update still owed") and for unrelated flakes (login_env, lint/fmt); no recorded run ever shows an attach.rs socket-level test (e.g. pane_close_force_reports_ended_closed_not_the_signals_own_exit_code) failing against the pre-fix code. I repeated this control myself: disabled force_end's pass 0 in runtime.rs (replaced handle.mark_closing() with a no-op) and ran `cargo test -p steg-server --test attach pane_close_force_reports_ended_closed_not_the_signals_own_exit_code -- --exact`; it failed exactly as claimed (left: ProgramExited { exit_code: 1 }, right: Closed), confirming the mechanism itself is real and correct. I then reverted the edit (git checkout -- crates/server/src/runtime.rs) and confirmed git status is clean. The mechanism works, but the board's own recorded evidence for AC #4's socket-level proof step is missing.
+
+[Bugs, Nit] crates/server/src/pane.rs, the Arm handler's late-end branch (~line 1154-1171): the Full sent before Ended is tagged seq: tracked_seq, which stays at its initial sentinel value 0 when the pane ends before any attachment ever existed (run_tick's any_work gate never fires in that case, so tracked_seq is never advanced). Harmless today since this attachment is torn down immediately by the following Ended, but worth a doc note so a future reader doesn't mistake this for a real sequence number.
+
+[Compliance, Nit] crates/server/tests/attach.rs, attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else: the assertion message "the first and only update on a late attach to an already-ended pane must be Ended" contradicts the test's own doc comment three lines above, which correctly notes a Full arrives first. Minor wording fix only.
+
+What I checked: full diff against origin/main (excluding backlog/) across sdk/screen.rs+lib.rs+description/methods.rs, kernel/terminal.rs, app/model.rs, server/outbound.rs, server/pane.rs, server/runtime.rs, server/connection.rs, server/tests/attach.rs; doc-14 and decision-2 section 3 (including its 2026-11-17 addendum, already landed on main, matching the wire shape in code); the approved plan (ffc63839f742) and its departures section; every exhaustive ScreenUpdate match (all have named arms, no wildcards); Outbound::end_stream/pop_next's deferred-teardown logic and its real two-thread test; MarkClosing's ordering via a live negative control (above); the TASK-1.125 race fix in finish_attach; the call_and_read_reply drain-before-block fix (does not swallow or weaken any existing assertion - it only changes what happens after a non-matching poll(), matching reply_within's established shape). Confirmed the final recorded clean check (at local commit 493786d3aec6) has an identical code tree to pushed HEAD 2ca675d7 (git diff shows only backlog/ task-file differences), so the recorded evidence is against the right code modulo the AC #4 gap above. The three reported flakes (login_env grandchild test timing out on its pid file; a stuck-pane timing test coinciding with a concurrent just check from TASK-1.121; a terminal-scrolling timing assertion failing on CI's first run and passing on rerun) match what the worker described and are not findings.
+
+What I did not check: a real SSH channel (out of scope per decision-2), the app's own future reaction to Ended (explicitly out of scope, moved to a draft task), and I did not re-run the full CI suite myself (trusted the claim that CI is green on 2ca675d7 after the reported rerun).
 
 ---
 <!-- COMMENTS:END -->

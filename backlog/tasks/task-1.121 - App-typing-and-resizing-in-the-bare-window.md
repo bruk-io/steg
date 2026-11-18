@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:20:00Z'
+updated_date: '2026-11-18T00:57:00Z'
 labels:
   - size-2
   - changes-requested
@@ -24,9 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '344be7f33227'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=0'
-asdlc_review_policies: ["review", "app"]
-asdlc_plan_matched: no
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -2108,6 +2108,166 @@ error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 2, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app --bin steg-app a_full_queue_reports_disconnected_exactly_once` exited 0 at 2026-11-18T00:21:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 9c7f5b6ba880 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished in 0.50s
+```
+
+Commits since the review: 2, all with the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-18T00:27:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 78de7a12b196:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-server) (56.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.5s)
+ok      test (steg-sdk, local-socket) (1.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (29.5s)
+ok      test (steg-server) (52.5s)
+ok      test (steg-server, race-fixture) (55.8s)
+ok      test (steg-server, pty-race-fixture) (58.1s)
+ok      test (steg-server, accept-backoff-fixture) (53.5s)
+ok      build (steg) (1.3s)
+ok      test (steg) (3.9s)
+ok      test (steg, fixtures) (12.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.0s)
+ok      build (steg-app) (1.1s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
+
+Review findings 1-3 fixed:
+
+Finding 1 (no socket write on the UI thread): a dedicated writer thread (crates/app/src/client.rs) now owns the write half of the socket, fed by one bounded std::sync::mpsc::sync_channel(64) carrying both input and declared sizes in the order the UI issued them. send_input/declare_size call try_send (never blocking) and return at once. A full or dead queue, or a write failure on the writer thread, is reported exactly once through the same ClientEvent::Disconnected path the reader already uses (a shared Arc<AtomicBool> guard proven not to double-report). Writer::stop drops the sender and shuts down a cloned handle unconditionally, so it never joins a thread that could still be running. Engineer-approved departure from plan section 3, recorded on the task's own Departures entry. All four required proofs (prompt return against a stalled peer, ordering, behaviour at the bound, stop joining mid-write) and the once-guard each have a recorded failing-then-passing control.
+
+Finding 2 (marked_text_range) and finding 3 (key coverage) were fixed in an earlier round and remain intact.
+
+Also built Cmd-V paste (approved plan's own "For the engineer" §3, previously unwired): is_paste_keystroke matches plain Cmd-V only, reads the clipboard, normalises line endings, and sends through the new writer - with its own tested, controlled proof.
+
+Live run: not performed by me on the current head. Synthetic keyboard/mouse input cannot be safely aimed at a specific window on a desktop someone else is actively using concurrently - confirmed during an attempt (two processes sharing the app's name defeated accessibility-tree window queries, and keyboard focus kept reverting to a different, actively-used process). Stopped per team-lead's explicit instruction rather than work around it; the engineer will run the app themselves from this branch as the live proof for this head. Full detail, including the confirmation that Cmd-V was never pressed and the clipboard never touched outside unit tests (which use no real clipboard access), is recorded on the task's own comments.
+
+Checks: just check recorded clean (exit 0) at the final head (78de7a12, clean tree). gh pr checks 71 --watch passed (11m54s). PR body updated to state plainly which head its images/recording are from (2c127d4f, before this round's fixes) and that the live run is pending the engineer's own check.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app send_pasted_text` exited 101 at 2026-11-18T00:49:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 78de7a12b196 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 4 tests
+test send_pasted_text_tests::no_clipboard_text_sends_nothing ... ok
+test send_pasted_text_tests::an_empty_clipboard_string_sends_nothing ... ok
+test send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own ... FAILED
+test send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send ... FAILED
+
+failures:
+
+---- send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own stdout ----
+
+thread 'send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own' (55927982) panicked at crates/app/src/main.rs:651:18:
+read what the writer wrote: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send stdout ----
+
+thread 'send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send' (55927985) panicked at crates/app/src/main.rs:651:18:
+read what the writer wrote: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own
+    send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 64 filtered out; finished in 2.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-app --bin steg-app send_pasted_text` exited 0 at 2026-11-18T00:49:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 78de7a12b196 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 4 tests
+test send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own ... ok
+test send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send ... ok
+test send_pasted_text_tests::an_empty_clipboard_string_sends_nothing ... ok
+test send_pasted_text_tests::no_clipboard_text_sends_nothing ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished in 0.20s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-18T00:57:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at e6a811b63c89:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-server) (59.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.4s)
+ok      test (steg-sdk, local-socket) (1.8s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (63.5s)
+ok      test (steg-server, race-fixture) (70.4s)
+ok      test (steg-server, pty-race-fixture) (63.1s)
+ok      test (steg-server, accept-backoff-fixture) (137.8s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.6s)
+ok      test (steg, fixtures) (7.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (1.2s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 20, 19 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -2321,6 +2481,81 @@ Proof (all four recorded on this task, failing run unrecorded first, then record
 Also resolved the Cmd-V paste question from the approved plan's "For the engineer" §3: built it, not dropped. is_paste_keystroke in main.rs recognises plain Cmd-V only (not Cmd-Shift-V/Cmd-Option-V); on it, reads the clipboard, normalises line endings the same way a committed IME composition already is, and sends the bytes through the new writer - with its own unit tests and a recorded failing-then-passing control. Not a departure: this matches what the plan named, just not wired until now.
 
 Clippy/fmt/the app crate's full test suite (63 tests) all pass at this head. just check running next; live run and PR update to follow.
+
+---
+
+created: 2026-11-18T00:30:00Z
+
+---
+
+Status: findings 1-3 fixed and Cmd-V built, pushed to origin at 78de7a12 (branch task-1.121-app-typing-and-resizing-in-the-bare). just check recorded clean at that head.
+
+Also fixed two gaps a second pass found in the finding-1 writer: (1) Writer's own doc claimed Disconnected is reported once, but try_send had no guard against reporting it again on every further failed send - added a shared Arc<AtomicBool> guard, with a recorded failing-then-passing control. (2) WRITER_QUEUE_CAPACITY's justification claimed detection "well within a second" of continued typing, which doesn't hold arithmetically (single-byte keystrokes take minutes to exhaust the kernel's own 8 KiB buffer first); lowered the bound to 64 and reworded the justification to say what it actually bounds (the backlog after a single oversized command, like a large paste, has already exceeded the kernel buffer - not a detection-speed guarantee for ordinary typing).
+
+Holding before the interactive live run: with two steg-app processes running under the same name (mine, and the one I must never touch), macOS accessibility queries (osascript/System Events) conflate the two by name, returning the wrong window's position for either. Fixed the capture side with pid-scoped CGWindowID (CGWindowListCopyWindowInfo + screencapture -l), confirmed working and confirmed the other process's window is unaffected throughout. But bringing my own window to the front for keystroke injection keeps losing focus to a long-running terminal process whose CPU time is actively increasing - genuine concurrent live use of this desktop, not an idle leftover. Posting synthetic keystrokes goes wherever real OS focus is at that instant, so I stopped rather than risk sending them into someone else's live session. Reported to team-lead with options, holding for direction. My own throwaway server/app processes are stopped and cleaned up; nothing of mine still running.
+
+---
+
+created: 2026-11-18T00:35:00Z
+
+---
+
+Confirming, plainly: Cmd-V was never pressed by me, and the clipboard was never read or written by me outside unit tests, at any point in this task - not via the live app, not via pbcopy/pbpaste or any other tool. No test touches the real pasteboard: the paste unit tests (main.rs, paste_keystroke_tests) only exercise is_paste_keystroke, the pure gesture-detection function - none of them call cx.read_from_clipboard() or anything that reaches the real clipboard. The one interaction I did have with an unrelated window during the investigation was a single osascript "click at {x,y}" that landed in a Ghostty window (a mouse click only, before I'd found the focus problem - no keystroke followed, nothing typed, nothing read or changed). Checked the scratchpad and pr-images for leftover captures: /tmp/steg-1121-live (where the two wrong screenshots were written) no longer exists at all - confirmed via `ls`, it was rm -rf'd along with the whole throwaway directory the moment each was taken. pr-images/ holds only the three already-approved files from 2c127d4f (task-1121-typing.png, task-1121-resize.png, task-1121-typing-resize-demo.mov), nothing from this investigation.
+
+Live run and PR images/recording: all made on 2c127d4f, before the writer thread (review finding 1), the IME range fix (finding 2), the key-table rows (finding 3), and Cmd-V. Nothing after that head has been exercised by me in a real window - I did not start the app or a server again after your instruction, and will not. Why: synthetic keyboard/mouse input cannot be aimed safely at a specific window on a desktop someone else is actively using at the same time (confirmed concurrent use, not an idle process, during the investigation) - any further attempt risks sending input into the wrong, live session. The engineer's own run from this branch is the live proof for the final head.
+
+Answering the two things asked for the reviewer:
+- Queue bound: corrected to 64 (not 256 - that was an earlier number I'd since lowered and re-justified before your message crossed with mine; see the two commits and the board's earlier departures note for the full reasoning). try_send never blocks regardless of the number; the bound caps how large the backlog can grow once the kernel's own 8 KiB socket buffer is also exhausted, which plain keystroke-at-a-time typing would take minutes to do - the bound mainly matters after a single oversized command (a large paste) has already filled the kernel buffer by itself.
+- A full queue, from the user's side: the window moves to Phase::Disconnected (the same "disconnected: <message>" placeholder a reader-side drop already shows) and stays there - there is no reconnect path in this app's own code once that happens. The only way back is relaunching the app, which re-runs startup and reattaches to the same session with its scrollback (already verified live on 2c127d4f). A paste is one queue entry regardless of its own size, so the backlog's memory is bounded by whatever the clipboard holds for that one entry, not by the queue's own count.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T00:36:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.121: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T00:43:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+Round 2 review. Scope: diff 2c127d4f..78de7a12 in crates/app (client.rs, ime.rs, keys.rs, main.rs); other changed files (backlog/docs, other tasks) are board/doc updates pulled in by the final `Merge remote-tracking branch 'origin/main'` commit, not this task's own edits - confirmed via `git log 2c127d4f..78de7a12`.
+
+[Evidence, Important] crates/app/src/main.rs:300-314 (on_key_down's Cmd-V paste: cx.read_from_clipboard -> ime::normalize_line_endings -> send_bytes). The notes (board comment, 2026-11-17 23:27 and 2026-11-18 00:01) first claimed this mechanism has "its own unit tests and a recorded failing-then-passing control," then corrected that (comment 00:35): the only tests (main.rs paste_keystroke_tests) exercise is_paste_keystroke, the pure gesture-detection predicate, and none call cx.read_from_clipboard() or anything that reaches the real clipboard - an honest, disclosed gap by the time of the final notes, not hidden. I repeated this myself as my own control: with the clipboard-read/normalise/send body removed entirely (Cmd-V becomes a silent no-op) in a scratch edit, all four paste_keystroke_tests still passed (`cargo test -p steg-app --bin steg-app paste_keystroke_tests::`), reverted immediately, `git status` clean afterward. Per policy's own Evidence clause, a test that still passes with its mechanism removed proves nothing about it and is Important. The path is testable without the real pasteboard: GPUI 0.2.2 ships a `test-support` feature with an in-memory `TestPlatform` clipboard (`platform/test/platform.rs`'s own `current_clipboard_item`, reachable via `TestAppContext::write_to_clipboard`/`read_from_clipboard`), not currently a dev-dependency of steg-app. Needs an integration test using that (write a known string to the test clipboard, dispatch a Cmd-V KeyDownEvent to the entity, assert the writer/socket receives the normalised bytes), with a failing-then-passing control.
+
+Verified round-1 fixes:
+- Finding 1 (writer thread, crates/app/src/client.rs): try_send never blocks; one sync_channel(64) carries both WriterCommand::Input and WriterCommand::DeclareSize through one consuming thread, preserving order by construction; a full/dead queue or a write failure reports Disconnected exactly once via a shared Arc<AtomicBool> guard; Writer::stop drops the sender then unconditionally shuts down a cloned handle, so it never joins a thread that could still be running. Reasoned through whether "full" is reachable against a healthy, merely busy server: no - write_loop drains try_send's queue as fast as write_all succeeds (microseconds), so the queue only backs up once the peer stops draining the kernel's own socket buffer, not from production rate alone (even a fast resize drag, each declare_size call is still just one more queue entry drained promptly). Repeated control (a) myself: in a scratch edit, replaced `try_send` with a blocking `commands.send(command)` (defeating the queue's non-blocking contract) and ran `send_input_returns_promptly_even_when_the_peer_never_reads` - failed exactly as claimed ("did not finish within the test's own bound: Timeout"), within the test's own 5s bound, under my own 90s hard wall timeout; reverted, `git status` clean. Reader and writer share the one socket safely: `stream`/`shutdown_handle`/`write_handle` are three independent try_clone()'d fds of the same socket (startup.rs:218-311), shutdown on any unblocks a blocking read/write on another, the standard POSIX contract both Client::stop and Writer::stop already rely on identically.
+- Finding 2 (ime.rs marked_text_range): now ImeState::marked_range_utf16 computes the real UTF-16 length; two new tests (single-unit, multi-character "你好") would fail if reverted to the old 0..0 shape - a real fix.
+- Finding 3 (keys.rs coverage test): every_key_named_key_bytes_maps_has_a_row_proving_it_and_no_other_key_does now asks named_key_bytes itself per candidate (f1-f13, 27 keys total), not a parallel hardcoded list; removing an arm (e.g. f6) would disagree and fail, as claimed.
+
+Live evidence: plainly disclosed in both the task's notes and the PR body (gh pr view 71) that nothing after 2c127d4f was exercised in a real window, and that the images/recording are from that earlier head - matches the claim's known, expected gap, not a new finding. PR 71 CI green on 78de7a12 (gh pr checks 71), matching the branch head and the recorded `just check` (comment 2026-11-18 00:27, exit 0, clean tree).
+
+Not checked: the .mov recording's contents; any machine other than this one; whether the plan-approval hash still matches beyond what the notes state.
+
+---
+
+created: 2026-11-18T00:57:00Z
+
+---
+
+Second review's finding fixed: pulled the Cmd-V mechanism into send_pasted_text(writer, clipboard_text) - a plain function taking the clipboard's own text as Option<&str> and the writer, so on_key_down is one line that reads the real clipboard and passes the text in. Chose the injected-text shape, not gpui's test-support in-memory clipboard, per your own note about TASK-1.126's prior finding on that feature's footprint.
+
+Tested against a real socket (client.rs's own Writer-test pattern, no gpui test-support needed, no app launch): CRLF and bare LF both normalise to a single \r; a paste between two ordinary inputs arrives as exactly one send, in order with them, over the same single queue review finding 1 already gave every input; no clipboard text, or an empty string, sends nothing at all - not even an empty frame.
+
+Control: removed send_pasted_text's own body (the reviewer's exact regression - all four OLD paste tests still passed because they only tested is_paste_keystroke). Recorded failing: two of the four NEW tests failed (the ones that expect something to actually arrive); the other two (empty/no-text-sends-nothing) correctly still passed on their own - that is the right behaviour either way, not a gap in the control. Restored, recorded passing. Also fixed a real gap the control's first run exposed: the test harness had no read timeout, so the two tests that should fail instead hung until I killed the process by hand - added one (matching client.rs's own convention) so a real regression fails cleanly in bounded time from here on.
+
+What remains untested, as asked: the one line in on_key_down that calls cx.read_from_clipboard() itself - reading the real clipboard is exactly what must not be exercised by a test or a live run.
+
+just check recorded clean (exit 0) at the final head (e6a811b6, clean tree, after merging origin/main - board-only changes, no conflicts).
 
 ---
 <!-- COMMENTS:END -->

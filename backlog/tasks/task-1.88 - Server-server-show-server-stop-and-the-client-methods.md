@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T22:41:00Z'
+updated_date: '2026-11-18T22:57:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -493,6 +493,41 @@ test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
 test server_show_and_server_stop_work_through_the_real_binary ... ok
 
 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T22:57:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.88 on task-1.88-server-server-show-server-stop-and-the at 2542e1145dc1:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (56.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (52.4s)
+ok      test (steg-server, race-fixture) (53.4s)
+ok      test (steg-server, pty-race-fixture) (65.3s)
+ok      test (steg-server, accept-backoff-fixture) (85.0s)
+ok      build (steg) (0.8s)
+ok      test (steg) (4.0s)
+ok      test (steg, fixtures) (8.4s)
+ok      build (steg-ui) (14.5s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (2.1s)
+ok      tool tests (40.6s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

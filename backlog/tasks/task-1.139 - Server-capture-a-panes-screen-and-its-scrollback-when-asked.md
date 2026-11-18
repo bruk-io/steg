@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-18T22:32:00Z'
+updated_date: '2026-11-18T22:34:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
 asdlc_branch: task-1.139-server-capture-a-pane-s-screen-and-its
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '5f557f50d334'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -96,3 +99,16 @@ Split from TASK-1.90 by its plan on 2026-11-18 (its second criterion). doc-2 sec
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-2 (sections 5, 6, 8: pane capture, --scrollback, capture after the program ends) and doc-1 R35 by @bruk.o: ok. No description parameter, error list or wire change; capture of an ended pane is allowed as doc-2 section 6 says; the pane's terminal is read on its own thread with the runtime lock released and a bound. For the engineer: a timed-out capture answers EngineFailed (status 1), not NoSuchTarget and not TASK-1.140's TimedOut; each row has trailing whitespace trimmed (doc-2 is silent on the text's exact shape; blank rows are kept); the 5 s bound and the 2 MB wedge payload are first guesses to be measured in the build. Collisions: cross_cutting.rs rows beside TASK-1.88 and TASK-1.141; TASK-1.140 follows in dispatch/pane.rs.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-18T22:34:00Z
+
+---
+
+Plan approved by @bruk (5f557f50d334, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

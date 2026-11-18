@@ -1,15 +1,18 @@
 ---
 id: TASK-1.131
 title: 'Server: runtime.rs split into modules by concern'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:38:00Z'
+updated_date: '2026-11-18T05:51:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies: []
+references:
+  - task-1.131-server-runtime-rs-split-into-modules-by
+  - https://github.com/bruk-io/steg/pull/79
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -892,6 +895,27 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.1s)
 ```
+
+Built: crates/server/src/runtime.rs (4,959 lines) split into crates/server/src/runtime/ - mod.rs, login.rs, tree.rs, events.rs, attach.rs, input.rs, lifecycle.rs, start.rs, close.rs, moving.rs, testing.rs - exactly the layout the approved plan named, in 14 commits (git mv, one per seam in plan order, a final tidy, an fmt/import-fix commit, and the comments-only commit for the 8 external files). PR #79, CI green (10m41s).
+
+Checks recorded, each with its own control (recorded failing with the control in place, then passing once reverted):
+- Baseline `just check`, run before the git mv (every step passed; the affected-tests step read "skip: this change touches no crate", correctly, since nothing had changed against origin/main yet), and again at the final head after rebasing (every step passed; the same step now reads "ok tests (-p steg -p steg-server)" since there are changes to run by then) - same set of steps both times, nothing missing.
+- cargo test -p steg-server --lib, 203 tests, recorded repeatedly through the build and once more at the final head: 0 failed, 0 ignored throughout.
+- Proof (a), public surface unchanged: git diff origin/main empty on lib.rs/config.rs/connection.rs/listen.rs (config.rs's own comment reword aside); a grep-based before/after pub-item listing matches exactly. Control: widened broadcast to plain pub, caught, reverted.
+- Proof (b), same test names, none ignored: normalised test-name list matches (203/203); a real cargo test run's own "ignored" count is 0 - checked after finding mid-build that `--list` alone does not catch a #[ignore] (cargo lists an ignored test the same as a runnable one; only a real run's summary line reports the ignored count). Control: a scratch #[ignore], caught by the real-run check, not by --list; reverted.
+- Proof (c), no function body changed beyond imports and visibility: sorted-line multiset diff over normalised source (comments/blank lines/use+mod lines/mod-tests-and-impl-Runtime boilerplate/pub-visibility-tokens stripped). Not empty - every remaining line is accounted for: import-list redistribution across files, two signatures rustfmt rewrapped once pub(super) pushed them past the line limit, and the two disclosed import-path fixes below. Frozen as the expected output; a real run must match it exactly. Control: inverted a condition in force_end's pass 3, caught as an unaccounted new line pair, reverted.
+- A supplementary git diff --color-moved=blocks pass over the real (non-normalised) text: ~3980/~4590 changed lines classified as moved blocks; the ~620 not moved are, on inspection, entirely doc-comment headers for new files, mod/impl/#[cfg(test)] boilerplate, and import-list lines - not logic.
+- The comments-only commit: git diff -U0, restricted to lines not starting with ///, //!, or //, is empty across the seven files it touches. Control: a scratch non-comment line in config.rs, caught, reverted.
+
+Departures from the plan, both disclosed in their own commit messages:
+- FORCE_JOIN_TIMEOUT stayed in mod.rs rather than moving into close.rs with force_end - it turned out to be used directly by lifecycle.rs's own stop() too (crate::pane::join_with_bound(drain, FORCE_JOIN_TIMEOUT)), not only inside force_end, so it is genuinely cross-seam. ESCALATE_CONFIRM_TIMEOUT, used only inside force_end, moved as planned.
+- Several helpers the plan described as shared turned out, on inspection of their actual call sites, to be used only within one seam's own tests: register_subscriber/register_slow_subscriber/read_one_event/assert_nothing_arrives_within/EVENT_TIMEOUT and the whole "typed command marks" helper group (moment_now, pane_status, start_real_pane, login_for_marks, show_pane_and_tab, etc.) moved directly into events.rs's own test module rather than into testing.rs. testing.rs ended up holding only login/test_base_env/test_state/fresh_state_with_one_pane/TEST_GRACE/TEST_TICK - the set actually used by more than one seam's tests.
+
+One slip, disclosed plainly rather than glossed over: while writing lifecycle.rs I first reconstructed mod stop_tests from an earlier point in this session's own context instead of reading the current file fresh, and it was wrong in several real details (a pid-file mechanism vs. the actual screen-read one, an extra atomic counter, a trap-ready marker file that doesn't exist in the real source). I caught this myself, before any commit, by diffing my draft against the actual source text and rewriting it verbatim from that diff - the lifecycle.rs commit that landed on this branch carries the correct text throughout; no commit on this branch ever held the wrong version. Every other file was written by reading the current source immediately before writing the new file, not from memory, and each was spot-checked against the original with a direct diff before its own commit.
+
+Recommendation for a follow-up task (not drafted by me, per the engineer's own instruction - they are drafting it): crates/server/src/pane.rs (about 2,600 lines) is a good candidate for the same treatment, on two concrete signals read during this task's own plan: TASK-1.90's capture/wait and TASK-1.115's scrollback paging both read PaneHandle's own screen/terminal state the same way attach_pane already does, and are likely to land in roughly the same area of that file at close to the same time. connection.rs (about 1,300 lines) was not read as warranting a split from size alone - recommend checking its own per-file merge-touch count first.
+
+Which file a new method or event now touches, for whoever picks up the eight server tasks named in the plan: a start.new/tab.new/pane.split change -> start.rs; pane.close/tab.close/session.close -> close.rs; pane.move -> moving.rs; attach/detach/subscribe -> attach.rs; send_input/declare_size/apply_size_changed -> input.rs; connect_client/disconnect_client/stop/session_counter -> lifecycle.rs; a new TreeEvent or broadcast-site change -> events.rs; the tree-lookup helpers (session_owning_tab, resolve_pane_target) -> tree.rs; the login shell identity -> login.rs. The plan's own collision table (1.109 x 1.116 on events.rs; 1.109 x 1.88 and 1.116 x 1.88 on lifecycle.rs) still holds - the split narrows each task's own blast radius to one or two files, not the whole 4,959-line original, but does not remove those three pairs.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

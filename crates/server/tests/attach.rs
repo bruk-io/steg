@@ -1584,7 +1584,7 @@ fn a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_a
 /// `pane.close --force` returns within its own documented bound
 /// (`force_grace + ESCALATE_CONFIRM_TIMEOUT + FORCE_JOIN_TIMEOUT`) even
 /// while that exact pane's own worker is stuck in a blocking `write_all`.
-/// `force_end`'s own six passes (`crates/server/src/runtime.rs`) never
+/// `force_end`'s own six passes (`crates/server/src/runtime/close.rs`) never
 /// wait on the worker thread past a stated timeout; only the final two
 /// (`settle_worker`/`join_worker`) touch it at all, and both are bounded.
 #[test]
@@ -1630,7 +1630,7 @@ fn pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_
 /// Stopping the whole server returns within its own documented bound even
 /// while one pane's worker is stuck the same way - `Runtime::stop` uses
 /// the identical `force_end` a forced `pane.close` does, for every pane
-/// still running (`crates/server/src/runtime.rs`'s own doc on `Runtime::
+/// still running (`crates/server/src/runtime/lifecycle.rs`'s own doc on `Runtime::
 /// stop`).
 #[test]
 fn stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck() {
@@ -1676,14 +1676,14 @@ fn stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stu
 /// run). While it is still queued, connection one force-closes the pane.
 /// `Runtime`'s own close-and-force removes the pane from its own map
 /// under the lock, synchronously, *before* `force_end`'s signal/kill
-/// passes even run (`crates/server/src/runtime.rs`, the `to_force`
+/// passes even run (`crates/server/src/runtime/close.rs`, the `to_force`
 /// extraction ahead of `force_end`) - so the pane is already gone by the
 /// time connection two's queued attach is finally reached. The worker
 /// thread itself is not torn down until `force_end`'s own later passes,
 /// so it drains its backlog and answers that queued attach normally,
 /// unaware the pane it belongs to has already been removed - exactly the
 /// gap between "attach succeeded" and "arm found nothing to arm" TASK-
-/// 1.125 named. `arm_attachment` (runtime.rs) checks the pane is still in
+/// 1.125 named. `arm_attachment` (runtime/attach.rs) checks the pane is still in
 /// its own map before arming; `finish_attach` (connection.rs) does not
 /// record the attachment when it is not. What this test checks is not
 /// connection two's own `pane.attach` reply (which may itself report

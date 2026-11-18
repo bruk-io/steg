@@ -92,7 +92,7 @@ pub struct ServerConfig {
     /// (TASK-1.45 §1) - defaulted to the real launcher, same as every
     /// other field here defaults to the real thing. A socket-level test
     /// that never needs a real program can override this with a fake, the
-    /// same way `runtime.rs`'s own tests already inject one.
+    /// same way `runtime/`'s own tests already inject one.
     pub launcher: Arc<dyn ProgramLauncher>,
     /// The login shell [`crate::Runtime`] falls back to when a pane names
     /// no program and no source pane to inherit a `cwd` from (TASK-1.76

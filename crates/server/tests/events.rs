@@ -880,7 +880,7 @@ fn disconnecting_ends_a_subscription_with_no_panic_and_no_further_broadcast() {
 
 // --- AC #3: a slow subscriber is closed, never blocked on ------------------
 //
-// Proved at the unit level, in `runtime.rs`'s own test module
+// Proved at the unit level, in `runtime/events.rs`'s own test module
 // (`a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full`),
 // not here: driving `Outbound`'s own `CONTROL_CAP` (256) to genuinely
 // overflow needs the writer thread to never drain it at all, which is

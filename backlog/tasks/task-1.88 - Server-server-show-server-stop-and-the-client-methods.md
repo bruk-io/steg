@@ -1,11 +1,11 @@
 ---
 id: TASK-1.88
 title: 'Server: server show, server stop, and the client methods'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T23:14:00Z'
+updated_date: '2026-11-18T23:28:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -13,6 +13,9 @@ dependencies:
   - TASK-1.45
   - TASK-1.77
   - TASK-1.78
+references:
+  - task-1.88-server-server-show-server-stop-and-the
+  - https://github.com/bruk-io/steg/pull/82
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -619,6 +622,18 @@ ok      recipe names (0.1s)
 ok      ui levels (0.0s)
 ok      ui colours (0.1s)
 ```
+
+Built exactly the approved (server-only, rewritten) plan.
+
+Files: crates/kernel/src/moment.rs (Moment::since_origin); crates/sdk/src/record.rs/lib.rs, crates/server/src/dispatch/outcome.rs (ServerRecord + its Outcome variant); new crates/server/src/dispatch/server.rs (server.show/server.start as plain dispatch_raw arms, no interception); crates/server/src/dispatch/mod.rs (HANDLED guard added, server.stop narrowed into INTERCEPTED_BEFORE_DISPATCH with its own refusal arm); crates/server/src/config.rs (ServerConfig.force_grace); crates/server/src/listen.rs (reads config.force_grace; calls runtime.set_stopper unconditionally, unlike idle wiring); crates/server/src/runtime/mod.rs + lifecycle.rs + testing.rs (State.stopper, set_stopper/session_count/stopper()); crates/server/src/outbound.rs (ControlItem, Outbound::enqueue_control_and_wait_until_written); crates/server/src/connection.rs (server.stop's own interception: refuse-check, flush-then-stop, returns false to end the connection).
+
+Tests, each with a recorded failing-then-passing control: crates/server/tests/dispatch/server.rs (pure show/start; failed against the stub arm, passes against the real one); crates/server/src/outbound.rs's new tests including a StepWriter-based deterministic ordering proof (negative control: firing the ack before write_all makes the ordering assertion fail exactly as expected, reverted); crates/server/src/connection.rs's own refusal/success unit tests; crates/server/tests/server_stop.rs (socket-level: refusal while a session exists and the server stays up; the flushed reply then a real stop, socket removed, lock releasable, a second client finds no server; --force ending a real running program); crates/steg/tests/server_show_stop.rs (one real-binary end-to-end case). Also attempted a socket-level negative control for the flush ordering (bare enqueue + immediate stop, 60 trials) - found 0 failures, honestly reported as not reproducing the race reliably on this machine (write() to a local socket resolves the race almost every time); the StepWriter-based test is the one that actually demonstrates the mechanism is load-bearing.
+
+Checks: cargo test -p steg-sdk -p steg-kernel; cargo test -p steg-server --lib (214 tests) and --test dispatch (82) and --test server_stop; cargo test -p steg --test server_show_stop; just check green at the final head (285d5adf), recorded. Two just check runs hit unrelated flakes under this machine's concurrent load - login_env.rs's backgrounded-grandchild test, and attach.rs's pty-race suite - both confirmed via git diff against origin/main to touch no file this branch changes, each recorded failing then green on a single retry, per policy. CI green (SUCCESS, 13m32s) at the exact PR head.
+
+Departures from the plan: none in substance. Two small corrections made during the lint pass, both disclosed in their own commit: a doc-comment in crates/steg/tests/server_show_stop.rs tripped clippy::doc_lazy_continuation (a line starting with "-" read as an unindented list continuation) and was reworded; a comment in connection.rs's own server.stop arm pointed at a non-existent "mod.rs's own full doc" for the ordered shutdown sequence and was corrected to point at listen::run's own doc, which actually documents it.
+
+Not built here, per the plan: client.list/client.show (now a separate draft task carrying that design) and signal handling for criterion #3 (left as a question for the engineer, with the probed/documented default of leaving SIGINT/SIGTERM unhandled for M1, and the sigwait-thread alternative named with its real cost - no new dependency, no unsafe).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

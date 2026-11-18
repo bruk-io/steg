@@ -378,6 +378,26 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpPO4ub5` does not 
 ......                                                                   [100%]
 6 passed, 15 deselected in 0.01s
 ```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k lock_directory'` exited 1 at 2026-11-18T02:47:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpV5P5lw` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..F                                                                      [100%]
+=================================== FAILURES ===================================
+______________ test_lock_directory_override_wins_over_everything _______________
+
+    def test_lock_directory_override_wins_over_everything() -> None:
+>       assert lock_directory({"XDG_CACHE_HOME": "/tmp/cache", "STEG_CHECK_SLOTS_DIR": "/tmp/slots"}) == Path("/tmp/slots")
+E       AssertionError: assert PosixPath('/tmp/cache/steg/check-slots') == PosixPath('/tmp/slots')
+E        +  where PosixPath('/tmp/cache/steg/check-slots') = lock_directory({'XDG_CACHE_HOME': '/tmp/cache', 'STEG_CHECK_SLOTS_DIR': '/tmp/slots'})
+E        +  and   PosixPath('/tmp/slots') = Path('/tmp/slots')
+
+tools/tests/unit/test_quiet.py:112: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_lock_directory_override_wins_over_everything
+1 failed, 2 passed, 18 deselected in 0.01s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

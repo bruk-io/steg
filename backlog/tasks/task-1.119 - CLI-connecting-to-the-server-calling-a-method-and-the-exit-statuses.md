@@ -758,6 +758,46 @@ test without_json_a_successful_command_prints_nothing_on_stdout ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.35s
 ```
+
+Check FAILED: `cargo test -p steg --test cli_api_call --features fixtures -- api_call_sends_stdin_params_flat_to_the_named_method` exited 101 at 2026-11-18T03:18:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+warning: variable does not need to be mutable
+  --> crates/steg/src/cli/api_call.rs:53:23
+   |
+53 |     let Value::Object(mut params) = parsed else {
+   |                       ----^^^^^^
+   |                       |
+   |                       help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg` (lib) generated 1 warning (run `cargo fix --lib -p steg` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-c9922192cf592a61)
+
+running 1 test
+test api_call_sends_stdin_params_flat_to_the_named_method ... FAILED
+
+failures:
+
+---- api_call_sends_stdin_params_flat_to_the_named_method stdout ----
+
+thread 'api_call_sends_stdin_params_flat_to_the_named_method' (57925415) panicked at crates/steg/tests/cli_api_call.rs:154:5:
+assertion `left == right` failed: stderr: steg: method: must be text
+
+  left: Some(2)
+ right: Some(0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    api_call_sends_stdin_params_flat_to_the_named_method
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.34s
+
+error: test failed, to rerun pass `-p steg --test cli_api_call`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

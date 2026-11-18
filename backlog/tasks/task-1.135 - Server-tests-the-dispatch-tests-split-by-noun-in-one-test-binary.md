@@ -1,9 +1,11 @@
 ---
 id: TASK-1.135
 title: 'Server tests: the dispatch tests split by noun, in one test binary'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
+updated_date: '2026-11-18T02:26:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -11,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.135-server-tests-the-dispatch-tests-split-by
 ---
 
 ## Description

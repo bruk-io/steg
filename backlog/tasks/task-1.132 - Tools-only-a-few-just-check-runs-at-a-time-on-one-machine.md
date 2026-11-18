@@ -639,6 +639,53 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpjhdOYG` does not 
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q "tools/tests/unit/test_quiet.py::test_slot_count_rejects_a_non_numeric_value_naming_the_variable_and_value" "tools/tests/functional/test_quiet_slots.py::test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback"'` exited 1 at 2026-11-18T03:38:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851 with uncommitted changes, last 40 of 47 lines:
+
+```text
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: "STEG_CHECK_SLOTS must be a whole number, got 'abc'"
+E         Actual message: "invalid literal for int() with base 10: 'abc'"
+
+tools/tests/unit/test_quiet.py:96: AssertionError
+_______ test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback _______
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-698/test_a_non_numeric_slot_count_0')
+
+    def test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        command = [
+            STEG_QUIET,
+            "a",
+            "--",
+            "cargo",
+            "test",
+            "0.1",
+            str(tmp_path / "s"),
+            str(tmp_path / "e"),
+            str(tmp_path / "p"),
+        ]
+        env = _env(bin_dir, STEG_CHECK_SLOTS="not-a-number", STEG_CHECK_SLOTS_DIR=str(lock_dir))
+    
+        result = subprocess.run(command, check=False, env=env, cwd=str(tmp_path), capture_output=True, text=True, timeout=HARNESS_BOUND_S)
+    
+        assert result.returncode != 0
+        assert "Traceback" not in result.stdout
+>       assert "STEG_CHECK_SLOTS" in result.stdout
+E       assert 'STEG_CHECK_SLOTS' in "FAILED  a (invalid literal for int() with base 10: 'not-a-number')\n"
+E        +  where "FAILED  a (invalid literal for int() with base 10: 'not-a-number')\n" = CompletedProcess(args=['/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132/tools/.venv/bin/steg-quiet',...ot_count_0/p'], returncode=1, stdout="FAILED  a (invalid literal for int() with base 10: 'not-a-number')\n", stderr='').stdout
+
+tools/tests/functional/test_quiet_slots.py:372: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_slot_count_rejects_a_non_numeric_value_naming_the_variable_and_value
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback
+2 failed in 0.04s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

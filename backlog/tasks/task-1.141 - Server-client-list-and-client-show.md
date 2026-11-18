@@ -306,6 +306,43 @@ test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 77 filtered out;
 
 error: test failed, to rerun pass `--test dispatch`
 ```
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch client::client_list_returns_every_connected_client_by_default_except_cli 2>&1'` exited 101 at 2026-11-18T22:52:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 18da1c97edb1 with uncommitted changes:
+
+```text
+warning: unused import: `ClientKind`
+  --> crates/server/src/dispatch/client.rs:11:26
+   |
+11 | use steg_sdk::{ApiError, ClientKind, ClientRecord, Request};
+   |                          ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/dispatch/main.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test client::client_list_returns_every_connected_client_by_default_except_cli ... FAILED
+
+failures:
+
+---- client::client_list_returns_every_connected_client_by_default_except_cli stdout ----
+
+thread 'client::client_list_returns_every_connected_client_by_default_except_cli' (62923327) panicked at crates/server/tests/dispatch/client.rs:30:5:
+assertion `left == right` failed
+  left: ["00000003", "00000004", "00000005"]
+ right: ["00000003", "00000005"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::client_list_returns_every_connected_client_by_default_except_cli
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test dispatch`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

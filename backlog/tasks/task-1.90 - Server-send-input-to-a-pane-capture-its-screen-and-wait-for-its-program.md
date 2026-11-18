@@ -192,6 +192,19 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; 
 
 error: test failed, to rerun pass `-p steg-server --test pane_send`
 ```
+
+Check passed: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_text_and_key_together` exited 0 at 2026-11-18T14:36:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at a51a1325d021 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_text_and_key_together ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.03s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

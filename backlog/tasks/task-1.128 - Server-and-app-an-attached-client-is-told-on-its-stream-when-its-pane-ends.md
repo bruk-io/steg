@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:35:00Z'
+updated_date: '2026-11-18T00:36:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -23,6 +23,8 @@ asdlc_branch: task-1.128-server-and-app-an-attached-client-is
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ffc63839f742'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -825,6 +827,15 @@ created: 2026-11-17T22:51:00Z
 ---
 
 Plan approved by @bruk (ffc63839f742, size-3): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T00:36:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.128: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

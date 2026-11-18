@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T14:38:00Z'
+updated_date: '2026-11-18T14:46:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -329,6 +329,41 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/
          "pane.send --key enter: {response:?}"
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 163 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T14:46:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at a51a1325d021 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (104.8s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.5s)
+ok      test (steg-sdk, local-socket) (2.4s)
+ok      build (steg-kernel) (0.8s)
+ok      test (steg-kernel) (1.1s)
+ok      build (steg-server) (28.8s)
+ok      test (steg-server) (57.3s)
+ok      test (steg-server, race-fixture) (58.0s)
+ok      test (steg-server, pty-race-fixture) (64.8s)
+ok      test (steg-server, accept-backoff-fixture) (58.2s)
+ok      build (steg) (1.5s)
+ok      test (steg) (3.9s)
+ok      test (steg, fixtures) (9.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (1.6s)
+ok      tool tests (40.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

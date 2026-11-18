@@ -33,6 +33,8 @@ use crate::program_param::program_from_request;
 use crate::pty::{LaunchSpec, ProgramLauncher};
 
 mod login;
+#[cfg(test)]
+mod testing;
 
 pub use login::{LoginShell, build_login_shell};
 
@@ -2042,6 +2044,7 @@ mod tests {
 
     use steg_sdk::{ClientId, Program, ProgramStatus, Size, Status, TreeEvent};
 
+    use super::testing::{TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, login, test_base_env, test_state};
     use super::{
         Filter, LoginShell, Moment, Runtime, State, Subscriber, apply_event_locked, broadcast,
         force_end,
@@ -2143,74 +2146,6 @@ mod tests {
     /// Bounded, never a bare `recv` - the no-sleep rule's own reasoning
     /// for every real-process wait in this crate's tests.
     const EVENT_TIMEOUT: Duration = Duration::from_secs(20);
-
-    /// A working `PATH` is required (TASK-1.87): `RealLauncher::spawn`'s
-    /// own `.env_clear()` means a `LaunchSpec.env` with no `PATH` at all
-    /// cannot resolve a relative program name like `"sh"` (confirmed
-    /// directly with `portable_pty`, not assumed - `spawn_command` fails
-    /// with "Unable to resolve the PATH"). Reading this *test* process's
-    /// own ambient `PATH` is fine here - a test, allowed to, unlike
-    /// production code (this function's own doc on `ServerConfig`'s
-    /// `login_env` module says why production code never does).
-    fn test_base_env() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
-        vec![(
-            std::ffi::OsString::from("PATH"),
-            std::env::var_os("PATH").unwrap_or_default(),
-        )]
-    }
-
-    /// A tiny `force_grace` for every `Runtime::new` in this module - none
-    /// of these tests exercise forcing *through a `Runtime`* (the one
-    /// direct `force_end` call, cleaning up an orphaned handle this
-    /// module built by hand with no `Runtime` around it, is the
-    /// exception), so the value only has to be cheap, never realistic.
-    const TEST_GRACE: Duration = Duration::from_millis(30);
-
-    /// A tiny `attach_tick` for every `Runtime::new` in this module - none
-    /// of these tests attach to a pane (TASK-1.47's own tests live in
-    /// `pane.rs` and this crate's `tests/` directory), so the value only
-    /// has to be cheap, never realistic.
-    const TEST_TICK: Duration = Duration::from_millis(1);
-
-    fn login() -> LoginShell {
-        LoginShell {
-            argv0: "/bin/sh".to_string(),
-            home: "/tmp".to_string(),
-            user: None,
-            base_env: test_base_env(),
-        }
-    }
-
-    /// Builds a `State` for a test with no `Runtime` around it - every
-    /// `clock_origin` in this module's own tests is simply "now", since
-    /// none of them care about any moment but the one `apply_event_locked`
-    /// reads at the instant it runs.
-    fn test_state(tree: steg_kernel::Tree, panes: HashMap<steg_sdk::PaneId, PaneHandle>) -> State {
-        State {
-            tree,
-            panes,
-            settings: steg_kernel::Settings::new(),
-            clock_origin: Instant::now(),
-            subscribers: HashMap::new(),
-            notify_session_count_changed: None,
-            applied_marks: HashMap::new(),
-        }
-    }
-
-    fn fresh_state_with_one_pane() -> (State, steg_sdk::PaneId) {
-        let mut tree = steg_kernel::Tree::new();
-        let session = tree.new_session(None).unwrap();
-        let pane = tree.session(session).unwrap().tabs()[0].panes()[0].id();
-        tree.start_program(
-            pane,
-            Program::Command {
-                argv: vec!["htop".to_string()],
-                cwd: "/tmp".to_string(),
-            },
-        )
-        .unwrap();
-        (test_state(tree, HashMap::new()), pane)
-    }
 
     /// AC #2's cascade, proven deterministically: a hand-built
     /// `PaneEvent::Exited` against a `Tree` already holding a started

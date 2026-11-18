@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:46:00Z'
+updated_date: '2026-11-18T03:58:00Z'
 labels:
   - size-2
   - changes-requested
@@ -845,6 +845,25 @@ Verified myself: read quiet.py, the justfile's full recipe list (every `cargo bu
 Control repeated myself (different from a pure function): scratch-edited `_race_all_slots` in the worktree to spawn only one thread, pinned to `paths[0]`, breaking the first-to-free race. Ran `uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one` directly (bounded, under 60s) - it failed exactly as expected, the waiter stuck behind the long holder instead of the short one ("the waiter should acquire the slot that freed quickly", assert 1794972279.37 <= 1794972276.69). Reverted with `git checkout --`, confirmed `git status --porcelain` empty and the diff against origin/main unchanged (still only justfile, quiet.py, the two test files).
 
 Did not check: did not independently stress-test the timing-margin assertions (SLACK_S=0.5s) for flakiness under this machine's current load beyond the one control above; did not re-run the SIGKILL or fd-inheritance controls myself, only read their recorded transcripts.
+
+---
+
+created: 2026-11-18T03:58:00Z
+
+---
+
+Review findings addressed (commit 94dcbe4):
+
+1. [Important] Added test_a_bounded_wait_fails_cleanly_without_running_its_command (real processes): every slot held, a waiter with STEG_CHECK_SLOT_WAIT_S=2 against an 8s holder - fails within the bound (not the holder's 8s), prints "gave up waiting 2s for a check slot in <dir> - set STEG_CHECK_SLOT_WAIT_S or STEG_CHECK_SLOTS to change this", and its own fake-cargo command never ran (its start marker file was asserted absent). Control: made the expiry path ignore the bound (won.wait(timeout=None)); the test failed because the step ran unslotted and succeeded (returncode 0) instead of refusing. Recorded failing then passing.
+2. [Nit] Left cargo install out of the heavy set on purpose - it is not part of just check/just test (this task's own named scope), runs rarely, and gates nothing timing-sensitive; said so in a comment at _HEAVY_CARGO_SUBCOMMANDS.
+3. [Nit] Added an assertion to the existing convoy-fix test that the waiter's own captured output actually contains the "wait    waiter (...)" line, not just that wait_line()'s formatter produces the right text. Control: suppressed the print call (called wait_line() but discarded it); the test failed on exactly that new assertion while the rest of the test's own correctness held. Recorded failing then passing.
+4. [Nit] STEG_CHECK_SLOTS and STEG_CHECK_SLOT_WAIT_S now each raise a ValueError naming the variable and the bad value (wrapping the raw int()/float() ValueError) instead of letting a bare "invalid literal for int()..." propagate; main() already caught ValueError generically so there was never a raw traceback, but the message didn't name the variable before this. Added a unit test per variable (with its own control: removing the wrapper so the message reverts to the raw, unnamed one) plus one functional CLI-level test proving no "Traceback" string appears and the variable/value are both named in steg-quiet's own real output.
+
+Timing margins: widened every wall-clock assertion in test_quiet_slots.py. Two named constants instead of one blanket SLACK_S: ORDER_SLACK_S=2.0 for "must come at/after" checks (safe to make generous - widening only ever makes these more lenient, never masks the opposite kind of bug) and CONCURRENT_SLACK_S=1.0 for "these two must have started together" checks (kept well under every duration it's compared against in the same test, so a real serialisation bug can't hide behind the slack itself). Also bumped every duration_s used across the file to 2-8s (previously 0.1-4.0s) so the signal stays clearly larger than any plausible scheduling delay, and added a separate HARNESS_BOUND_S=30.0 for the test file's own patience (communicate()/_wait_for() deadlines) - distinct from the correctness margins, so a slow-but-correct run under load fails only if the mechanism is actually wrong, never because the test harness itself gave up too early.
+
+Re-ran the full tools suite (329 tests) and a full just check locally after merging origin/main - both clean, no leftover processes (checked ps). CI green on PR #75 after the push (run 44232766603).
+
+No departures from the approved plan.
 
 ---
 <!-- COMMENTS:END -->

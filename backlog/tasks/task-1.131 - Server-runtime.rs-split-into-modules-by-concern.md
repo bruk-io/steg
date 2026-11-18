@@ -804,6 +804,12 @@ Check passed: `sh -c '! git diff -U0 -- crates/server/src/config.rs crates/serve
 ```text
 
 ```
+
+Check FAILED: `sh -c '! git diff -U0 -- crates/server/src/config.rs crates/server/src/pane.rs crates/server/tests/attach.rs crates/server/tests/events.rs crates/server/tests/real_pty.rs crates/server/tests/routing.rs crates/server/tests/runtime.rs | grep -E '"'"'^[+-][^+-]'"'"' | grep -qvE '"'"'^[+-][[:space:]]*(///|//!|//)'"'"''` exited 1 at 2026-11-18T05:23:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at a551e1090eaa with uncommitted changes:
+
+```text
+
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,9 +1,11 @@
 ---
 id: TASK-1.131
 title: 'Server: runtime.rs split into modules by concern'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
+updated_date: '2026-11-18T02:11:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -11,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.131-server-runtime-rs-split-into-modules-by
 ---
 
 ## Description

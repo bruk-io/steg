@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T22:52:00Z'
+updated_date: '2026-11-18T22:53:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -342,6 +342,20 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `--test dispatch`
+```
+
+Check passed: `sh -c 'cd crates/server && cargo test --test dispatch 2>&1 | tail -10'` exited 0 at 2026-11-18T22:53:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 18da1c97edb1 with uncommitted changes:
+
+```text
+test tab::tab_show_returns_the_tabs_record ... ok
+test tab::tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order ... ok
+test tab::tab_show_with_an_unknown_target_is_no_such_target ... ok
+test tab::tab_show_with_an_ambiguous_target_is_ambiguous_target ... ok
+test tab::tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing ... ok
+test cross_cutting::every_described_method_gets_a_response_with_no_panic ... ok
+test api::api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
+
+test result: ok. 85 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 ```
 <!-- SECTION:NOTES:END -->
 

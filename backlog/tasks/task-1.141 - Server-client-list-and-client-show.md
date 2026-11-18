@@ -658,6 +658,36 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 84 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch client::client_list_with_all_includes_cli_clients_too 2>&1'` exited 101 at 2026-11-18T23:53:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 191fbf539235 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/dispatch/main.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test client::client_list_with_all_includes_cli_clients_too ... FAILED
+
+failures:
+
+---- client::client_list_with_all_includes_cli_clients_too stdout ----
+
+thread 'client::client_list_with_all_includes_cli_clients_too' (63791195) panicked at crates/server/tests/dispatch/client.rs:55:5:
+assertion `left == right` failed
+  left: ["00000003", "00000005"]
+ right: ["00000003", "00000004", "00000005"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::client_list_with_all_includes_cli_clients_too
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test dispatch`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

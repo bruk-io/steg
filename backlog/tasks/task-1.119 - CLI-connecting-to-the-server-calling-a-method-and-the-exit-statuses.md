@@ -1,13 +1,14 @@
 ---
 id: TASK-1.119
 title: 'CLI: connecting to the server, calling a method, and the exit statuses'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T04:28:00Z'
+updated_date: '2026-11-18T04:36:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.49
@@ -21,8 +22,10 @@ asdlc_branch: task-1.119-cli-connecting-to-the-server-calling-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b60acf121e04'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -942,6 +945,31 @@ created: 2026-11-18T04:28:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.119: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T04:36:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Bugs, Important] crates/sdk/src/local_socket.rs:287-291 (one_handshake_attempt). When a complete Hello frame has already been decoded, the function still discards it and returns Ok(None) - the EOF-before-hello signal - if the trailing stream.set_read_timeout(None) call fails. A real hello was received and parsed correctly; this is not the EOF-before-hello condition AC #4 is about. On the retry attempt specifically, this turns a server that genuinely answered into a hard ConnectError::ClosedBeforeHello (exit 4), misreporting "no server" after a real, successful exchange. Not exercised by either Mode A/B unit test (the cooperative fixture sleeps 100ms before closing specifically to avoid this race) and not mentioned in the notes' own Departure writeup. The widened I/O-failure fold (correctly scrutinized for point 2) should not apply once a complete frame is already in hand - the fix is to return the success regardless of whether clearing the timeout succeeds.
+
+[Evidence, Important] crates/steg/tests/cli_api_call.rs::api_call_prints_json_with_no_json_flag_given has no recorded negative control. The plan's own proof section names this test explicitly for AC #3 ("api call's own exception, stated and tested... proving the documented exception rather than merely asserting it in prose"), and the policy requires a negative control for any test the plan's proof names. The task's own summary lists exactly which mechanisms got a recorded failing-then-passing control pair ("the errors-table mapping, ConnectError->4, the exactly-once retry in both modes, call_unvalidated skipping validate, the global-arg propagation, the --json/no-json contrast, and api call's stdin merge") and this one - the always-print-JSON exception itself - is absent from that list.
+
+[Bugs, Nit] crates/sdk/src/local_socket.rs (one_handshake_attempt): stream.write_all(&hello) runs before any timeout is set on the socket, so a peer that accepts but never reads could block the whole call past the stated "worst case about twice connect_timeout" bound. Unlikely given the hello's small size, but not actually bounded as documented.
+
+[Bugs, Nit] crates/steg/src/cli/api_call.rs / crates/sdk/src/wire/connection.rs (call_unvalidated): arbitrary stdin is merged and passed straight to call_unvalidated with no size check; encode_frame's "fits under the frame cap" expect panics (exit 101) rather than failing cleanly with the documented bad-usage status 2, if stdin is large enough. Pre-existing SDK-wide pattern (Connection::call has the same expect), but call_unvalidated is the one path that takes fully unvalidated, user-controlled input, making it the most directly reachable case.
+
+Control run myself: removed connect_handshaken's retry (local_socket.rs) in a scratch edit so a single EOF-before-hello returns ClosedBeforeHello immediately; ran `cargo test -p steg-sdk --lib --features local-socket -- a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts` (narrowest command, completed well under a minute - no explicit timeout needed). It failed as expected: "the retry's own hello should succeed: ClosedBeforeHello" - confirming the retry is load-bearing for Mode B. Reverted with `git checkout -- crates/sdk/src/local_socket.rs`; `git status` confirmed clean afterward.
+
+Checked and consistent with the claim: diff touches only crates/sdk (lib.rs, local_socket.rs, wire/connection.rs) and crates/steg (cli/*, main.rs, tests/*) - no boundaries.toml, Cargo.toml, crates/app, crates/server/src, or crates/sdk/src/description/ changes. Plan approval present (b60acf121e04, size-2) and matches the built diff's files and order of work. CI is green on exactly 5a456f3a (bruk-io/steg#77, confirmed via `gh pr checks`/`gh pr view --json headRefOid`); the disclosed local `just check` failures are the known, unrelated crates/server/tests/attach.rs timing flake, accurately described. The required single-server guarantee holds: connect_handshaken's retry only re-invokes the unmodified connect(), whose own direct-connect-then-spawn arbitration is untouched, so a retry after a dead listener's socket disappears entirely (as cli_connection_arbitration.rs's fixture does) is the only case that reaches autostart again, and a still-live listener is simply reconnected to, not duplicated.
+
+Not checked: did not independently re-run the full real-process test suites (cli_exit_statuses.rs, cli_connection_arbitration.rs) end to end beyond the one scratch control above, relying on the recorded check log and the green CI run for those; did not verify architecture/LikeC4 model validation beyond confirming no boundaries.toml/Cargo.toml diff.
 
 ---
 <!-- COMMENTS:END -->

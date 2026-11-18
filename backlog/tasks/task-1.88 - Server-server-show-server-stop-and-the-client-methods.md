@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T22:34:00Z'
+updated_date: '2026-11-18T22:38:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -450,6 +450,29 @@ kill: 35019: No such process
 test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
 
 test result: ok. 214 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+```
+
+Check passed: `cargo test -p steg-server --test server_stop` exited 0 at 2026-11-18T22:38:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.88 on task-1.88-server-server-show-server-stop-and-the at a44e55e51cd6 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_stop.rs (target/debug/deps/server_stop-3b19889852620df0)
+
+running 11 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test server_stop_with_no_sessions_flushes_the_reply_then_stops_and_a_second_client_sees_no_server ... ok
+test server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running ... ok
+kill: 51379: No such process
+test server_stop_with_force_ends_a_real_running_programs_process ... ok
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
 ```
 <!-- SECTION:NOTES:END -->
 

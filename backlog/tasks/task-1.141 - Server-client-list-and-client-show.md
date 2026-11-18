@@ -24,6 +24,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=3'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -854,6 +855,15 @@ Findings: 1 Important, 3 nit. Cites: review. The diff does not match the plan.
 [Compliance, Nit] crates/server/tests/dispatch/client.rs adds client_show_matches_exactly_the_fields_the_description_declares, an 8th dispatch-level test not named in the plan's step 5 list of 7; additive and low-risk (mirrors the list version's field-matching test for show), but not called out as a departure in the implementation notes.
 
 Everything else checked out: Tree::resolve_client (target.rs) reuses resolve_session's own generic resolve/to_result machinery with no new matching logic or error variant; client list excludes Cli clients unless --all, with no self-exclusion, matching doc-2 section 8/section 5 and decision-5; ClientRecord's fields match client.list/client.show's declared fields exactly, with no change under crates/sdk/src/description/; dispatch/mod.rs, outcome.rs and cross_cutting.rs only touch client entries, server and pane rows are untouched; both dispatch arms take &Tree and never mutate; the .expect calls in record_for/show are sound (every Client passed in came straight out of tree.clients() or a just-resolved id with no mutation in between); last_active stays None for M1 per the plan's settled question 1 (not re-raised here). Plan approval present ("Plan approved by @bruk (48ee00882225, size-2)").
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T23:58:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.141: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

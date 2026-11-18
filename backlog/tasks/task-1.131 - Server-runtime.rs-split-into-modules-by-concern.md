@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:13:00Z'
+updated_date: '2026-11-18T05:18:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -611,6 +611,51 @@ raw count after:  203
 --- normalised name diff (empty below this line = identical) ---
 --- running: ignored count must be exactly 0 ---
 test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+```
+
+Check FAILED: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-c.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main` exited 1 at 2026-11-18T05:18:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes, last 40 of 64 lines:
+
+```text
+> fn emit_close_cascade(
+1439a1441
+> fn login() -> crate::runtime::LoginShell {
+1441d1442
+< fn login() -> super::LoginShell {
+1487c1488
+< fn test_state(tree: steg_kernel::Tree, panes: HashMap<steg_sdk::PaneId, PaneHandle>) -> State {
+---
+> fn test_state(
+1514d1514
+< force_end,
+1555a1556
+> if !stragglers.contains(pane) {
+1584d1584
+< if stragglers.contains(pane) {
+2261a2262
+> panes: HashMap<steg_sdk::PaneId, PaneHandle>,
+2356d2356
+< Response, SessionId, Size, validate,
+2395a2396
+> scope: SessionId,
+2516a2518
+> state: &State,
+2680c2682
+< super::LoginShell {
+---
+> super::close::emit_close_cascade(state, closed, scope);
+2718a2721,2722
+> TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, login, test_base_env,
+> TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, test_base_env, test_state,
+2764a2769
+> tree: steg_kernel::Tree,
+2795c2800,2801
+< use steg_kernel::{
+---
+> use crate::runtime::testing::{
+> use crate::runtime::testing::{
+2797d2802
+< use super::{
+FAIL: the body-diff output no longer matches the accounted-for baseline
 ```
 <!-- SECTION:NOTES:END -->
 

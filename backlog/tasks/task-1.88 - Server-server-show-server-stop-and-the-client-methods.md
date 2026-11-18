@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T22:22:00Z'
+updated_date: '2026-11-18T22:26:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -279,6 +279,51 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `sh -c 'cargo test -p steg-server --lib dispatch:: && cargo test -p steg-server --test dispatch'` exited 0 at 2026-11-18T22:26:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.88 on task-1.88-server-server-show-server-stop-and-the at a44e55e51cd6 with uncommitted changes, last 40 of 168 lines:
+
+```text
+test api::api_show_with_no_target_returns_the_whole_description ... ok
+test setting::setting_show_an_unknown_name_is_no_such_target ... ok
+test tab::tab_list_with_an_ambiguous_session_target_is_ambiguous_target ... ok
+test tab::tab_move_with_position_reorders ... ok
+test setting::setting_show_returns_one_setting_in_full ... ok
+test setting::setting_unset_an_unknown_name_is_no_such_target ... ok
+test tab::tab_new_makes_the_new_tab_current_by_default ... ok
+test server::server_show_matches_exactly_the_fields_the_description_declares ... ok
+test setting::setting_unset_reverts_to_the_default ... ok
+test tab::tab_new_with_no_position_appends_at_the_end_as_before ... ok
+test api::api_call_of_a_request_that_fails_validation_gives_the_same_error_a_direct_call_would ... ok
+test tab::tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first ... ok
+test tab::tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restores_focus ... ok
+test tab::tab_new_with_no_focus_restores_the_previous_current_tab ... ok
+test tab::tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order ... ok
+test tab::tab_show_returns_the_tabs_record ... ok
+test tab::tab_new_with_position_zero_is_refused_and_creates_nothing ... ok
+test tab::tab_list_with_an_unknown_session_is_no_such_target ... ok
+test tab::tab_close_removes_it ... ok
+test server::server_start_always_answers_nothing_regardless_of_on_demand ... ok
+test setting::setting_set_changes_the_value_the_next_read_sees ... ok
+test server::server_show_reports_exactly_the_moment_its_given_as_uptime ... ok
+test api::api_call_reaches_setting_unset_with_its_required_target ... ok
+test tab::tab_show_with_an_unknown_target_is_no_such_target ... ok
+test tab::tab_new_with_a_middle_position_places_the_new_tab_there ... ok
+test pane::pane_split_with_no_focus_restores_the_previous_current_pane ... ok
+test server::server_show_counts_every_session_and_client_the_tree_holds ... ok
+test pane::pane_split_with_an_invalid_label_leaves_the_tree_exactly_as_it_was ... ok
+test api::api_call_reaches_setting_set_with_its_required_target ... ok
+test tab::tab_show_with_an_ambiguous_target_is_ambiguous_target ... ok
+test tab::tab_new_with_position_one_places_the_new_tab_first ... ok
+test api::api_call_of_an_unknown_method_is_refused_the_same_way_a_direct_call_would_be ... ok
+test api::api_call_reaches_setting_show_with_its_required_target ... ok
+test setting::an_override_is_still_there_for_a_fresh_tree_and_context_over_the_same_settings ... ok
+test tab::tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing ... ok
+test cross_cutting::every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... ok
+test cross_cutting::every_described_method_gets_a_response_with_no_panic ... ok
+test api::api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
+
+test result: ok. 82 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 ```
 <!-- SECTION:NOTES:END -->
 

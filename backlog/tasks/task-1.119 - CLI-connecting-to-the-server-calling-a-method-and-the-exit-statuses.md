@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T04:45:00Z'
+updated_date: '2026-11-18T04:46:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1008,6 +1008,36 @@ running 1 test
 test api_call_prints_json_with_no_json_flag_given ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.37s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_exit_statuses --features fixtures -- malformed_stdin_on_api_call_exits_2` exited 101 at 2026-11-18T04:46:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test malformed_stdin_on_api_call_exits_2 ... FAILED
+
+failures:
+
+---- malformed_stdin_on_api_call_exits_2 stdout ----
+
+thread 'malformed_stdin_on_api_call_exits_2' (58836385) panicked at crates/steg/tests/cli_exit_statuses.rs:335:5:
+assertion `left == right` failed: stderr: 
+  left: Some(0)
+ right: Some(2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    malformed_stdin_on_api_call_exits_2
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.24s
+
+error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
 ```
 
 Commits since the review: 19, 16 without the Asdlc-Worker trailer.

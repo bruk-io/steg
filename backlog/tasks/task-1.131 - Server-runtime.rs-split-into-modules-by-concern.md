@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:06:00Z'
+updated_date: '2026-11-18T05:08:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -505,6 +505,51 @@ test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not
 kill: 13003: No such process
 test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
 kill: 12709: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+```
+
+Check passed: `cargo test -p steg-server --lib` exited 0 at 2026-11-18T05:08:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at c16123d9994b with uncommitted changes, last 40 of 216 lines:
+
+```text
+test runtime::start::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+test runtime::tests::a_panic_while_holding_the_lock_does_not_poison_a_later_call ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test pane::attach_tests::an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first ... ok
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... ok
+test runtime::start::tests::a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment ... ok
+test test_support::tests::a_body_that_returns_promptly_is_not_delayed ... ok
+test pane::attach_tests::attaching_to_a_pane_that_already_ended_gets_a_final_full_then_ended ... ok
+kill: 14222: No such process
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
+test runtime::start::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::start::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::attach::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
+test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 14042: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 14306: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 14014: No such process
 test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
 
 test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s

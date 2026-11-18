@@ -1,16 +1,19 @@
 ---
 id: TASK-1.139
 title: 'Server: capture a pane''s screen, and its scrollback when asked'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-18T23:21:00Z'
+updated_date: '2026-11-18T23:38:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.90
+references:
+  - task-1.139-server-capture-a-pane-s-screen-and-its
+  - https://github.com/bruk-io/steg/pull/83
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
@@ -314,6 +317,26 @@ error: test failed, to rerun pass `-p steg-server --lib`
 full output: .quiet/test-steg-server.log
 error: recipe `check-packages` failed with exit code 101
 ```
+
+Built pane.capture: dispatch::pane::capture resolves the target only (no any_pane_running check - doc-2 section 6/R97 keep a pane's screen and scrollback readable after its program ends, and the method's own description already carried no ProgramNotRunning in its errors: list). Runtime::capture_and_dispatch (crates/server/src/runtime/input.rs) validates under the lock, clones the target's new PaneHandle::capture_sender() under that same lock, releases it, then calls CaptureSender::capture(scrollback, CAPTURE_TIMEOUT) unlocked - the same hand-off shape pane.attach already uses, but bounded, per AC #2. The worker's own PaneCommand::Capture (crates/server/src/pane.rs) is handled unconditionally (same as Snapshot), arming no tick. Scrollback is one Terminal::page(oldest_row(), scrollback_rows_kept()+rows()) call spanning scrollback and the active screen together, never two reads. render_rows trims trailing whitespace per row, joins with "\n". A capture that times out answers EngineFailed through a new, server-local Error::Timeout (crates/server/src/error.rs), kept distinct from PaneGone (map_pane_error, now pub(super), gains one arm) - PaneGone already maps to NoSuchTarget, which would misreport a busy-but-real pane as gone. pane.capture leaves dispatch's not-yet list (cross_cutting.rs's row removed); pane.wait's own not-yet message and cross_cutting.rs's row now cite TASK-1.140 by name. pane.capture's details field (previously empty) now states the output shape and AC #3's answer directly in the API's own description.
+
+Measured, not guessed (per the engineer's own ask):
+- CAPTURE_TIMEOUT (5s): scratch-measured a single Terminal::page call spanning a full ~9,700-row scrollback (R15's own 10,000-line default) plus an 80x24 screen at ~173ms, in an unoptimised debug build with nothing else contending (scratch test added, measured, then reverted - not committed). 5s leaves about 29x that margin; the real risk CAPTURE_TIMEOUT guards against is a worker busy with something else ahead of the Capture command in its own queue, not the read's own cost.
+- The AC #2 hand-off test's flood size (70MB x 15 sends) reuses the exact number runtime::attach's own existing test (attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock) already measured as necessary for the identical real write_all wedge against a non-reading sh -c 'exec sleep 100' - not re-derived from scratch, since it is the same mechanism.
+
+Tests and controls, each a recorded failing-then-passing pair at this head (c14bda12):
+- crates/server/src/pane.rs's capture_tests: capture_returns_the_screen_a_real_program_actually_wrote (control: render_rows's trim_end removed - fails on trailing padding, reverted, passes); capture_still_answers_once_the_program_has_ended (doc-2 section 6; control: a mistaken any_pane_running check added to dispatch::pane::capture - fails, reverted, passes); capture_times_out_rather_than_hanging_when_nothing_ever_answers (a raw, un-worked channel - no process, nothing to clean up; proves CaptureSender::capture's own bounded recv_timeout mechanically, separate from the real end-to-end wedge proof below).
+- crates/server/src/runtime/input.rs's own test module: capture_and_dispatch_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock, modelled directly on runtime::attach's own identical test. Control: capture_and_dispatch edited by hand to call CaptureSender::capture while still holding the state lock - the "different pane answers within 2s" assertion failed (panicked naming the stuck call); reverted, passes.
+- crates/server/tests/pane_capture.rs (new, real socket/real pty, following attach.rs's current support::ScopedTempDir/scoped_socket_path convention): pane_capture_returns_the_screen_a_real_program_wrote; pane_capture_scrollback_includes_earlier_lines_only_when_asked (control: render_capture's scrollback branch short-circuited to the plain screen() path - the "--scrollback must contain the earliest line" assertion failed; reverted, passes); pane_capture_still_answers_after_the_program_has_exited (doc-2 section 6; same any_pane_running control as above, run again at the socket level - fails, reverted, passes); pane_capture_of_a_closed_pane_is_no_such_target.
+- crates/server/tests/dispatch/cross_cutting.rs: every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing no longer lists pane.capture; its pane.wait row now expects "TASK-1.140".
+
+Checks: just check green baseline before any change. just check hit the same pre-existing, load-sensitive login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open flake three times in a row locally under this machine's own heavy concurrent worktree load (a file this task never touches, and whose own comments already document it as sensitive to exactly this kind of contention) - each run otherwise green; cargo test -p steg-server --lib (the same test in isolation) passed cleanly twice, standalone. Retried once per policy, then relied on CI: gh pr checks 83 passed (12m43s) at this exact head, c14bda12. cargo fmt --check and cargo clippy --all-targets both clean on steg-server/steg-sdk. No stray processes or threads after any test run I started (checked via ps after pane_capture.rs's own run).
+
+Departures from the plan:
+- The AC #2 hand-off/bound proof moved from the planned crates/server/tests/pane_capture.rs (a real-socket test) into crates/server/src/runtime/input.rs's own internal #[cfg(test)] mod tests, mirroring runtime::attach's own existing, identical-shaped test (Runtime::handle driven directly, no socket). Why: this is the established, already-reviewed pattern in this exact codebase for proving "the lock is released before a worker round-trip" (attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock); running the identical 70MB x 15 wedge a second time over a real socket would add real-socket complexity for no additional coverage, since the dispatch/Runtime wiring itself is already proven by pane_capture.rs's own other four tests. crates/server/tests/pane_capture.rs still covers every other AC at the real socket/pty level.
+- A short, channel-only test (capture_times_out_rather_than_hanging_when_nothing_ever_answers) was added in crates/server/src/pane.rs's capture_tests, in place of an earlier attempt that wedged a real sleep 100 pane and then tried a signal_kill-based cleanup: that cleanup does not actually unwedge the worker's own stuck write_all on this platform (confirmed directly - await_exit still timed out after sending SIGKILL), so rather than leave a second, permanently-abandoned sleep 100 process (matching runtime::attach's own already-accepted choice for its identical wedge, but doubling the count of such leaks for no new coverage), this test proves the same bounded-wait mechanism with no process and nothing to clean up at all.
+- tests/pane_capture.rs's scrollback test does not declare a smaller tab size: the pane's own default 80x24 screen is already smaller than the 40 lines printed, so scrollback is populated without needing tab.declare-size at all (simpler, and avoids declare-size's own "caller must already be viewing a pane in this tab" precondition entirely).
+- pane.capture's details field (crates/sdk/src/description/methods/pane.rs) was filled in beyond the plan's bare minimum, stating AC #3's answer directly in the API's own self-description (doc-8 R37), not only in this task's own plan/notes - no param/returns/errors change, methods/tests.rs's own row for pane.capture checks only the target parameter's kind and needed no change (confirmed by reading it).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

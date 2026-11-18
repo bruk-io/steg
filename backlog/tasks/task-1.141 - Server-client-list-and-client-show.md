@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T22:51:00Z'
+updated_date: '2026-11-18T22:52:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -240,6 +240,26 @@ test cross_cutting::every_described_method_gets_a_response_with_no_panic ... ok
 test api::api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
 
 test result: ok. 85 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+Check passed: `sh -c 'cd crates/server && cargo test --test dispatch client:: 2>&1 | tail -15'` exited 0 at 2026-11-18T22:52:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 18da1c97edb1 with uncommitted changes:
+
+```text
+
+
+failures:
+    client::client_list_and_show_change_nothing_in_the_tree
+    client::client_list_matches_exactly_the_fields_the_description_declares
+    client::client_list_returns_every_connected_client_by_default_except_cli
+    client::client_list_with_all_includes_cli_clients_too
+    client::client_show_an_unknown_target_is_no_such_target_and_an_ambiguous_one_is_ambiguous_target
+    client::client_show_matches_exactly_the_fields_the_description_declares
+    client::client_show_reports_the_sessions_it_views
+    client::client_show_resolves_by_id_label_position_and_suffix
+
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test dispatch`
 ```
 <!-- SECTION:NOTES:END -->
 

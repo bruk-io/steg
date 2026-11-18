@@ -87,6 +87,24 @@ const CWD_LOOKUP_TIMEOUT: Duration = Duration::from_millis(200);
 /// happen.
 const RELAY_JOIN_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// How long [`CaptureSender::capture`] waits for the pane's worker thread
+/// to answer a `pane.capture` request (TASK-1.139, AC #2) - bounded, the
+/// same reasoning [`CWD_LOOKUP_TIMEOUT`] gives, but generous: unlike
+/// `cwd`, a timeout here has no good fallback (there is no stale value to
+/// answer with instead), so this only ever has to be long enough that a
+/// busy-but-not-stuck worker still answers within it. Measured, not
+/// guessed: a single `Terminal::page` call spanning a full ~9,700-row
+/// scrollback (R15's own default) plus an 80x24 screen took ~173ms in an
+/// unoptimised debug build with nothing else contending for the CPU
+/// (scratch-measured while building this task, not committed) - this
+/// constant leaves roughly 29x that margin, which is for a worker that is
+/// genuinely busy with something else ahead of the `Capture` command in
+/// its own queue (a program printing a lot), not for the read itself.
+/// `pub(crate)`, not private like its siblings here: `Runtime::
+/// capture_and_dispatch` (`crates/server/src/runtime/input.rs`) is the
+/// caller, in a different module.
+pub(crate) const CAPTURE_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// How often [`spawn_relay`] polls `portable_pty::Child::try_wait` while
 /// waiting to reap a run that the pty's own end-of-file has not yet
 /// proven exited (TASK-1.78's review, finding 1 - see `spawn_relay`'s own
@@ -363,6 +381,20 @@ enum PaneCommand {
     /// real OSC 7 (doc-9 R16), back through this reply channel - `None`
     /// if nothing has reported one yet (TASK-1.76 §2, rule B).
     Cwd(Sender<Option<String>>),
+    /// Reads the terminal's screen, and its scrollback when `scrollback`
+    /// is `true`, rendered to plain text, back through this reply channel
+    /// (TASK-1.139, `pane.capture`). Handled unconditionally, the same as
+    /// [`PaneCommand::Snapshot`] - works whether a program is currently
+    /// running, has already ended (doc-2 section 6: a pane's screen and
+    /// scrollback stay readable after its program ends), or never ran at
+    /// all. Read-only: never arms [`maybe_arm_tick`]'s own periodic
+    /// wake-up.
+    Capture {
+        /// Whether to include scrollback ahead of the screen.
+        scrollback: bool,
+        /// Where the rendered text (or an engine failure) is sent back.
+        reply: Sender<Result<String, Error>>,
+    },
     /// Resume with a freshly spawned program (a restart): the pieces
     /// [`SpawnedProgram`] splits apart, already spawned on the caller's
     /// thread by [`PaneHandle::restart`] - which also starts the new run
@@ -601,6 +633,18 @@ impl PaneHandle {
         AttachSender(self.commands.clone())
     }
 
+    /// A cheap, cloneable handle onto just this pane's own command
+    /// channel, for `pane.capture` (TASK-1.139; AC #2) - the same reason
+    /// [`PaneHandle::attach_sender`] exists, and the same shape: a caller
+    /// clones this out from under `Runtime`'s state lock, drops the lock,
+    /// then calls [`CaptureSender::capture`] unlocked, so a pane whose
+    /// worker is busy (a program that never reads its own stdin, wedged
+    /// on one large write) delays only its own capture, never every other
+    /// request on the server.
+    pub(crate) fn capture_sender(&self) -> CaptureSender {
+        CaptureSender(self.commands.clone())
+    }
+
     /// Hands an already-registered attachment the `Outbound` it sends
     /// updates to (TASK-1.47) - see [`PaneCommand::Arm`]'s own doc for the
     /// ordering rule this is the second half of. `pub(crate)`, not `pub`:
@@ -823,6 +867,76 @@ impl AttachSender {
     }
 }
 
+/// A cheap, cloneable handle onto one pane's own command channel
+/// (TASK-1.139) - see [`PaneHandle::capture_sender`]'s own doc for why
+/// this exists. Unlike [`AttachSender::attach`]'s own deliberately
+/// unbounded wait (it must answer with the pane's real screen, with no
+/// stale value and no stream to recover on afterward), [`CaptureSender::
+/// capture`] is bounded: `pane.capture` has no such constraint, and AC #2
+/// asks for a bound by name, so a worker that stays busy past
+/// [`CAPTURE_TIMEOUT`] answers [`Error::Timeout`] rather than stalling the
+/// caller forever.
+#[derive(Clone)]
+pub(crate) struct CaptureSender(Sender<PaneCommand>);
+
+impl CaptureSender {
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneGone`] if the pane's worker thread is no
+    /// longer there, [`Error::Timeout`] if it did not answer within
+    /// `timeout`, or whatever the terminal itself failed with.
+    pub(crate) fn capture(&self, scrollback: bool, timeout: Duration) -> Result<String, Error> {
+        let (reply_tx, reply_rx) = mpsc::channel();
+        self.0
+            .send(PaneCommand::Capture {
+                scrollback,
+                reply: reply_tx,
+            })
+            .map_err(|_| Error::PaneGone)?;
+        reply_rx.recv_timeout(timeout).map_err(|_| Error::Timeout)?
+    }
+}
+
+/// Renders a pane's terminal to plain text (TASK-1.139, `pane.capture`):
+/// the current screen alone, or - with `scrollback` - one
+/// [`Terminal::page`] call spanning scrollback and the active area
+/// together (its own doc: "covers scrollback and the active area alike"),
+/// sized to everything the terminal is currently keeping. Never two reads
+/// stitched together: `page` already gives the whole range in one call,
+/// so there is no seam for a second, separate `screen()` read to get
+/// wrong. Bounded today by however many rows the engine is keeping
+/// ([`DEFAULT_SCROLLBACK_LINES`], R15) plus the screen's own row count,
+/// which fits comfortably inside `page`'s own `u16` `max_rows` at that
+/// default; this does not grow past it on its own, since nothing in this
+/// task changes `DEFAULT_SCROLLBACK_LINES`.
+fn render_capture(terminal: &mut Terminal, scrollback: bool) -> Result<String, Error> {
+    if scrollback {
+        let total = terminal
+            .scrollback_rows_kept()?
+            .saturating_add(usize::from(terminal.rows()?));
+        let max_rows = u16::try_from(total).unwrap_or(u16::MAX);
+        let page = terminal.page(terminal.oldest_row(), max_rows)?;
+        Ok(render_rows(page.rows.into_iter().map(|(_, row)| row)))
+    } else {
+        Ok(render_rows(terminal.screen()?.rows))
+    }
+}
+
+/// One row per line, each row's runs concatenated and trailing whitespace
+/// trimmed (TASK-1.139's own choice: doc-2 names no convention for this,
+/// and no other reader of a [`Row`] in this codebase needs one), joined
+/// by a single `\n` - never a trailing one, so a caller sees exactly as
+/// many lines as rows, no more.
+fn render_rows(rows: impl IntoIterator<Item = steg_sdk::Row>) -> String {
+    rows.into_iter()
+        .map(|row| {
+            let line: String = row.iter().map(|run| run.text.as_str()).collect();
+            line.trim_end().to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// Starts a pane's program (doc-9 R13): opens its pseudo-terminal and
 /// spawns the process on the calling thread, then creates the pane's own
 /// worker thread, which creates the `Terminal` and owns it from here on.
@@ -1003,6 +1117,9 @@ fn worker_loop(
             }
             PaneCommand::Cwd(reply) => {
                 let _ = reply.send(terminal.cwd().map(str::to_string));
+            }
+            PaneCommand::Capture { scrollback, reply } => {
+                let _ = reply.send(render_capture(&mut terminal, scrollback));
             }
             PaneCommand::Resume {
                 writer,
@@ -2172,6 +2289,156 @@ mod ending_tests {
              slowed by the same backlog await_exit ({await_exit_elapsed:?}) \
              was unaffected by - otherwise this test is not proving the \
              two mechanisms differ at all"
+        );
+    }
+}
+
+/// `CaptureSender::capture` (TASK-1.139), through the real public handle
+/// and a real worker thread - proves the worker plumbing (the
+/// `PaneCommand::Capture` arm, `render_capture`/`render_rows`) before any
+/// socket or dispatch wiring exists, the same "prove the primitive first"
+/// order TASK-1.90's own send/capture split used. The socket-level tests
+/// in `tests/pane_capture.rs` cover the dispatch/`Runtime` layer on top of
+/// this.
+#[cfg(test)]
+mod capture_tests {
+    use std::sync::Arc;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    use super::start;
+    use crate::pty::{LaunchSpec, RealLauncher};
+
+    const EVENT_TIMEOUT: Duration = Duration::from_secs(10);
+    const TEST_TICK: Duration = Duration::from_millis(1);
+
+    fn real_spec(argv: Vec<&str>) -> LaunchSpec {
+        LaunchSpec {
+            argv: argv.into_iter().map(str::to_string).collect(),
+            cwd: std::env::temp_dir().to_str().unwrap().to_string(),
+            env: vec![(
+                std::ffi::OsString::from("PATH"),
+                std::env::var_os("PATH").unwrap_or_default(),
+            )],
+            size: (80, 24),
+        }
+    }
+
+    /// Writes known text through the real `send_input`/pty path, waits
+    /// (via `recv_timeout` on the capture call itself - a real pty write
+    /// is fast enough that a single bounded capture, not a poll, is
+    /// enough once the program has echoed) and confirms
+    /// `CaptureSender::capture(false, ...)` returns it rendered the way
+    /// `render_rows` promises: trimmed per row, joined by `\n`.
+    ///
+    /// Negative control, run by hand against this exact test (not
+    /// committed as a toggle): with `render_rows`'s own `trim_end` call
+    /// removed, this assertion fails on trailing padding (the terminal's
+    /// own screen is padded to its full column width) - recorded on the
+    /// task; reverted before this test was committed.
+    #[test]
+    fn capture_returns_the_screen_a_real_program_actually_wrote() {
+        let (events_tx, _events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec!["cat"]),
+            steg_sdk::PaneId::from_raw(1),
+            Arc::new(RealLauncher::default()),
+            events_tx,
+            TEST_TICK,
+        )
+        .unwrap();
+
+        handle.send_input(b"hello capture\n".to_vec()).unwrap();
+
+        let deadline = std::time::Instant::now() + EVENT_TIMEOUT;
+        let text = loop {
+            let text = handle
+                .capture_sender()
+                .capture(false, EVENT_TIMEOUT)
+                .unwrap();
+            if text.contains("hello capture") {
+                break text;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "never saw the echoed text; last capture: {text:?}"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        };
+
+        assert!(
+            text.lines().any(|line| line == "hello capture"),
+            "expected a line reading exactly \"hello capture\" (no trailing \
+             padding), got: {text:?}"
+        );
+    }
+
+    /// AC #3/doc-2 section 6: a pane whose program has already ended
+    /// still answers `pane.capture` with its real last screen - proven
+    /// here at the worker level directly (the socket-level test in
+    /// `tests/pane_capture.rs` proves the same through the real
+    /// dispatch/`Runtime` path, including the refusal this task must
+    /// *not* add).
+    #[test]
+    fn capture_still_answers_once_the_program_has_ended() {
+        let (events_tx, events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec!["sh", "-c", "printf 'before exit'; exit 0"]),
+            steg_sdk::PaneId::from_raw(2),
+            Arc::new(RealLauncher::default()),
+            events_tx,
+            TEST_TICK,
+        )
+        .unwrap();
+
+        events_rx
+            .recv_timeout(EVENT_TIMEOUT)
+            .expect("the real shell's own exit, within the bound");
+
+        let text = handle
+            .capture_sender()
+            .capture(false, EVENT_TIMEOUT)
+            .expect("capture must still answer after the program has ended (doc-2 section 6)");
+        assert!(
+            text.contains("before exit"),
+            "expected the last screen's real content, got: {text:?}"
+        );
+    }
+
+    /// AC #2's other half: a worker that does not answer within the bound
+    /// it was given answers `Error::Timeout`, not a hang. Proven at the
+    /// channel level directly, with no real pty and nothing to clean up
+    /// at all: a `PaneCommand` sent with nobody ever reading the other
+    /// end of the channel is indistinguishable, from `CaptureSender::
+    /// capture`'s own point of view, from a worker that is genuinely busy
+    /// with something ahead of this command in its queue (the real,
+    /// end-to-end proof of *that* - a program that never reads its own
+    /// stdin, wedging a real `write_all` - is `runtime::input::tests::
+    /// capture_and_dispatch_on_a_busy_panes_own_worker_does_not_stall_an_
+    /// unrelated_requests_lock`, through the real `Runtime`; this test
+    /// only needs to prove the bounded-wait mechanism itself). `super::
+    /// CaptureSender`'s own field is private to `pane` and its
+    /// submodules - constructible here directly, since `capture_tests`
+    /// is one.
+    #[test]
+    fn capture_times_out_rather_than_hanging_when_nothing_ever_answers() {
+        let (tx, _rx) = mpsc::channel();
+        let sender = super::CaptureSender(tx);
+        // `_rx` is kept alive (bound, not `_`) so `send` below still
+        // succeeds - this is "nobody is reading", not "the worker is
+        // gone", the exact distinction `Error::Timeout` exists for.
+
+        let began = std::time::Instant::now();
+        let result = sender.capture(false, Duration::from_millis(100));
+        let elapsed = began.elapsed();
+
+        assert!(
+            matches!(result, Err(super::Error::Timeout)),
+            "expected Error::Timeout when nothing ever answers, got: {result:?}"
+        );
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "capture must return close to its own given bound, not hang past it: took {elapsed:?}"
         );
     }
 }

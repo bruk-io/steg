@@ -24,6 +24,14 @@ pub enum Error {
     /// A pane's worker thread is no longer there to answer - the pane was
     /// already shut down, or its thread panicked.
     PaneGone,
+    /// A pane's worker thread is still there, but did not answer a bounded
+    /// request (TASK-1.139: `pane.capture`) within its own timeout - unlike
+    /// [`Error::PaneGone`], the worker is not gone, only busy (a program
+    /// flooding its own output, or a backlog of commands ahead of this
+    /// one), so this is kept distinct rather than folded into `PaneGone`,
+    /// which every caller's own error mapping already reads as "this
+    /// target no longer exists".
+    Timeout,
 }
 
 impl fmt::Display for Error {
@@ -33,6 +41,7 @@ impl fmt::Display for Error {
             Error::Pty(cause) => write!(f, "the pseudo-terminal failed: {cause}"),
             Error::Io(cause) => write!(f, "{cause}"),
             Error::PaneGone => write!(f, "this pane's worker thread is no longer there"),
+            Error::Timeout => write!(f, "this pane's worker did not answer in time"),
         }
     }
 }
@@ -43,7 +52,7 @@ impl std::error::Error for Error {
             Error::Kernel(cause) => Some(cause),
             Error::Io(cause) => Some(cause),
             Error::Pty(cause) => Some(cause.as_ref()),
-            Error::PaneGone => None,
+            Error::PaneGone | Error::Timeout => None,
         }
     }
 }

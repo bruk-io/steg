@@ -1,14 +1,13 @@
 ---
 id: TASK-1.135
 title: 'Server tests: the dispatch tests split by noun, in one test binary'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T04:46:00Z'
+updated_date: '2026-11-18T05:16:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -765,6 +764,18 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 18, 15 without the Asdlc-Worker trailer.
+
+All review findings fixed, each confirmed and recorded at the final head (72a924a3):
+
+1. [Important, AC #4 timing] Fixed properly: both whole-crate and --test dispatch-scoped before/after numbers, each cold (cargo clean -p steg-server, discard then two recorded), "before" from a separate scratch worktree at dae0c095 (the pre-move commit), "after" in this worktree. Full method, samples and load are in the earlier "Review fix (Important, AC #4 timing)" notes entry. Conclusion: whole-crate essentially identical both sides; --test dispatch-scoped reads very slightly faster after, well inside the measurement's own sample spread - within noise, confirming the plan's "one binary either way" claim with the actual requested number.
+2. [Nit, grep pattern] Recorded the pattern actually run (^[+-]\s*(//|reason)) and re-confirmed it against commit 660ea304's own diff; did not edit the plan's own text (out of scope for a worker).
+3. [Nit, routing.rs:418 wording] Now matches the plan's literal replacement text exactly (commit 94d88814).
+4. [Nit, api.rs signposting] Added a module doc comment naming the six cross-noun tests and why, matching tab.rs/cross_cutting.rs (commit 94d88814).
+5. [Nit, re-record at final head] Re-recorded proof (b) (77/77), proof (c) (fixing a stale hardcoded range in the comparison script - api.rs's own new doc comment shifted its body-start line; api.rs is still byte-identical to its original slice, the same as cross_cutting.rs's own added marker), and clippy -D warnings, all at commit 94d88814.
+
+After the fixes: merged origin/main twice more (2ab6a7a6 for TASK-1.130, clean; 782a7ae5 for TASK-1.132's limiter, clean - neither touches crates/server/tests). One `just check` run at 72a924a3 hit an unrelated sighting: crates/steg's own server_start.rs test collided on a temporary socket path with another worktree's concurrent run (not this task's class of flake, not a file this task touches) - reran it alone and as the whole file right after, both clean, recorded on the task; the engineer confirmed it's a known, already-logged collision. A further `just check` run at the same head was fully green (recorded). CI green on 72a924a3, confirmed independently by the engineer and by my own foregrounded `gh pr checks --watch`.
+
+PR: https://github.com/bruk-io/steg/pull/76 (head 72a924a3) - body carries the same timing numbers, the local-check/CI-is-clean statement, the five attach.rs test names, and the Departures list.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

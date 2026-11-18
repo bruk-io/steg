@@ -1,3 +1,11 @@
+//! `api.list`/`api.show`/`api.call` themselves, plus six tests named after
+//! other nouns (`api_call_reaches_setting_*`, `api_call_of_{pane,tab,
+//! session}_set_*`) that stay here rather than in `setting.rs`/`pane.rs`/
+//! `tab.rs`/`session.rs`: every one of them tests `api.call`'s own
+//! forwarding or targeting behaviour (that it reaches a method with a
+//! required target, or names the target it was given rather than the
+//! context's default), not the named noun's own dispatch arm.
+
 use serde_json::{Value, json};
 use steg_kernel::{Settings, Tree};
 use steg_sdk::{ErrorCode, Response};

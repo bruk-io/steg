@@ -414,8 +414,8 @@ fn a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_a
 /// TASK-1.89's own proof item: "the lists and shows over a real socket
 /// with the sdk's client" - `tab.list`, `tab.show` and `pane.list`, each
 /// answered through a real connection and a real `Connection` doing its
-/// own encoding/decoding, not just the in-process `dispatch` calls the
-/// `dispatch` test binary's own tests already cover.
+/// own encoding/decoding, not just the in-process `dispatch` calls
+/// `dispatch/main.rs`'s own tests already cover.
 #[test]
 fn tab_list_tab_show_and_pane_list_answer_over_a_real_socket() {
     let (socket_path, stop, handle) = start_server();

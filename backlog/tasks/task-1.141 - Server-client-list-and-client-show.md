@@ -1,15 +1,18 @@
 ---
 id: TASK-1.141
 title: 'Server: client list and client show'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T23:22:00Z'
+updated_date: '2026-11-18T23:37:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.141-server-client-list-and-client-show
+  - https://github.com/bruk-io/steg/pull/84
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
@@ -517,6 +520,16 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built per the approved plan, no departures from its design. Both open questions settled as recommended: last_active stays None for M1 (ClientRecord::last_active's own doc names the cost of tracking it now); the caller's own client is listed under the same --all/kind filter as any other client (no self-exclusion).
+
+Files: crates/kernel/src/target.rs (new Tree::resolve_client, mirroring resolve_session, plus 5 new tests); crates/sdk/src/record.rs + lib.rs (new ClientRecord, plus 3 new tests); crates/server/src/dispatch/client.rs (new, both dispatch arms); crates/server/src/dispatch/mod.rs (mod line, handled(), NOT_YET_NOUNS, new guard arm, removed the old client catch-all - additive beside TASK-1.88's own concurrent server-noun edits to the same lists, confirmed no textual overlap); crates/server/src/dispatch/outcome.rs (two new Outcome variants, plus 2 new tests); crates/server/tests/dispatch/client.rs (new, 8 functional tests) and main.rs (mod line); crates/server/tests/dispatch/cross_cutting.rs (removed the two client.* not-yet cases, dropped the stale scenario count from its doc comment).
+
+Minor addition beyond the plan's literal file list, not a design change: mod.rs's dispatch_raw doc comment also said "the three not-yet nouns" - updated to drop the now-wrong count (server, event remain; client no longer not-yet), same reasoning as dropping cross_cutting.rs's stale "19 scenarios" count.
+
+Checks recorded on the board: crates/kernel's target:: tests (5 new, all passing); crates/sdk's full test suite (176 passing, including the 3 new ClientRecord tests); crates/server's dispatch integration suite (85 passing, including the 8 new client:: tests); each new functional test's own control - the client-model not-yet arm, and the --all/kind filter - temporarily removed at the final head, confirmed failing (exit 101, recorded), then restored and confirmed passing (exit 0, recorded), per AC #4's own wording; just check green at the final head (recorded, exit 0), re-run after each rebase onto a fast-moving origin/main (TASK-1.88 and TASK-1.139 building beside this task, both recording their own checks - no actual code commits from either landed on main yet, only board metadata, confirmed by inspection before each rebase).
+
+CI green on the pushed head (191fbf5), 13m36s, https://github.com/bruk-io/steg/actions/runs/44420282004/job/135211117386.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

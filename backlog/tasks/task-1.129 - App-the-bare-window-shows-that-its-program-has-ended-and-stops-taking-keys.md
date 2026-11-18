@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:22:00Z'
+updated_date: '2026-11-18T02:25:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.129-app-the-bare-window-shows-that-its
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '95871fc3dfbf'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -362,3 +365,16 @@ design system doc-10 describes.
 <!-- SECTION:NOTES:BEGIN -->
 Plan (95871fc3dfbf) checked against doc-14's 'The end of a pane, on its stream', doc-10 and TASK-1.128/1.121 as merged by @bruk.o: ok. It builds only the window's reaction; Ended is its own client event; input stops by disarming the writer without touching the shared socket, so no disconnect follows; the not-ended render tree is unchanged. Three questions go to the engineer with the plan (nothing beyond the line and refusing keys; quit-on-last-window not addressed; the wording). For criterion 3 the orchestrator asks for the offered control on the existing resolve_pane test to be recorded. Criterion 4's images come from the engineer's own run: workers do not drive the app on this machine.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-18T02:25:00Z
+
+---
+
+Plan approved by @bruk (95871fc3dfbf, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

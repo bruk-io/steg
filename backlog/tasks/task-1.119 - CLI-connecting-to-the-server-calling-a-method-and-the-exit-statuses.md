@@ -1,14 +1,13 @@
 ---
 id: TASK-1.119
 title: 'CLI: connecting to the server, calling a method, and the exit statuses'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T05:04:00Z'
+updated_date: '2026-11-18T05:50:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.49
@@ -1232,6 +1231,24 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Review findings fixed (back to In Review). Head eab279c0; CI green on this head (confirmed by the engineer).
+
+1. [Important, bug] one_handshake_attempt (crates/sdk/src/local_socket.rs) discarded a hello it had already decoded if the trailing set_read_timeout(None) call failed, returning Ok(None) (the EOF-before-hello signal) and letting the retry misreport ClosedBeforeHello for a connection that genuinely answered. Confirmed this is not rare: a standalone probe (a peer that writes a real hello then closes immediately, no pause) made the clearing set_read_timeout(None) fail with EINVAL on this platform in 1999/2000 trials. Fixed precisely at the boundary the review named: before a complete Hello frame is decoded, every write/set_read_timeout/read failure is still folded into Ok(None) (the EOF-before-hello retry), with each side's own explicit timeout the one exception (ConnectError::Timeout). From the moment a complete Hello is decoded, the handshake has already succeeded, so a failure clearing either timeout now ends the whole call with a genuine ConnectError::Io instead - never retried, never handed back silently with a lingering timeout. The function's own doc comment now states this boundary precisely. New test: a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello, using a new Behaviour::CooperativeClosedImmediately fixture variant (the existing CooperativeHeldOpen keeps its 100ms pause, unchanged, for the test that needs the race avoided). Control recorded: the old behaviour (discard and retry) makes this fail with Err(ClosedBeforeHello); reverted, recorded passing.
+
+2. [Evidence] api_call_prints_json_with_no_json_flag_given had no recorded control; recorded one (break: gate api call's own output on --json like every other command; the test fails since nothing prints; revert; record passing).
+
+   Audited every test the plan's own Proof section names against the recorded-control list:
+   - Already controlled, directly: the errors-table mapping (every_described_error_maps_to_its_own_exit_status), ConnectError->4 (every_connect_error_maps_to_4), the exactly-once retry (both modes, one scratch edit), call_unvalidated skipping validate, the global-arg propagation (no_autostart_is_read_whether_given_before_or_after_the_subcommand), the --json/no-json contrast (without_json_a_successful_command_prints_nothing_on_stdout), api call's stdin merge (api_call_sends_stdin_params_flat_to_the_named_method).
+   - Missing and now recorded: api_call_prints_json_with_no_json_flag_given (this finding); malformed_stdin_on_api_call_exits_2 (break: malformed JSON silently becomes {} instead of exiting 2); with_json_a_failed_command_still_prints_the_message_on_stderr_not_json (break: the error path also prints JSON to stdout when --json is given).
+   - Named in the plan but sharing an already-controlled mechanism, not given a near-duplicate control: no_autostart_with_nothing_running_exits_4 (autostart_flag reading + ConnectError::NoServerRunning->4, both already controlled); a_program_still_running_refuses_close_with_status_1 and a_target_that_matches_nothing_exits_3 (real server dispatch, off limits to this task, + the already-controlled errors-table mapping covering ProgramRunning->1 and NoSuchTarget->3); cli_connection_arbitration.rs's own corroboration test (the plan names it explicitly as corroboration of the same already-controlled retry mechanism, not a separate one, through real processes).
+   - Named in the plan but with no mechanism of this task's own to break: a_value_outside_a_closed_set_exits_2_with_no_server_contacted (clap's own pre-existing validation, not code this task wrote); sigint_during_a_hung_call_ends_the_process_by_signal (there is deliberately no SIGINT handler at all - nothing to break).
+
+3. [Nit] write_all(&hello) had no write-side timeout, so "about twice connect_timeout" depended on the hello never blocking rather than being enforced. Added set_write_timeout(Some(connect_timeout)) before the write (folded into Ok(None) on failure, the same reasoning as every other pre-hello setup call), with the write's own explicit timeout mapped to ConnectError::Timeout the same way the read's already was. Cleared together with the read timeout once the hello is decoded. No test forces an actual blocked write (the hello is small enough that this would need fault injection to force deterministically, which felt like unwarranted scope growth for a nit whose own fix is the same already-proven pattern mirrored); the fix itself, and 70+ repeated runs of the full local_socket test suite with no new flake, are the evidence.
+
+4. [Nit] api call with stdin over the frame's own cap (MAX_PAYLOAD, already public from steg_sdk) reached Connection::call_unvalidated's own encode_frame(...).expect(...) and panicked (exit 101) instead of exiting 2. Bounded entirely inside crates/steg/src/cli/api_call.rs: a size check against MAX_PAYLOAD less a 4 KiB margin, before any JSON parsing, so oversized input is rejected cheaply and never reaches the sdk at all - no sdk change needed for this one. New test: oversized_stdin_on_api_call_exits_2_without_panicking (a 9 MiB, valid-JSON payload, so the size check is what's proven, not the earlier "is this JSON" check). Control recorded: reverting the check makes the real binary panic (exit 101) under the test, confirmed; reverted back, recorded passing.
+
+Every fix above has a recorded failing-then-passing control pair on the task. Local `just check` was intermittently red across several runs tonight on different crates/server/tests/attach.rs timing tests (none in this PR's files); the final local run at this head (eab279c0) was itself green end to end, and CI is green on the same head.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

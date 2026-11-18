@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:20:00Z'
+updated_date: '2026-11-18T00:21:00Z'
 labels:
   - size-2
   - changes-requested
@@ -2105,6 +2105,22 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 63 filtered out; finished in 0.50s
 
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 2, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app --bin steg-app a_full_queue_reports_disconnected_exactly_once` exited 0 at 2026-11-18T00:21:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 9c7f5b6ba880 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished in 0.50s
 ```
 
 Commits since the review: 2, all with the Asdlc-Worker trailer.

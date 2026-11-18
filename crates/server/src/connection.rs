@@ -800,11 +800,15 @@ fn handle_request(
         // needs this connection's own `Arc<Outbound>` (to flush the reply
         // before anything closes) and the server's `Stopper` (to actually
         // end `listen::run`'s accept loop), neither reachable from
-        // `dispatch`'s plain signature. See `mod.rs`'s own full doc for
-        // the ordered sequence this is the start of; steps past this
-        // function's own return are `listen::run`'s existing, unconditional
-        // shutdown path (unchanged by this task - the same one the idle
-        // checker already drives through the identical `Stopper`).
+        // `dispatch`'s plain signature. This function's own job ends at
+        // validating, replying, flushing and calling `Stopper::stop()`;
+        // everything after that - the accept loop noticing, closing the
+        // listener, shutting down and joining every connection, stopping
+        // the runtime, removing the socket file, releasing the lock, in
+        // that order - is `listen::run`'s own existing, unconditional
+        // shutdown path (see its own doc comment), unchanged by this
+        // task and already the same one the idle checker (TASK-1.86)
+        // drives through the identical `Stopper`.
         "server.stop" => {
             // Criterion 2's own wording ("any session exists"), matching
             // doc-2 section 8's table - deliberately not `any_pane_running`,

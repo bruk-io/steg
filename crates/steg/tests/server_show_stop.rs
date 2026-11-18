@@ -119,10 +119,10 @@ fn stdout_of(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }
 
-/// `steg server show` reports real data, `steg server stop` actually
-/// ends the server, and the CLI's own generic routing (`connect.rs::run`)
-/// - never a hand-written case for either, unlike `server start` - is
-/// what carries both, end to end, through the real binary.
+/// `steg server show` reports real data, and `steg server stop` actually
+/// ends the server, both carried end to end by the CLI's own generic
+/// routing (`connect.rs::run`) through the real binary - never a
+/// hand-written case for either, unlike `server start`.
 #[test]
 fn server_show_and_server_stop_work_through_the_real_binary() {
     let (_socket_dir, socket_path) = scoped_socket_path("s.sock");

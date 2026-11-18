@@ -539,6 +539,34 @@ test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `cargo test -p steg --lib every_connect_error_maps_to_4` exited 101 at 2026-11-18T03:15:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::exit::tests::every_connect_error_maps_to_4 ... FAILED
+
+failures:
+
+---- cli::exit::tests::every_connect_error_maps_to_4 stdout ----
+
+thread 'cli::exit::tests::every_connect_error_maps_to_4' (57838932) panicked at crates/steg/src/cli/exit.rs:117:9:
+assertion `left == right` failed
+  left: 1
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cli::exit::tests::every_connect_error_maps_to_4
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

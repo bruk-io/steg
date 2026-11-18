@@ -4,7 +4,7 @@
 
 #![expect(
     clippy::unwrap_used,
-    reason = "this whole file is a test; see dispatch.rs's own comment"
+    reason = "this whole file is a test; see dispatch/main.rs's own comment"
 )]
 
 use std::io::{Read, Write};

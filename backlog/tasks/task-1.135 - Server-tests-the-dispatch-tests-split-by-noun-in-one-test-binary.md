@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T04:07:00Z'
+updated_date: '2026-11-18T04:09:00Z'
 labels:
   - size-2
   - changes-requested
@@ -559,6 +559,38 @@ Whole-crate (12 test binaries, the lib, every target under steg-server):
 Scratch worktree (`git worktree add <scratchpad>/task-1135-before dae0c095`) removed after use (`git worktree remove --force`).
 
 Review fix (Nit, comments-only verification wording): the plan's own "Comments-only commit (step 10)" text states the mechanical check as "confirm every +/- content line matches `^[+-]\s*//`" - that pattern is too narrow for what the commit actually contains: three of the six changed lines are `reason = "..."` strings inside a `#![expect(...)]` attribute, not `//` comments. The actual verification run (and the one quoted correctly in commit 660ea304's own message) used `^[+-]\s*(//|reason)`, which does match every changed line in that commit - re-confirmed now: `git diff 660ea304^ 660ea304 -- crates/server/tests/runtime.rs crates/server/tests/events.rs crates/server/tests/routing.rs | grep -E '^[+-]' | grep -v '^[+-][+-][+-]' | grep -vE '^[+-]\s*(//|reason)'` prints nothing. Not editing the plan's own text (out of scope for a worker); recording the correct pattern here since that's what was actually run.
+
+Check passed: `sh -c 'bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-proof-c.sh'` exited 0 at 2026-11-18T04:09:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 94d88814c569:
+
+```text
+DIFF  fixtures: 6 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-fixtures.diff
+PASS  cross_cutting: byte-identical
+DIFF  session: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-session.diff
+DIFF  tab: 8 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-tab.diff
+DIFF  pane: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-pane.diff
+PASS  api: byte-identical
+PASS  setting: byte-identical
+---
+Known, disclosed non-identical modules (expected, see task notes):
+  fixtures: one doc-comment reworded (no longer true that helpers live in
+    'this file' once moved) - 2 lines changed, 0 lines of logic.
+  session: one blank line added at the seam where the span-noun test was
+    excised from the middle of the block.
+  tab: a 5-line explanatory comment added to pane_list_with_an_ambiguous_
+    target_is_ambiguous_target (why it lives in tab.rs, not pane.rs) - the
+    plan called for this.
+  pane/tab/fixtures/session/cross_cutting: a one-line, end-of-slice diff is
+    an artifact of the comparison's own line-range boundaries (the
+    original file's trailing blank before its next marker comment isn't
+    reproduced at a module file's own end) - not a body change.
+cross_cutting.rs, api.rs and setting.rs are byte-identical to their
+original slices (api.rs's own added 7-line module doc comment, naming
+why its six cross-noun tests live there, sits before this comparison's
+own body-start boundary, same as cross_cutting.rs's own added marker
+comment - excluded as module-level scaffolding, not body content).
+```
+
+Commits since the review: 74, 60 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

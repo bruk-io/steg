@@ -246,6 +246,29 @@ Check passed: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo te
      Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
 PROOF (b): passes again after revert
 ```
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; time cargo test -p steg-server --no-run'` exited 0 at 2026-11-18T03:03:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+  Executable unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+  Executable tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+  Executable tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+  Executable tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+  Executable tests/handshake.rs (target/debug/deps/handshake-9dd8ae3de7443a80)
+  Executable tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+  Executable tests/program.rs (target/debug/deps/program-f5767e65ccefb070)
+  Executable tests/real_pty.rs (target/debug/deps/real_pty-8cd47141942cd298)
+  Executable tests/routing.rs (target/debug/deps/routing-aec039aa3c8fee71)
+  Executable tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+  Executable tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+  Executable tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+real	0m0.438s
+user	0m0.387s
+sys	0m2.166s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

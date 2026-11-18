@@ -1,13 +1,14 @@
 ---
 id: TASK-1.121
 title: 'App: typing and resizing in the bare window'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:36:00Z'
+updated_date: '2026-11-18T00:43:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.117
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '344be7f33227'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=0'
-asdlc_review_policies: ["review", "app"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -2421,6 +2421,30 @@ created: 2026-11-18T00:36:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.121: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T00:43:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+Round 2 review. Scope: diff 2c127d4f..78de7a12 in crates/app (client.rs, ime.rs, keys.rs, main.rs); other changed files (backlog/docs, other tasks) are board/doc updates pulled in by the final `Merge remote-tracking branch 'origin/main'` commit, not this task's own edits - confirmed via `git log 2c127d4f..78de7a12`.
+
+[Evidence, Important] crates/app/src/main.rs:300-314 (on_key_down's Cmd-V paste: cx.read_from_clipboard -> ime::normalize_line_endings -> send_bytes). The notes (board comment, 2026-11-17 23:27 and 2026-11-18 00:01) first claimed this mechanism has "its own unit tests and a recorded failing-then-passing control," then corrected that (comment 00:35): the only tests (main.rs paste_keystroke_tests) exercise is_paste_keystroke, the pure gesture-detection predicate, and none call cx.read_from_clipboard() or anything that reaches the real clipboard - an honest, disclosed gap by the time of the final notes, not hidden. I repeated this myself as my own control: with the clipboard-read/normalise/send body removed entirely (Cmd-V becomes a silent no-op) in a scratch edit, all four paste_keystroke_tests still passed (`cargo test -p steg-app --bin steg-app paste_keystroke_tests::`), reverted immediately, `git status` clean afterward. Per policy's own Evidence clause, a test that still passes with its mechanism removed proves nothing about it and is Important. The path is testable without the real pasteboard: GPUI 0.2.2 ships a `test-support` feature with an in-memory `TestPlatform` clipboard (`platform/test/platform.rs`'s own `current_clipboard_item`, reachable via `TestAppContext::write_to_clipboard`/`read_from_clipboard`), not currently a dev-dependency of steg-app. Needs an integration test using that (write a known string to the test clipboard, dispatch a Cmd-V KeyDownEvent to the entity, assert the writer/socket receives the normalised bytes), with a failing-then-passing control.
+
+Verified round-1 fixes:
+- Finding 1 (writer thread, crates/app/src/client.rs): try_send never blocks; one sync_channel(64) carries both WriterCommand::Input and WriterCommand::DeclareSize through one consuming thread, preserving order by construction; a full/dead queue or a write failure reports Disconnected exactly once via a shared Arc<AtomicBool> guard; Writer::stop drops the sender then unconditionally shuts down a cloned handle, so it never joins a thread that could still be running. Reasoned through whether "full" is reachable against a healthy, merely busy server: no - write_loop drains try_send's queue as fast as write_all succeeds (microseconds), so the queue only backs up once the peer stops draining the kernel's own socket buffer, not from production rate alone (even a fast resize drag, each declare_size call is still just one more queue entry drained promptly). Repeated control (a) myself: in a scratch edit, replaced `try_send` with a blocking `commands.send(command)` (defeating the queue's non-blocking contract) and ran `send_input_returns_promptly_even_when_the_peer_never_reads` - failed exactly as claimed ("did not finish within the test's own bound: Timeout"), within the test's own 5s bound, under my own 90s hard wall timeout; reverted, `git status` clean. Reader and writer share the one socket safely: `stream`/`shutdown_handle`/`write_handle` are three independent try_clone()'d fds of the same socket (startup.rs:218-311), shutdown on any unblocks a blocking read/write on another, the standard POSIX contract both Client::stop and Writer::stop already rely on identically.
+- Finding 2 (ime.rs marked_text_range): now ImeState::marked_range_utf16 computes the real UTF-16 length; two new tests (single-unit, multi-character "你好") would fail if reverted to the old 0..0 shape - a real fix.
+- Finding 3 (keys.rs coverage test): every_key_named_key_bytes_maps_has_a_row_proving_it_and_no_other_key_does now asks named_key_bytes itself per candidate (f1-f13, 27 keys total), not a parallel hardcoded list; removing an arm (e.g. f6) would disagree and fail, as claimed.
+
+Live evidence: plainly disclosed in both the task's notes and the PR body (gh pr view 71) that nothing after 2c127d4f was exercised in a real window, and that the images/recording are from that earlier head - matches the claim's known, expected gap, not a new finding. PR 71 CI green on 78de7a12 (gh pr checks 71), matching the branch head and the recorded `just check` (comment 2026-11-18 00:27, exit 0, clean tree).
+
+Not checked: the .mov recording's contents; any machine other than this one; whether the plan-approval hash still matches beyond what the notes state.
 
 ---
 <!-- COMMENTS:END -->

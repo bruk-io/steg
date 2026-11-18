@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:28:00Z'
+updated_date: '2026-11-18T03:29:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -195,6 +195,19 @@ test result: FAILED. 21 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
+```
+
+Check passed: `cargo test -p steg-server --test attach -- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck` exited 0 at 2026-11-18T03:29:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 2 tests
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 21.37s
 ```
 <!-- SECTION:NOTES:END -->
 

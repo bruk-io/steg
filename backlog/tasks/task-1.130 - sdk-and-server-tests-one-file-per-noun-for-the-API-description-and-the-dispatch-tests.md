@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:26:00Z'
+updated_date: '2026-11-18T02:27:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -122,7 +122,7 @@ Control: before trusting a "match", make one real edit to one function/test body
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-After this lands, a new API method touches: the one noun file under crates/sdk/src/description/methods/ it belongs to, plus methods/tests.rs (both doc_2_section_8() and doc_2_section_8_targets(), and the "== N methods" count assertion) - that file stays the one place every method-adding task still collides, this split does not remove it, only shrinks it from a 2,122-line file to a ~400-line one. On the server side it touches the matching noun file under crates/server/tests/dispatch/ (or dispatch/cross_cutting.rs, for a method with no noun-specific behavioural test yet). Recommend splitting this task into two child tasks (sdk description; server dispatch tests) before build: different crates, different proof setups, no shared file, and either can be approved and merged without the other.
+After this lands, a new API method touches: the one noun file under crates/sdk/src/description/methods/ it belongs to, plus methods/tests.rs (both doc_2_section_8() and doc_2_section_8_targets(), and the "== N methods" count assertion). methods/tests.rs stays the one place every method-adding task still collides - this split shrinks the file that collision happens in from 2,122 lines to roughly 230 (the size of the current #[cfg(test)] mod tests block), it does not remove the collision itself. Follow-up, not this task: if method-adding tasks keep colliding on methods/tests.rs once this lands, split it along the same seams its own assertions already group by (the doc-2 section 8 pairs/targets tables, the events/errors counts, the nested-type allow-list) - not attempted here, since all 22 of its tests are whole-description invariants, none noun-scoped, and deciding how to split an invariant test without changing what it asserts is a separate, smaller design question from this move-only task.
 
 Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the sdk description (crates/sdk/src/description/methods.rs into methods/ by noun); the server dispatch tests moved to a draft task, 'Server tests: the dispatch tests split by noun, in one test binary'. The title still names both halves; the criteria are the scope.
 <!-- SECTION:NOTES:END -->

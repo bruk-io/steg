@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:20:00Z'
+updated_date: '2026-11-18T02:22:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -120,10 +120,10 @@ draft
 
 `Writer::stop`'s own doc says it shuts the socket down, "the identical
 POSIX guarantee" `Client::stop`'s doc already states for the reader -
-because `Attached::write_handle` (`startup.rs`) is documented as "a clone
-of the connected socket," the *same* socket the reader thread blocks its
-own `read()` on. Calling `stop` from `handle_client_event` on `Ended`
-would therefore also unblock the reader's `read()` with `Ok(0)`,
+because `Attached::write_handle` (`startup.rs:103-106`) is documented as
+"a clone of the connected socket," the *same* socket the reader thread
+blocks its own `read()` on. Calling `stop` from `handle_client_event` on
+`Ended` would therefore also unblock the reader's `read()` with `Ok(0)`,
 producing a `ClientEvent::Disconnected` right behind `Ended` - which
 overwrites `Phase::Attached` with `Phase::Disconnected`, losing the last
 screen and the message AC #1 exists to show. Caught before any code was
@@ -153,6 +153,15 @@ server stop, anything else - can ever reach `handle_client_event` again to
 overwrite the phase. The reader thread itself is left running, parked in
 its own `read()`, harmless until the window closes (`teardown`'s own job,
 unchanged) - only the *task that forwards its events to the window* stops.
+
+One ordering note, checked rather than assumed: a late-attach catch-up
+`Full` and the `Ended` right behind it can both already be decoded and
+queued on the one unbounded channel before the receive task reads either
+(both produced in the same `drain` pass over one `read()`'s worth of
+bytes). That is still safe - the channel is drained strictly in order, so
+the `Full` is applied first and only then does `Ended` stop the loop - but
+it depends on that ordering guarantee holding, not on the task happening
+to stop mid-batch.
 
 ### The window opens already on an ended pane - handled, not special-cased
 
@@ -246,13 +255,20 @@ alternatives - not decided here)
    implementation, recorded passing.
 2. `client.rs`: `ClientEvent::Ended`, `drain`'s split, `Writer::disarm`,
    and the three new tests, each with its own failing-then-passing
-   control (Proof, below). Compiles and tests green with `main.rs`
-   untouched (its own placeholder arm still compiles against the new
-   variant it already had).
-3. `main.rs`: the field, the arm, the three guard sites, the render split
-   - the `ended: None` branch verified byte-identical to today's own tree
-   by inspection (and, once built, by `cargo expand`-free review: the
-   exact same chain of calls, nothing added or reordered).
+   control (Proof, below). Adding `ClientEvent::Ended` makes `main.rs`'s
+   own `handle_client_event` match non-exhaustive at once (`wildcard_
+   enum_match_arm = "deny"` is workspace-wide - the same shape TASK-1.128
+   hit adding `ScreenUpdate::Ended`, one crate over) - this step also adds
+   a minimal, real arm there (`ClientEvent::Ended(reason) => { ... }` with
+   the actual field set and `disarm()` called, not a bare placeholder),
+   so the crate compiles and this step's own tests run; step 3 is the
+   render and the three guard sites, not the arm itself.
+3. `main.rs`: the three guard sites and the render split. Checked with a
+   plain `git diff` on the `Phase::Attached` render arm: the `None`
+   branch's own lines must appear as context, not as part of the diff -
+   if that branch shows as rewritten rather than unchanged, the tree is
+   not actually identical to today's and the risk below has landed, not
+   merely been named.
 4. `just check` at a clean tree.
 5. Hand off to the engineer for AC #4's two screenshots - a live run
    this task does not perform (workers do not inject input, capture the
@@ -261,10 +277,11 @@ alternatives - not decided here)
 ## Risks
 
 - **A render regression for the ordinary, not-ended window** (named above)
-  - mitigated by keeping that branch's own element tree unchanged, and by
-  asking the engineer's own live run (already planned for AC #4) to also
-  confirm the terminal's own size looks unchanged from before this task,
-  not only that the ended state renders.
+  - mitigated by keeping that branch's own element tree unchanged (step
+  3's own `git diff` check), and by asking the engineer's own live run
+  (already planned for AC #4) to also confirm the terminal's own size
+  looks unchanged from before this task, not only that the ended state
+  renders.
 - **Three separate guard sites in `main.rs`** (`send_bytes`, the paste
   branch, `on_resize`) could be missed by a future edit - mitigated by
   `Writer::disarm` being the one, correctness-bearing backstop none of the
@@ -325,10 +342,10 @@ alternatives - not decided here)
   control, since there is no new mechanism to prove. The existing,
   unmodified `startup.rs` test (`an_ended_panes_program_gets_a_fresh_tab_
   in_the_same_session`) continues to pass under `just test`. Offered,
-  not assumed: if recorded evidence is wanted anyway, I can temporarily
+  not pre-empted: if recorded evidence is wanted anyway, I can temporarily
   break `resolve_pane`'s own check and record that existing test failing
-  then passing as a control for *that* mechanism - say so if you want it;
-  otherwise this criterion's own proof is "unchanged and still green."
+  then passing as a control for *that* mechanism once you say so; not
+  done unasked, since this diff does not touch it.
 - **AC #4** (the PR carries two images): no automated test. The engineer
   supplies both screenshots from their own live run (program exit with a
   status; a forced close) - this task does not drive the app, capture the

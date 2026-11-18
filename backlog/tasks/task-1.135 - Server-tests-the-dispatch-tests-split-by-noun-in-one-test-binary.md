@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T04:00:00Z'
+updated_date: '2026-11-18T04:07:00Z'
 labels:
   - size-2
   - changes-requested
@@ -528,6 +528,21 @@ The last just-check run was recorded on this task as it ran (exit 101), confirme
 PR: https://github.com/bruk-io/steg/pull/76 (head e527e603) - the body carries the same local-check/CI-is-clean statement, the five test names, and the Departures list.
 
 Where a later task's new dispatch test goes: for an existing noun, in dispatch/<noun>.rs (session.rs/tab.rs/pane.rs/api.rs/setting.rs). One that tests api.call's own forwarding or targeting for that noun goes in dispatch/api.rs regardless of which noun it names. One that crosses several nouns in one call sequence, or exercises dispatch's own completeness/shape guarantees rather than one noun's behaviour, goes in dispatch/cross_cutting.rs. A genuinely new noun gets its own new dispatch/<noun>.rs, declared with one more mod line in dispatch/main.rs.
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo clean -p steg-server; time cargo test -p steg-server --test dispatch --no-run'` exited 0 at 2026-11-18T04:07:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 94d88814c569:
+
+```text
+     Removed 692 files, 86.1MiB total
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.35s
+  Executable tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+real	0m1.392s
+user	0m2.511s
+sys	0m1.011s
+```
+
+Commits since the review: 74, 60 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

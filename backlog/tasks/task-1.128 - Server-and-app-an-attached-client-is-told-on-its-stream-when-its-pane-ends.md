@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:45:00Z'
+updated_date: '2026-11-18T00:48:00Z'
 labels:
   - size-3
   - changes-requested
@@ -819,6 +819,53 @@ Checks recorded via asdlc record-check against TASK-1.128, each as just check at
 Contract-change requests from the plan (doc-14's own wording, decision-2's addendum, PROTOCOL_VERSION's confirmation) are still open for you - none of those are mine to edit.
 
 The app's own placeholder arm in crates/app/src/model.rs is the one, intentionally minimal touch in crates/app this task makes - DRAFT-1 is where the real behaviour lands, once this and TASK-1.121 are both merged.
+
+Check FAILED: `cargo test -p steg-server --test attach -- pane_close_force_reports_ended_closed_not_the_signals_own_exit_code --exact` exited 101 at 2026-11-18T00:48:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes, last 40 of 44 lines:
+
+```text
+    |      ----------- variant in this enum
+...
+404 |     MarkClosing,
+    |     ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `mark_closing` is never used
+   --> crates/server/src/pane.rs:714:19
+    |
+508 | impl PaneHandle {
+    | --------------- method in this implementation
+...
+714 |     pub(crate) fn mark_closing(&self) {
+    |                   ^^^^^^^^^^^^
+
+warning: `steg-server` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... FAILED
+
+failures:
+
+---- pane_close_force_reports_ended_closed_not_the_signals_own_exit_code stdout ----
+
+thread 'pane_close_force_reports_ended_closed_not_the_signals_own_exit_code' (55919651) panicked at crates/server/tests/attach.rs:1963:5:
+assertion `left == right` failed: a forced close must report Closed, never the signal's own exit code
+  left: ProgramExited { exit_code: 1 }
+ right: Closed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_force_reports_ended_closed_not_the_signals_own_exit_code
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

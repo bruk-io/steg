@@ -370,6 +370,14 @@ tools/tests/unit/test_quiet.py:96: AssertionError
 FAILED tools/tests/unit/test_quiet.py::test_slot_count_defaults_to_unlimited_in_ci
 1 failed, 5 passed, 15 deselected in 0.01s
 ```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k slot_count'` exited 0 at 2026-11-18T02:47:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpPO4ub5` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+......                                                                   [100%]
+6 passed, 15 deselected in 0.01s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

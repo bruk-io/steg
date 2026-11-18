@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T15:46:00Z'
+updated_date: '2026-11-18T17:36:00Z'
 labels:
   - size-3
   - changes-requested
@@ -24,7 +24,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8826c78b9232'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
 ---
@@ -619,6 +619,98 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+Review round 1 findings fixed (@bruk.r1, PR 80):
+
+1. [Important, key coverage] Added pane_send_delivers_each_named_key_with_its_documented_bytes (crates/server/tests/pane_send.rs), table-driven over steg_sdk::key_names() so a key added there is covered automatically. Each name is checked through the real pipeline (dispatch -> Runtime::send_and_dispatch -> PaneHandle::send_input -> pty) against an independently-stated hex byte sequence in the test (never derived from named_key_bytes itself, which would make a control vacuous). Sends one key at a time to a pane running 'stty -icanon -echo -icrnl min 1 time 0; printf READY; while :; do dd bs=1 count=1 | od -An -tx1; done', reading each byte back as its own hex-dump line; the pane's tab size is declared tall (80x1000) so 26 keys of output never scrolls past the active screen hex_lines reads. Recorded control: one key's byte sequence corrupted in crates/sdk/src/keys.rs (home -> wrong bytes) - recorded failing, naming 'home' and the wrong vs right hex; reverted; recorded passing.
+
+2. [Important, before/after screen reads] Both refusal tests now attach a second, observing connection and read the pane's screen before and after the call. pane_send_refuses_text_and_key_together's pane is running (echo_lines_program), so this is the real proof - checked before the error-code assertion, so a control that removes the both-given check fails on the screen actually changing (local echo of the delivered text), not only on the response shape. Recorded control: the both-given check removed in dispatch::pane::send - recorded failing on the screen assertion itself (left: 'hello...', right: unchanged); reverted; recorded passing. pane_send_refuses_a_pane_with_no_running_program's pane has already ended, so the test's own comment says plainly this is corroboration only: the attachment's stream is already Ended and closed on both sides either way, so an unchanged screen cannot tell 'refused' apart from 'silently accepted with nothing to show for it' - the error code is the real proof. Recorded control: any_pane_running inverted - recorded failing on the error-code assertion; reverted; recorded passing.
+
+3. [Nit] pane_send_refuses_a_pane_with_no_running_program now waits for the real exit through the pane's own attachment stream (TASK-1.128's Ended, via next_ended) instead of polling pane.show.
+
+Departure from the plan, found while building finding 1: a single long-running od buffers its own input and never flushes without end-of-file, which an open pty never sends (confirmed directly - nothing printed for minutes on a 3-byte write). Replaced with one dd+od pair per byte, each giving od the end-of-file it needs to flush immediately; also needed -icrnl (without it, a real \r read back as 0a, not 0d) and a tall declared tab size (the default 24-row screen scrolls hex lines out of the active screen partway through 26 keys, which hex_lines - reading only the active screen - would otherwise lose).
+
+Checks: just check green at the final head (92b0a149, merged with origin/main twice - board-only merges, no code conflicts). All five negative controls (the three original plus the two re-run/new ones above) recorded as failing-then-passing pairs against the tests as they stand at this head. gh pr checks 80 green (confirmed via gh run list: completed/success).
+
+Check FAILED: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_a_pane_with_no_running_program` exited 101 at 2026-11-18T17:29:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 92b0a1494a67 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_a_pane_with_no_running_program ... FAILED
+
+failures:
+
+---- pane_send_refuses_a_pane_with_no_running_program stdout ----
+
+thread 'pane_send_refuses_a_pane_with_no_running_program' (61300683) panicked at crates/server/tests/pane_send.rs:872:9:
+expected pane.send to refuse an already-ended pane, got Ok(Null)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_send_refuses_a_pane_with_no_running_program
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test pane_send`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_a_pane_with_no_running_program` exited 0 at 2026-11-18T17:29:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 92b0a1494a67 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_a_pane_with_no_running_program ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.04s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-18T17:36:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 92b0a1494a67 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (3.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (66.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.1s)
+ok      test (steg-sdk, local-socket) (1.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (28.8s)
+ok      test (steg-server) (58.8s)
+ok      test (steg-server, race-fixture) (61.2s)
+ok      test (steg-server, pty-race-fixture) (68.4s)
+ok      test (steg-server, accept-backoff-fixture) (59.8s)
+ok      build (steg) (1.0s)
+ok      test (steg) (5.8s)
+ok      test (steg, fixtures) (12.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (6.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -666,6 +758,40 @@ Findings: 2 Important, 1 nit. Cites: review. The diff does not match the plan.
 [Nit] crates/server/tests/pane_send.rs:458-474: pane_send_refuses_a_pane_with_no_running_program waits for the program to end by polling pane.show every 20ms against a bounded deadline, where the plan said to wait via pane.attach's own Ended update. A reasonable substitute (bounded, no sleep-as-wait), but an undisclosed method change from the plan's own text.
 
 What I checked beyond the above: the named-key table move (crates/sdk/src/keys.rs's table is byte-for-byte the same as origin/main's crates/app/src/keys.rs match arms, including the shift-tab form; crates/app/src/keys.rs's own tests are untouched and its named_key_bytes is now a one-line delegation with the same signature); the new ErrorCode::ProgramNotRunning (exit status 1, consistent with doc-2 and ProgramRunning's own precedent) and the method/error-count tests honestly bumped from twelve to thirteen; key's ValueKind::Choice built from the same crate::keys::key_names() the implementation calls, so the description and implementation cannot drift; the lock in Runtime::send_and_dispatch is held continuously from the any_pane_running check through PaneHandle::send_input, so there is no race window between them; PaneHandle::send_input is a plain std::sync::mpsc (unbounded) Sender::send that never blocks, and the lock is never held across a wait on the pane's worker, so TASK-1.47's stall cannot reintroduce here; deliberately skipping Tree::note_input (and so R83/doc-11's status-clearing on a key press) for this unattached path is flagged explicitly in the design and not required by any cited requirement or this task's ACs, so I treat it as spec-silent, not a finding. I repeated one negative control myself (disabled the hand-off in Runtime::send_and_dispatch, ran pane_send_delivers_text_then_a_key_in_order_without_a_client_attached, confirmed it fails via a 15s timeout waiting for the echoed marker, then reverted completely - git status was clean afterward). Ran the full pane_send.rs file 20 times in a loop: 20/20 passed; load average at the time was 4.80/4.13/3.88. CI on PR 80 is green (14m46s) and the recorded checks' final head (2bc23c84) matches the branch's current head. I did not re-check the unbounded-channel memory-growth-under-flood question as a new finding: the channel and blocking-write behavior are pre-existing (shared with the already-shipped attached-input path), not introduced by this diff, so I note it here rather than fault this task for not documenting it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T17:11:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.90: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T17:26:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Second round, scoped to the diff 2bc23c84..92b0a149 (head 92b0a149, CI green, just check reconfirmed green by me at this head).
+
+Round 1 findings 1 and 3 are genuinely fixed:
+- Key coverage: pane_send_delivers_each_named_key_with_its_documented_bytes now sends every name from steg_sdk::key_names() through the real pane.send -> Runtime::send_and_dispatch -> PaneHandle::send_input -> pty path, checked against an independently hand-written documented_bytes() table (never derived from the sdk's own table, so a wrong byte in the sdk can't agree with itself). I repeated this control myself (not the recorded "home" one - a fresh, independent repeat): corrupted "f5"'s bytes in crates/sdk/src/keys.rs, confirmed pane_send_delivers_each_named_key_with_its_documented_bytes fails naming "f5" with the wrong hex, reverted, confirmed it passes again; git status clean afterward, no stray processes.
+- The exit wait now uses next_ended (the real Ended event via attach, TASK-1.128), not a poll of pane.show.
+
+Round 1 finding 2 ("both refusal tests read the pane's screen before and after and assert it unchanged") is only half fixed.
+
+[Evidence, Important] crates/server/tests/pane_send.rs:803-869 (pane_send_refuses_a_pane_with_no_running_program): `held` is bound once from `attached.snapshot` (line 819, not `mut`, never passed to `apply_update`) and is never mutated before the final `assert_eq!(screen_text(&held), before, ...)` at line 861. `before` (line 845) and the final read are the same expression over the same unchanged binding, so this assertion compares a value to itself and cannot fail under any implementation, correct or broken. It is also unreachable when the real mechanism breaks: `let Response::Error(error) = response else { panic!(...) }` at line 856 already panics before this line runs if `pane.send` is wrongly accepted, which is exactly what the worker's own recorded control (any_pane_running inverted) shows failing at the error-code assertion, never at the screen comparison. The worker's own comment (lines 833-844) says this plainly - "corroboration only... the error code is the real proof" - which is honest, but it means the thing round 1 asked for (a before/after screen proof) does not actually exist for this test; it exists only for pane_send_refuses_text_and_key_together, where `held` is correctly drained via drain_updates_for and the recorded control shows the screen assertion itself failing with real content ("hello...") when the both-given check is removed.
+
+Everything else checked clean: diff --stat against origin/main confirms this round touched only the task file and crates/server/tests/pane_send.rs (no scope creep); no sleeps anywhere in the new code (drain_updates_for uses a bounded real-time window for an absence, the same shape attach.rs's own assert_nothing_more_arrives_on already uses - verified it exists at attach.rs:511); all waits bounded via deadlines; explicit pane programs (sh -c with stty/dd/od, never $SHELL); `just check` green at 92b0a149 in my own run (lint 45s, full test suite, etc.); `cargo test -p steg-server --test pane_send` 5/5 passed in my run; no leftover processes after.
+
+plan-matched: no - the plan's own text (od alone, no declared tab size) was departed from, disclosed in the notes; the Ended-event wait is now correct but was itself a prior departure.
 
 ---
 <!-- COMMENTS:END -->

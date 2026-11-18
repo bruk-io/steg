@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T14:16:00Z'
+updated_date: '2026-11-18T14:25:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -92,6 +92,41 @@ From TASK-1.89's plan (2026-11-15): dispatch is pure and does no I/O by design, 
 Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps pane send (its first criterion); pane capture and pane wait moved to two draft tasks, to be built in that order because all three land in dispatch/pane.rs and the pane's description. The title still names all three; the criteria are the scope. The plan's questions for the engineer (two new error codes; moving the named-key table out of crates/app; repeated --key) go to the engineer with the rewritten plan.
 
 Plan checked against doc-2 section 8, doc-16 and the task's three criteria by @bruk.o: ok, subject to the engineer's answers. pane send is validated in dispatch and delivered by a new Runtime::send_and_dispatch with a plain non-blocking hand-off to the pane's worker; capture and wait keep answering not implemented, citing their own tasks. Three things in it change a contract or cross a boundary and go to the engineer with the plan: a new error code ProgramNotRunning (exit status 1) in the API description, which doc-2's error table must then name; moving the named-key table from crates/app/src/keys.rs into the sdk so the server and the app share one, with the app's function becoming a one-line delegation; and the key parameter becoming a choice of the table's names so an unknown name is refused by validation. Repeated --key is deferred; text with key together is BadRequest.
+
+Check passed: `just check` exited 0 at 2026-11-18T14:25:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at a51a1325d021:
+
+```text
+ok      format check (0.5s)
+ok      lint (82.5s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.3s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.8s)
+ok      build (steg-kernel) (40.4s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (40.3s)
+ok      test (steg-server) (55.6s)
+ok      test (steg-server, race-fixture) (59.7s)
+ok      test (steg-server, pty-race-fixture) (65.8s)
+ok      test (steg-server, accept-backoff-fixture) (58.2s)
+ok      build (steg) (2.4s)
+ok      test (steg) (3.2s)
+ok      test (steg, fixtures) (7.5s)
+ok      build (steg-ui) (18.8s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (2.4s)
+ok      test (steg-app) (2.0s)
+ok      tool tests (41.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

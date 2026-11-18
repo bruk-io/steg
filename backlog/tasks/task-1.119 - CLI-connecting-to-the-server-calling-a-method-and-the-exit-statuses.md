@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T02:58:00Z'
+updated_date: '2026-11-18T02:59:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -274,6 +274,49 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates
  // --- status 130: interrupted ------------------------------------------------
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 157 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T02:59:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 4.2s)
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/sdk)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/kernel)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/app)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+error: docs for function which may panic missing `# Panics` section
+  --> crates/steg/src/cli/api_call.rs:29:1
+   |
+29 | pub fn run(api: &Description, matches: &ArgMatches) -> i32 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: first possible panic found here
+  --> crates/steg/src/cli/api_call.rs:30:23
+   |
+30 |       let method_name = matches
+   |  _______________________^
+31 | |         .get_one::<String>("method")
+32 | |         .expect("api.call's own target is required")
+   | |____________________________________________________^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+   = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: wildcard match will also match any future added variants
+   --> crates/steg/src/cli/connect.rs:146:17
+    |
+146 |                 _ => continue,
+    |                 ^ help: try: `Incoming::Hello(_) | Incoming::Request { .. } | Incoming::Reply { .. } | Incoming::Event { .. } | Incoming::UnknownEvent { .. } | Incoming::StreamControl { .. } | Incoming::Data { .. } | Incoming::UnknownStream { .. }`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+    = note: requested on the command line with `-D clippy::wildcard-enum-match-arm`
+
+error: could not compile `steg` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg` (lib test) due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

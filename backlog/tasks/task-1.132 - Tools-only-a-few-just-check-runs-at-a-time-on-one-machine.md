@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:40:00Z'
+updated_date: '2026-11-18T03:46:00Z'
 labels:
   - size-2
   - changes-requested
@@ -734,6 +734,43 @@ Check passed: `just test-tools` exited 0 at 2026-11-18T03:40:52+00:00 in /Users/
 
 ```text
 ok      tool tests (40.1s)
+```
+
+Commits since the review: 64, 63 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-18T03:46:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at fdc17a76504b:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (54.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (53.1s)
+ok      test (steg-server, race-fixture) (55.4s)
+ok      test (steg-server, pty-race-fixture) (55.9s)
+ok      test (steg-server, accept-backoff-fixture) (53.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.1s)
+ok      test (steg, fixtures) (4.6s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.0s)
 ```
 
 Commits since the review: 64, 63 without the Asdlc-Worker trailer.

@@ -813,10 +813,6 @@ fn pane_send_refuses_a_pane_with_no_running_program() {
     // snapshot/updates cover the whole of the program's short life.
     let (mut observer_stream, mut observer_connection) = connect_and_handshake(&socket_path);
     let attached = attach(&mut observer_stream, &mut observer_connection, &pane);
-    // Never mutated (unlike the other tests' own `held`): the whole
-    // point below is that nothing can arrive on this stream again once
-    // `Ended` does, so this binding is read, never updated.
-    let held = attached.snapshot;
 
     // Waits for the real exit through the pane's own attachment stream
     // (TASK-1.128's `Ended`), not by polling `pane.show` - the plan's
@@ -830,19 +826,7 @@ fn pane_send_refuses_a_pane_with_no_running_program() {
     );
     assert_eq!(reason, EndReason::ProgramExited { exit_code: 0 });
 
-    // What a screen read can prove here, honestly: once the program has
-    // ended, the attachment's own stream is already `Ended` and closed
-    // on both sides (doc-14) - nothing can arrive on it again, whether
-    // or not `pane.send` is refused. So this is corroboration, not the
-    // proof: a hypothetical bug that let bytes through anyway would
-    // still write them to a pty with nothing left running to read or
-    // echo them (the worker's own `PaneCommand::Input` arm is a no-op
-    // once `current` is `None` - confirmed directly against
-    // `crates/server/src/pane.rs`), so an unchanged screen cannot tell
-    // "refused" apart from "silently accepted and had nothing to show
-    // for it" on its own. The error code, asserted below, is the real
-    // proof.
-    let before = screen_text(&held);
+    let before = screen_text(&attached.snapshot);
 
     let mut params = Map::new();
     params.insert("target".to_string(), json!(pane));
@@ -853,17 +837,41 @@ fn pane_send_refuses_a_pane_with_no_running_program() {
         "pane.send",
         params,
     );
+
+    // A real second read, not the same binding compared with itself
+    // (round 2's own finding): a fresh `pane.attach` to this same,
+    // already-ended pane answers with one more snapshot of its own
+    // (doc-14: "attaching to a pane whose program has already ended
+    // answers with a snapshot ... and then `Ended`, and nothing else"),
+    // taken *after* the refused `pane.send` above. Checked before the
+    // error-code assertion, the same ordering `pane_send_refuses_text_
+    // and_key_together` uses, so a control that broke the refusal would
+    // fail here first, if this comparison can fail at all (see below).
+    let after_attached = attach(&mut observer_stream, &mut observer_connection, &pane);
+    let after = screen_text(&after_attached.snapshot);
+
+    // What this can prove, honestly, and no more: the pane's own worker
+    // thread is still alive (R97 keeps it, with no program running),
+    // but its `PaneCommand::Input` arm is a no-op once `current` is
+    // `None` (confirmed directly against `crates/server/src/pane.rs`) -
+    // so a write that reached it anyway would still change nothing a
+    // second attach could see. This comparison is corroboration, not
+    // the proof: it cannot, on its own, tell "refused" apart from
+    // "silently accepted and had nothing to show for it" - the error
+    // code, asserted below, is the real, controlled proof (this task's
+    // own notes name the recorded control: `any_pane_running` inverted
+    // fails on the error-code assertion, never on this comparison,
+    // confirming it genuinely cannot fail by this route).
+    assert_eq!(
+        after, before,
+        "corroboration only (see above): a second attach to this already-ended pane must see \
+         the same content either way"
+    );
+
     let Response::Error(error) = response else {
         panic!("expected pane.send to refuse an already-ended pane, got {response:?}")
     };
     assert_eq!(error.code, ErrorCode::ProgramNotRunning);
-
-    assert_eq!(
-        screen_text(&held),
-        before,
-        "corroboration only (see above): nothing should have reached this already-`Ended` \
-         stream regardless"
-    );
 
     stop_server(&dir, &stop, handle);
 }

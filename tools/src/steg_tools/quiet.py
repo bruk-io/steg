@@ -11,15 +11,27 @@ group and all (`start_new_session=True` at spawn, `killpg` on timeout - the dire
 child alone would leave a hung test binary's own spawned processes behind), and
 reported as a failure rather than left to run out CI's own 30-minute job limit.
 
+Several `just check`/`just test` runs on one machine (several worktrees, several
+workers) make timing-sensitive tests fail for no reason of their own (TASK-1.132), so
+each heavy cargo step - build, test, clippy - takes one of a small number of
+machine-wide slots before it runs (`STEG_CHECK_SLOTS`, default below); a cheap step
+(fmt, deny, the uv-run Python tools) never needs one. `STEG_CHECK_SLOTS_DIR` points at
+the lock directory the slots live in (default below); `STEG_CHECK_SLOT_WAIT_S` bounds
+how long a waiter will wait before failing the step outright (default: unbounded).
+
 Usage: steg-quiet <label> -- <command> [args...]
 """
 
+import fcntl
 import os
 import re
 import signal
 import subprocess
 import sys
+import threading
 import time
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 
 LOG_DIR = Path(".quiet")
@@ -45,6 +57,174 @@ TAIL_LINES = 60
 # so this errs toward the looser number rather than the tightest one the measurements
 # alone would have supported.
 DEFAULT_TIMEOUT_S = 900.0
+
+# The cargo subcommands a slot limits - the ones that actually compile or run code and
+# contend for CPU, disk and the target directory. `cargo fmt --check` and `cargo deny
+# check licenses` are metadata-only and never reach this set.
+_HEAVY_CARGO_SUBCOMMANDS = frozenset({"build", "test", "clippy"})
+
+DEFAULT_SLOT_COUNT = 2
+
+
+def heavy_cargo_command(command: Sequence[str]) -> bool:
+    """Say whether `command` is a cargo build/test/clippy invocation - the only steps a slot limits."""
+    return len(command) >= 2 and command[0] == "cargo" and command[1] in _HEAVY_CARGO_SUBCOMMANDS
+
+
+def effective_slot_count(env: Mapping[str, str]) -> int | None:
+    """How many heavy steps may run machine-wide at once, or `None` for no limit.
+
+    `STEG_CHECK_SLOTS` wins when set: `0` means no limit, used verbatim everywhere
+    including CI if set there on purpose. Unset, CI (GitHub Actions always sets `CI`)
+    defaults to no limit - its own concurrency group already runs at most one check
+    job per ref, so the limiter would only add lock-directory assumptions on an
+    ephemeral runner for no benefit. Unset and not CI defaults to `DEFAULT_SLOT_COUNT`.
+
+    Raises:
+        ValueError: `STEG_CHECK_SLOTS` is set to a negative number.
+    """
+    raw = env.get("STEG_CHECK_SLOTS")
+    if raw is not None:
+        count = int(raw)
+        if count < 0:
+            raise ValueError(f"STEG_CHECK_SLOTS must not be negative, got {raw!r}")
+        return None if count == 0 else count
+    if env.get("CI"):
+        return None
+    return DEFAULT_SLOT_COUNT
+
+
+def lock_directory(env: Mapping[str, str]) -> Path:
+    """Where the slot lock files live - per-user, per-machine, outside every worktree.
+
+    `STEG_CHECK_SLOTS_DIR` overrides everything (also how tests point this at a
+    temporary directory); otherwise `$XDG_CACHE_HOME/steg/check-slots` if set, else
+    `~/.cache/steg/check-slots`. Never keyed off `$TMPDIR`: it can differ between
+    sandboxed shells on the same machine, which would silently defeat the limiter
+    while appearing to work.
+    """
+    override = env.get("STEG_CHECK_SLOTS_DIR")
+    if override:
+        return Path(override)
+    cache_home = env.get("XDG_CACHE_HOME")
+    base = Path(cache_home) if cache_home else Path.home() / ".cache"
+    return base / "steg" / "check-slots"
+
+
+def wait_bound_seconds(env: Mapping[str, str]) -> float | None:
+    """How long a waiter may wait for a slot before failing, from `STEG_CHECK_SLOT_WAIT_S`, or `None` for no bound."""
+    raw = env.get("STEG_CHECK_SLOT_WAIT_S")
+    return float(raw) if raw is not None else None
+
+
+def wait_line(label: str, total: int, wait_bound: float | None) -> str:
+    """The one line printed when every one of `total` slots is busy.
+
+    Names what it waits for and whether it has been told a bound, so a worker that
+    only sees this much (the rest of its output cut off by some other timeout) can
+    tell "still waiting" from "broken" - and says plainly that the step's own
+    STEG_QUIET_TIMEOUT_S bound has not started yet, since the wait happens before it.
+    """
+    if wait_bound is None:
+        reason = "waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset)"
+    else:
+        reason = f"waiting for a slot to free, told it may wait up to {wait_bound:.0f}s (STEG_CHECK_SLOT_WAIT_S)"
+    return (
+        f"wait    {label} ({total} of {total} slots busy, STEG_CHECK_SLOTS={total}) - {reason}; "
+        "this step's own STEG_QUIET_TIMEOUT_S bound has not started yet"
+    )
+
+
+def _try_each_without_blocking(fds: Sequence[int]) -> int | None:
+    """Try every fd in `fds` for an exclusive lock without blocking; return the first that succeeds."""
+    for fd in fds:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except BlockingIOError:
+            continue
+    return None
+
+
+def _race_all_slots(paths: Sequence[Path], wait_bound: float | None, lock_dir: Path) -> int:
+    """Block on every slot file in `paths` at once; return the fd of whichever frees first.
+
+    One daemon thread per slot, each opening its own fd and making a single blocking
+    `flock` call on it - a real kernel wait, not polling. The first thread to acquire
+    its lock wins, decided under `decision` so only one ever does; any thread that
+    acquires its own lock afterwards releases it again at once, so a loser can never
+    hold a slot hostage or starve another waiter. Every thread is a daemon: whichever
+    are still blocked when this process exits are torn down with it, their locks
+    dropped by the kernel - nothing is left behind for a loser, win or lose.
+
+    Raises:
+        TimeoutError: `wait_bound` is set and no slot freed within it.
+    """
+    decision = threading.Lock()
+    won = threading.Event()
+    winner: list[int] = []
+
+    def race_one(path: Path) -> None:
+        fd = os.open(path, os.O_CREAT | os.O_RDWR)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        with decision:
+            if winner:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+                os.close(fd)
+            else:
+                winner.append(fd)
+                won.set()
+
+    for path in paths:
+        threading.Thread(target=race_one, args=(path,), daemon=True).start()
+    if not won.wait(timeout=wait_bound):
+        raise TimeoutError(
+            f"gave up waiting {wait_bound:.0f}s for a check slot in {lock_dir} - "
+            "set STEG_CHECK_SLOT_WAIT_S or STEG_CHECK_SLOTS to change this"
+        )
+    return winner[0]
+
+
+@contextmanager
+def held_slot(lock_dir: Path, count: int, label: str, wait_bound: float | None) -> Iterator[None]:
+    """Hold one of `count` machine-wide slots, under `lock_dir`, for the life of this block.
+
+    The fast path is a single non-blocking pass over the `count` slot files; if one is
+    free, it is taken at once, no thread spawned. Only when every slot is busy does
+    this print `wait_line` and fall back to `_race_all_slots`, so a waiter gets
+    whichever slot frees first, never a fixed one. Releases automatically on return,
+    on an exception, or on this process being killed: the slot's fd is held only by
+    this process (never inherited by a child it spawns - PEP 446's default
+    close-on-exec, reinforced by `subprocess.Popen`'s own default `close_fds=True`), so
+    the kernel drops the flock the instant this process's last reference to that fd
+    closes, whether that is this context manager's own `finally` or the process dying
+    outright. There is no lock, pid, or state file recording who holds a slot, so a
+    killed run leaves nothing behind to clean up.
+
+    Raises:
+        TimeoutError: `wait_bound` is set and no slot freed within it.
+    """
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    paths = [lock_dir / f"slot-{i}.lock" for i in range(count)]
+    fds = [os.open(path, os.O_CREAT | os.O_RDWR) for path in paths]
+    held_fd = _try_each_without_blocking(fds)
+    if held_fd is None:
+        print(wait_line(label, count, wait_bound))
+        sys.stdout.flush()
+        try:
+            held_fd = _race_all_slots(paths, wait_bound, lock_dir)
+        finally:
+            for fd in fds:
+                os.close(fd)
+    else:
+        for fd in fds:
+            if fd != held_fd:
+                os.close(fd)
+    try:
+        yield
+    finally:
+        fcntl.flock(held_fd, fcntl.LOCK_UN)
+        os.close(held_fd)
 
 
 def slug(label: str) -> str:
@@ -152,14 +332,8 @@ def run_live(command: list[str], bound: float) -> tuple[int | None, float]:
         return None, time.monotonic() - started
 
 
-def main() -> int:
-    """Run the command, keep its output in a log, and report."""
-    try:
-        label, command = split_arguments(sys.argv[1:])
-    except ValueError as error:
-        print(error, file=sys.stderr)
-        return 2
-    bound = timeout_seconds()
+def _execute(label: str, command: list[str], bound: float) -> int:
+    """Run `command` bounded by `bound` seconds, keep its output in a log, and report."""
     if os.environ.get("STEG_VERBOSE"):
         code, seconds = run_live(command, bound)
         if code is None:
@@ -179,3 +353,24 @@ def main() -> int:
     else:
         print(failed_report(label, code, seconds, output, log))
     return code
+
+
+def main() -> int:
+    """Run the command, taking a machine-wide slot first if it is a heavy cargo step."""
+    try:
+        label, command = split_arguments(sys.argv[1:])
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        return 2
+    bound = timeout_seconds()
+    slot_count = effective_slot_count(os.environ)
+    if slot_count is not None and heavy_cargo_command(command):
+        lock_dir = lock_directory(os.environ)
+        wait_bound = wait_bound_seconds(os.environ)
+        try:
+            with held_slot(lock_dir, slot_count, label, wait_bound):
+                return _execute(label, command, bound)
+        except TimeoutError as error:
+            print(f"FAILED  {label} ({error})")
+            return 1
+    return _execute(label, command, bound)

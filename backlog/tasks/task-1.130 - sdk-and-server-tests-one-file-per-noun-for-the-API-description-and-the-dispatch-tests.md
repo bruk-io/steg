@@ -3,15 +3,19 @@ id: TASK-1.130
 title: >-
   sdk and server tests: one file per noun for the API description and the
   dispatch tests
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:29:00Z'
+updated_date: '2026-11-18T04:00:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies: []
+references:
+  - task-1.130-sdk-and-server-tests-one-file-per-noun
+  - https://github.com/bruk-io/steg/pull/78
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -19,6 +23,10 @@ asdlc_branch: task-1.130-sdk-and-server-tests-one-file-per-noun
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'dc8b72722100'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -138,6 +146,8 @@ Departures:
 - Proof (c)'s mechanism: the plan's sorted-normalised-line-sha256 pipeline hit a real bug on this machine's sed (macOS/BSD sed's -E does not support \s or \b, so the plan's own sed -E 's/^\s+//' was a silent no-op on this sed). Replaced it with an ordered per-file diff against the exact original line range (located by grep on the pre-task file's own section banners, not guessed), modulo only the pub(super) qualifier AC #2 allows - stricter than a sorted hash, since it preserves order and so cannot hide a reorder-and-collide false pass. Also ran the plan's own attribute-lines-only comparison as an extra. All four proofs (a, b, c, and the attribute extra) recorded with their own control: control recorded failing (scratch edit in place), reverted, then the real proof recorded passing, at the final head.
 
 Sighting for TASK-1.123: just check's test step failed 4 times across this build (2026-11-18, ~22:05 through ~22:26 UTC-5), every time in crates/server/tests/attach.rs - a file outside this task's scope (crates/sdk/src/description/methods/ only). The specific test(s) varied: an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed all 4 times; stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck and a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach each failed once more alongside it. Failure modes seen: a bound-timeout panic ('pane.show/pane.attach must answer within a bound, even with the other pane stuck') on three runs, and once a genuine OS-level error reading a reply socket (Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }) - the clearest sign this is real host contention, not a race in the test or the code: the kernel itself refused a read because the machine was out of some resource (likely fds or scheduler time) under load. 22:29  up 4 days,  7:31, 6 users, load averages: 4.14 5.85 7.37 during the build: load averages 9.18/7.80/8.65 (6 users) on the failing runs, 4.93/6.10/7.50 after. Every one of these tests passes cleanly in isolation (confirmed 3 times, ~2-22s each); the only run where an isolated pair also flaked once was itself under the same heavy load. Recorded: the 4th just check run as an honest failing record (exit 101, only crates/server/tests/attach.rs affected, unrecorded first to confirm no environment data in the output), and the isolated passing rerun of both of that run's failing tests. CI's run on the pushed commit is the clean just check for this head, on an unloaded machine.
+
+Built: crates/sdk/src/description/methods.rs split into methods/ by noun (shared.rs, errors.rs, session/tab/pane/server/event/client/setting/api.rs, tests.rs), 12 commits, one per step. Checked at every step with cargo check/clippy/fmt/test. Four proofs recorded with their own control each (control failing, reverted, pass recorded): (a) description() byte-for-byte dump identical, (b) sdk test-name list identical and #[ignore] stays 0, (c) ordered per-file diff against the exact pre-task source range (departed from the plan's sorted-hash script, which hit a BSD-sed \s bug on this machine; this replacement is stricter, since it preserves order), (c extra) attribute-lines-only comparison. Local just check failed 4 times, every time only on crates/server/tests/attach.rs's own timing-bound tests (outside this task's files), under heavy concurrent-worker load (uptime load averages up to 9.18/7.80/8.65); crates/sdk's own tests and all recorded proofs passed every single time. Sighting recorded on the task notes for TASK-1.123. CI's just check on PR #78's head (91048c62) passed clean (12m46s) on an unloaded machine - that is the clean just check for this change. PR: https://github.com/bruk-io/steg/pull/78
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -149,6 +159,58 @@ created: 2026-11-18T02:30:00Z
 ---
 
 Plan approved by @bruk (dc8b72722100, size-3): its worker may build it.
+
+---
+
+created: 2026-11-18T03:43:00Z
+
+---
+
+CI's just check on PR #78's head (91048c62) passed clean (COMPLETED/SUCCESS, 12m46s): https://github.com/bruk-io/steg/actions/runs/44230938709/job/134555512244. That is the clean just check for this change, on an unloaded machine, per the engineer's instruction - local just check on this machine was not green at the final head (see the sighting in the notes: crates/server/tests/attach.rs's own timing tests flaking under 5 other concurrent workers' load, uptime up to 9.18/7.80/8.65, a file this task never touches); crates/sdk's own tests and all four recorded proofs passed every time.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T03:44:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.130: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T03:57:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+Independently re-derived the three mechanical proofs rather than relying on the worker's own scripts:
+1. description() dump: wrote my own scratch #[test] (REVIEW_DUMP_PATH env var) and ran it at the merge-base (9d24c210, origin/main...HEAD base) and at the task head (91048c62), both via `cargo test --manifest-path crates/sdk/Cargo.toml` in fresh detached worktrees. The two JSON dumps are byte-identical (`diff` exit 0, 2899 lines each). Control: edited one summary string by one character in a scratch edit on session.rs, reran, diff reported the exact 2-line change; reverted completely (`git status` clean in both worktrees afterward, both worktrees then removed).
+2. Move/no-body-change check via `git diff --color-moved=zebra --color-moved-ws=allow-indentation-change origin/main...HEAD -- crates/sdk/src/description/`: 2125 deleted / 2166 added lines total; of those, 66 deleted and 107 added lines are NOT classified as moved. I read every one of those 173 lines: all are `use`/`mod` lines (narrowed per-file imports), file-level `//!` doc comments, noun banner comments (`// --- session ---`) dropped as redundant once each noun has its own file, the old item-level `///` doc on errors() replaced by errors.rs's own `//!` doc, the `#[cfg(test)] mod tests { }` wrapper replaced by `mod tests;` + a separate file, and every `fn ...`/`pub const VERSION` signature line that gained exactly `pub(super)` (never `pub` or `pub(crate)`). Arithmetic check: 2125-66=2059 and 2166-107=2059 - every line outside these two lists pairs up as a moved line, so there is no unmatched body change hiding anywhere. No function or test body text changed.
+3. Test list: `cargo test -p steg-sdk --lib -- --list`, sorted, byte-identical before/after (168 tests both sides); `description::methods::tests::` count is 18 both before and after (confirms the notes' "18, not 22" is a planning miscount, not lost tests); `git grep ignore -- crates/sdk/src/` shows no `#[ignore]` on either side. `cargo test -p steg-sdk --lib` passes 168/168 at head; `cargo clippy --manifest-path crates/sdk/Cargo.toml --all-targets` is clean.
+4. Visibility/surface: read description/mod.rs and lib.rs directly (not just diffed) - `mod methods;` stays private, only `pub use methods::description;` is re-exported, no VERSION export anywhere; matches pre-task surface exactly. Grepped the diff for any `pub`/`pub(crate)` addition: only pre-existing `pub fn description()` and new `pub(super)` qualifiers - nothing widened.
+5. Attributes: `#[test]`x18, `#[cfg(test)]`x1 and `#[must_use]`x1 appear on both the removed and added sides in equal counts; no attribute added, removed or changed. I also read the worker's own proof (c) replacement script (task-1130-prove-c.sh) and its attribute-lines script (task-1130-prove-attrs.sh): the replacement compares exact pre-task line ranges (located by grep on the original file's own section banners) against each new file's exact range, order-preserving with only a documented `fn `->`pub(super) fn ` substitution allowed - stricter than the plan's sorted-hash (which, as the notes say, was a silent no-op on this machine's BSD sed due to `\s`/`\b`). This independently corroborates my own move-diff read above by a different method.
+6. Evidence: found the 12 `asdlc record-check` commits in the board history (the task's rendered notes don't show raw check output). The 4 real record-check commits for proofs (a)/(b)/(c)/(c-attrs) ran at commit c4792d40daca, not 91048c62 - but `git diff c4792d40daca 91048c62 -- crates/sdk/src/description/` is empty: same commit content, different hash (the shared board rewrites parent history under concurrent pushes), so the checks did run against the final code. All 4 have a failing control immediately followed by a passing real run. The sighting's isolated-rerun checks (e849100f, 75eaed9a, cf77931f) are commands piped through `sh -c '... | tail -N'`, so their recorded exit code is tail's, not cargo test's; one of them (75eaed9a) is recorded "Check passed: exited 0" while its own captured output literally reads "test result: FAILED. 1 passed; 1 failed" - but the task's prose notes already disclose this exact flake ("the only run where an isolated pair also flaked once was itself under the same heavy load"), so no reader is misled, only the record-check label itself is wrong. Confirmed via `gh pr checks 78` and `gh pr view 78 --json headRefOid`: CI's single check is "pass" at headRefOid 91048c62, exactly the PR head; the local just-check failure (exit 101, b2958111) is recorded as FAILED, not dressed up as a pass, and is about crates/server/tests/attach.rs only, a file outside this task's diff.
+
+Findings (both Nit, policy: review):
+- [Compliance, Nit] Implementation Notes: "shrinks the file... to roughly 230 (the size of the current #[cfg(test)] mod tests block)" - the actual tests.rs is 576 lines (per the diffstat), about 2.5x the stated figure. The substance (tests.rs remains the one collision point, named as a follow-up) is accurate; only the number is wrong.
+- [Evidence, Nit] One sighting check (75eaed9a, part of the TASK-1.123 sighting, not one of this task's four AC proofs) is recorded as "Check passed: ... exited 0" via a `sh -c '... | tail -N'` pipeline whose exit code is tail's rather than cargo test's; its own captured output shows a real test failure. The task's prose notes already disclose this exact flake accurately, so this is a record-keeping label defect, not a hidden fact.
+
+Everything else checked clean: AC #1 (byte-identical description, recorded comparison) and AC #2 (no public item added/removed/renamed, no function/test body change beyond imports and visibility) hold under my own independent re-derivation, not just the worker's. AC #3: CI's just check passed clean on the exact PR head (91048c62); local just check's documented failure is unrelated to this task's files and honestly recorded as failing. Plan: 12 commits match the plan's 12 steps and order exactly (verified via git log and the first commit's 100%-similarity pure rename); plan-matched recorded as "no" because the notes are explicitly headed "Departures" (the proof (c) mechanism swap and the 18-vs-22 test count correction), per policy's "no for any departure, even one the notes explain" - neither departure is itself a finding, since both are disclosed with why.
+
+Did not check: crates/server or any file outside crates/sdk/src/description/methods* (out of scope - confirmed via diffstat that nothing else changed); did not re-verify the TASK-1.123 sighting's host-load claims (load averages, "6 users") beyond reading them, since that sighting is informational for a different task, not this one's acceptance criteria.
+
+---
+
+created: 2026-11-18T03:59:00Z
+
+---
+
+Note by @bruk.o after the review (2026-11-18): one recorded check on this task is labelled 'passed, exited 0' although its captured output shows the attach.rs timing test failing - the command ended in a pipe to tail, so the recorded status is tail's. It was a sighting of the known clash between worktrees running the attach tests at once, not evidence for any criterion; the notes and PR body state plainly that local just check was not green and that CI's run on 91048c62 is the clean check. Also corrected here: methods/tests.rs is 576 lines, not the 'roughly 230' the notes give.
 
 ---
 <!-- COMMENTS:END -->

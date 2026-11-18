@@ -59,8 +59,13 @@ TAIL_LINES = 60
 DEFAULT_TIMEOUT_S = 900.0
 
 # The cargo subcommands a slot limits - the ones that actually compile or run code and
-# contend for CPU, disk and the target directory. `cargo fmt --check` and `cargo deny
-# check licenses` are metadata-only and never reach this set.
+# contend for CPU, disk and the target directory, and that `just check`/`just test`
+# actually run (TASK-1.132's own scope). `cargo fmt --check` and `cargo deny check
+# licenses` are metadata-only and never reach this set. `cargo install` (used once by
+# `setup` to install cargo-deny itself) also compiles, but it is not part of `just
+# check`/`just test`, runs rarely, and gates nothing timing-sensitive - putting it on
+# the same slots would only make one-time setup wait behind other workers' real
+# check/test runs for no benefit, so it is left out on purpose.
 _HEAVY_CARGO_SUBCOMMANDS = frozenset({"build", "test", "clippy"})
 
 DEFAULT_SLOT_COUNT = 2
@@ -81,11 +86,14 @@ def effective_slot_count(env: Mapping[str, str]) -> int | None:
     ephemeral runner for no benefit. Unset and not CI defaults to `DEFAULT_SLOT_COUNT`.
 
     Raises:
-        ValueError: `STEG_CHECK_SLOTS` is set to a negative number.
+        ValueError: `STEG_CHECK_SLOTS` is set but is not a non-negative whole number.
     """
     raw = env.get("STEG_CHECK_SLOTS")
     if raw is not None:
-        count = int(raw)
+        try:
+            count = int(raw)
+        except ValueError as error:
+            raise ValueError(f"STEG_CHECK_SLOTS must be a whole number, got {raw!r}") from error
         if count < 0:
             raise ValueError(f"STEG_CHECK_SLOTS must not be negative, got {raw!r}")
         return None if count == 0 else count
@@ -112,9 +120,18 @@ def lock_directory(env: Mapping[str, str]) -> Path:
 
 
 def wait_bound_seconds(env: Mapping[str, str]) -> float | None:
-    """How long a waiter may wait for a slot before failing, from `STEG_CHECK_SLOT_WAIT_S`, or `None` for no bound."""
+    """How long a waiter may wait for a slot before failing, from `STEG_CHECK_SLOT_WAIT_S`, or `None` for no bound.
+
+    Raises:
+        ValueError: `STEG_CHECK_SLOT_WAIT_S` is set but is not a number.
+    """
     raw = env.get("STEG_CHECK_SLOT_WAIT_S")
-    return float(raw) if raw is not None else None
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except ValueError as error:
+        raise ValueError(f"STEG_CHECK_SLOT_WAIT_S must be a number, got {raw!r}") from error
 
 
 def wait_line(label: str, total: int, wait_bound: float | None) -> str:
@@ -363,10 +380,14 @@ def main() -> int:
         print(error, file=sys.stderr)
         return 2
     bound = timeout_seconds()
-    slot_count = effective_slot_count(os.environ)
+    try:
+        slot_count = effective_slot_count(os.environ)
+        wait_bound = wait_bound_seconds(os.environ)
+    except ValueError as error:
+        print(f"FAILED  {label} ({error})")
+        return 1
     if slot_count is not None and heavy_cargo_command(command):
         lock_dir = lock_directory(os.environ)
-        wait_bound = wait_bound_seconds(os.environ)
         try:
             with held_slot(lock_dir, slot_count, label, wait_bound):
                 return _execute(label, command, bound)

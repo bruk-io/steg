@@ -92,6 +92,11 @@ def test_slot_count_rejects_a_negative_value() -> None:
         effective_slot_count({"STEG_CHECK_SLOTS": "-1"})
 
 
+def test_slot_count_rejects_a_non_numeric_value_naming_the_variable_and_value() -> None:
+    with pytest.raises(ValueError, match=r"STEG_CHECK_SLOTS must be a whole number, got 'abc'"):
+        effective_slot_count({"STEG_CHECK_SLOTS": "abc"})
+
+
 def test_slot_count_defaults_to_unlimited_in_ci() -> None:
     assert effective_slot_count({"CI": "true"}) is None
 
@@ -130,3 +135,8 @@ def test_wait_bound_is_unset_by_default() -> None:
 
 def test_wait_bound_honours_the_variable() -> None:
     assert wait_bound_seconds({"STEG_CHECK_SLOT_WAIT_S": "45"}) == 45.0
+
+
+def test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value() -> None:
+    with pytest.raises(ValueError, match=r"STEG_CHECK_SLOT_WAIT_S must be a number, got 'soon'"):
+        wait_bound_seconds({"STEG_CHECK_SLOT_WAIT_S": "soon"})

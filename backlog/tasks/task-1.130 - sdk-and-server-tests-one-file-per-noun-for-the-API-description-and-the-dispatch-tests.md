@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:00:00Z'
+updated_date: '2026-11-18T03:01:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -199,6 +199,13 @@ ok: api.rs
 ok: errors.rs
 ok: tests.rs
 PASS: every extracted file's real content matches its exact pre-task source range, unchanged but for the pub(super) visibility this split adds
+```
+
+Check FAILED: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-attrs.sh` exited 1 at 2026-11-18T03:01:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+
+```text
+0a1
+> #[allow(dead_code)]
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -3,7 +3,7 @@ id: doc-14
 title: 'Spec: wire protocol'
 type: specification
 created_date: '2026-11-15T01:13:00Z'
-updated_date: '2026-11-17T22:51:00Z'
+updated_date: '2026-11-18T00:36:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -87,9 +87,10 @@ decides it.
   `Ended` is sent once, after any update still owed, and the stream is then closed on both sides;
   no frame ever arrives on it afterward. On the wire:
   `{"Ended":{"reason":{"ProgramExited":{"exit_code":3}}}}` and `{"Ended":{"reason":"Closed"}}`.
-- Attaching to a pane whose program has already ended answers with its last snapshot, and `Ended`
-  is the first and only update on that stream. A pane that closes between attach and arm is told
-  the same way, with `Closed`.
+- Attaching to a pane whose program has already ended answers with a snapshot; on arming, the
+  stream carries one full screen read from the terminal at that moment (the program may have
+  finished between the attach and the arm, so the snapshot can be behind) and then `Ended`, and
+  nothing else. A pane that closes between attach and arm is told with `Ended` and `Closed` alone.
 - The server queues the last frame before it tears the stream down, never the reverse
   (decision-2, section 3).
 - When the server itself stops, connections are already closing; `Ended` is best effort there and

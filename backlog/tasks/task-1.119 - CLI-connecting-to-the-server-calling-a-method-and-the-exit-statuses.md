@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T04:36:00Z'
+updated_date: '2026-11-18T05:04:00Z'
 labels:
   - size-2
   - changes-requested
@@ -925,6 +925,313 @@ Note for TASK-1.50/1.51: a bare, one-segment target (just a tab or pane id) is r
 Follow-up named, not built here: move crates/app/src/startup.rs's own run/attach_over onto local_socket::connect_handshaken and delete its local hello-sending/reading, so the app gets the same retry-once protection - left for its own task since crates/app is off limits here.
 
 Checks: local just check was not green at several points on this shared dev machine - crates/server/tests/attach.rs's own stuck-pane timing test (an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane) failed repeatedly under this machine's concurrent load (6 users, other workers' builds, load average up to ~11), but passed reliably - together with its whole 23-test file - when run alone or against a clean origin/main worktree under matched conditions, confirming it is a pre-existing, environment-dependent flake unrelated to this PR (nothing here touches crates/server/src or crates/server/tests). CI is green on 5a456f3a (bruk-io/steg#77) - the clean check for this head, confirmed by the engineer. crates/sdk and crates/steg's own full test suites passed repeatedly throughout, including after merging TASK-1.130's description/methods.rs split.
+
+Check FAILED: `cargo test -p steg-sdk --lib --features local-socket -- a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello` exited 101 at 2026-11-18T04:44:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-2f782de52c6eac3e)
+
+running 1 test
+test local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello ... FAILED
+
+failures:
+
+---- local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello stdout ----
+
+thread 'local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello' (58777657) panicked at crates/sdk/src/local_socket.rs:627:9:
+a hello that was actually decoded must surface as a genuine error, never as ClosedBeforeHello (which would claim no server ever answered) and never as a success (which would hand back a stream whose own state is now unknown): Err(ClosedBeforeHello)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-sdk --lib --features local-socket -- a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello` exited 0 at 2026-11-18T04:44:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.80s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-2f782de52c6eac3e)
+
+running 1 test
+test local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.00s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_api_call --features fixtures -- api_call_prints_json_with_no_json_flag_given` exited 101 at 2026-11-18T04:45:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-c9922192cf592a61)
+
+running 1 test
+test api_call_prints_json_with_no_json_flag_given ... FAILED
+
+failures:
+
+---- api_call_prints_json_with_no_json_flag_given stdout ----
+
+thread 'api_call_prints_json_with_no_json_flag_given' (58817260) panicked at crates/steg/tests/cli_api_call.rs:192:48:
+api call prints JSON with no --json given: Error("EOF while parsing a value", line: 1, column: 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    api_call_prints_json_with_no_json_flag_given
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.37s
+
+error: test failed, to rerun pass `-p steg --test cli_api_call`
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_api_call --features fixtures -- api_call_prints_json_with_no_json_flag_given` exited 0 at 2026-11-18T04:45:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-c9922192cf592a61)
+
+running 1 test
+test api_call_prints_json_with_no_json_flag_given ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.37s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_exit_statuses --features fixtures -- malformed_stdin_on_api_call_exits_2` exited 101 at 2026-11-18T04:46:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test malformed_stdin_on_api_call_exits_2 ... FAILED
+
+failures:
+
+---- malformed_stdin_on_api_call_exits_2 stdout ----
+
+thread 'malformed_stdin_on_api_call_exits_2' (58836385) panicked at crates/steg/tests/cli_exit_statuses.rs:335:5:
+assertion `left == right` failed: stderr: 
+  left: Some(0)
+ right: Some(2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    malformed_stdin_on_api_call_exits_2
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.24s
+
+error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_exit_statuses --features fixtures -- malformed_stdin_on_api_call_exits_2` exited 0 at 2026-11-18T04:47:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test malformed_stdin_on_api_call_exits_2 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.19s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_exit_statuses --features fixtures -- with_json_a_failed_command_still_prints_the_message_on_stderr_not_json` exited 101 at 2026-11-18T04:47:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test with_json_a_failed_command_still_prints_the_message_on_stderr_not_json ... FAILED
+
+failures:
+
+---- with_json_a_failed_command_still_prints_the_message_on_stderr_not_json stdout ----
+
+thread 'with_json_a_failed_command_still_prints_the_message_on_stderr_not_json' (58844851) panicked at crates/steg/tests/cli_exit_statuses.rs:280:5:
+assertion failed: stdout_of(&output).is_empty()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    with_json_a_failed_command_still_prints_the_message_on_stderr_not_json
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.36s
+
+error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_exit_statuses --features fixtures -- with_json_a_failed_command_still_prints_the_message_on_stderr_not_json` exited 0 at 2026-11-18T04:47:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.76s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test with_json_a_failed_command_still_prints_the_message_on_stderr_not_json ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.39s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_exit_statuses --features fixtures -- oversized_stdin_on_api_call_exits_2_without_panicking` exited 101 at 2026-11-18T04:52:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test oversized_stdin_on_api_call_exits_2_without_panicking ... FAILED
+
+failures:
+
+---- oversized_stdin_on_api_call_exits_2_without_panicking stdout ----
+
+thread 'oversized_stdin_on_api_call_exits_2_without_panicking' (58896842) panicked at crates/steg/tests/cli_exit_statuses.rs:359:5:
+assertion `left == right` failed: stderr: 
+thread 'main' (58896843) panicked at crates/sdk/src/wire/connection.rs:271:14:
+an unvalidated method call fits under the frame cap: TooLarge { size: 9437289, limit: 8388603 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  left: Some(101)
+ right: Some(2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    oversized_stdin_on_api_call_exits_2_without_panicking
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.47s
+
+error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_exit_statuses --features fixtures -- oversized_stdin_on_api_call_exits_2_without_panicking` exited 0 at 2026-11-18T04:52:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test oversized_stdin_on_api_call_exits_2_without_panicking ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.21s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-18T04:58:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes, last 40 of 80 lines:
+
+```text
+test attach_returns_the_real_screen_and_updates_follow_it ... ok
+test declaring_a_size_of_zero_is_refused ... ok
+test disconnecting_without_detaching_does_not_leak_or_block_a_later_attach ... ok
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+test input_clears_a_finished_status ... ok
+test a_frame_on_an_already_detached_stream_closes_the_connection ... ok
+test typed_bytes_reach_a_real_program_in_order ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+
+failures:
+
+---- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream stdout ----
+
+thread 'a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream' (58975083) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 5s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream
+
+test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.60s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/test-steg-server-pty-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-18T05:04:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (52.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (50.3s)
+ok      test (steg-server, race-fixture) (53.1s)
+ok      test (steg-server, pty-race-fixture) (60.6s)
+ok      test (steg-server, accept-backoff-fixture) (57.9s)
+ok      build (steg) (1.1s)
+ok      test (steg) (4.9s)
+ok      test (steg, fixtures) (11.9s)
+ok      build (steg-ui) (18.4s)
+ok      test (steg-ui) (1.6s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (2.1s)
+ok      tool tests (41.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

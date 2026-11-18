@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-17T01:33:00Z'
-updated_date: '2026-11-18T20:50:00Z'
+updated_date: '2026-11-18T20:55:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.113
@@ -21,8 +22,9 @@ asdlc_branch: task-1.123-server-tests-bound-the-remaining-waits
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'a21307bb73f5'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -815,6 +817,21 @@ created: 2026-11-18T20:50:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.123: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T20:55:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff matches the plan.
+
+No Important findings. Diff matches the approved plan (a21307bb73f5) file-for-file and in its stated order of work; all four AC#4 clash classes are each reproduced-then-fixed with recorded before/after runs, the departures from the plan (login_env's real tight bound turning out to be the inner pid-file loop, not the outer assert; ScopedTempDir's added 0700 fix) are disclosed plainly in the notes with their own reasoning; class (d) signal.rs honestly records no reproduction, as the plan explicitly allowed. All sixteen named call sites across both crates now use the shared ScopedTempDir/scoped_socket_path helper with no leftover unique_socket_path/unique_output_path definitions (grep-verified). The rule line added to .claude/rules/testing-rust.md matches AC#1. Repeated one control myself (class (e)'s forced same-pid collision): with clock_low24 zeroed out in a scratch, reverted edit, candidate_name_does_not_collide_under_the_same_forced_pid_and_counter failed exactly as expected ("12345-0" == "12345-0"); reverted cleanly (git diff/status clean afterward). just check and CI both green at head 3b035c55.
+
+[Nit, Bugs] crates/server/tests/attach.rs:138,251,342: the 20s "above DEFAULT_READ_TIMEOUT" deadline is a repeated magic number in three helpers (call_and_read_reply, attach, declare_size) rather than one named constant derived from DEFAULT_READ_TIMEOUT plus a margin - harmless today, but a future change to DEFAULT_READ_TIMEOUT would need three comments/numbers kept in sync by hand instead of one.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:45:00Z'
+updated_date: '2026-11-18T02:46:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -323,6 +323,25 @@ Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/
 warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpMH0CMk` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
 .                                                                        [100%]
 1 passed in 0.15s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k heavy'` exited 1 at 2026-11-18T02:46:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpJBUzxu` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+__________________ test_cargo_build_test_and_clippy_are_heavy __________________
+
+    def test_cargo_build_test_and_clippy_are_heavy() -> None:
+>       assert heavy_cargo_command(["cargo", "build", "-p", "steg-sdk"])
+E       AssertionError: assert False
+E        +  where False = heavy_cargo_command(['cargo', 'build', '-p', 'steg-sdk'])
+
+tools/tests/unit/test_quiet.py:65: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_cargo_build_test_and_clippy_are_heavy
+1 failed, 1 passed, 19 deselected in 0.01s
 ```
 <!-- SECTION:NOTES:END -->
 

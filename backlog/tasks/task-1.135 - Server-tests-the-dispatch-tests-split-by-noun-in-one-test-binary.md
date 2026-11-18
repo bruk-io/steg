@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T04:40:00Z'
+updated_date: '2026-11-18T04:46:00Z'
 labels:
   - size-2
   - changes-requested
@@ -728,6 +728,43 @@ test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 Commits since the review: 18, 15 without the Asdlc-Worker trailer.
 
 Sighting (not this task's own): merged origin/main (782a7ae5, TASK-1.132's limiter - tools/justfile only, clean, nothing in crates/server/tests) to 72a924a3. One `just check` run at that head (uptime 3.07/3.30/3.52, quiet) failed in check-packages on crates/steg's own tests: `an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason` could not write a plain file where a socket already existed at the same temporary path - a collision with another worktree (TASK-1.119's) running crates/steg's tests at the same moment, per the engineer; not this task's own class of flake, and crates/steg is a file this task never touches. Reran the same test alone, then the whole server_start.rs file (15 tests) right after: both passed clean (recorded on this task). Per the engineer, this collision is already logged elsewhere for housekeeping.
+
+Check passed: `just check` exited 0 at 2026-11-18T04:46:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 72a924a372a5:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (52.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (52.6s)
+ok      test (steg-server, race-fixture) (50.9s)
+ok      test (steg-server, pty-race-fixture) (57.6s)
+ok      test (steg-server, accept-backoff-fixture) (53.3s)
+ok      build (steg) (0.3s)
+ok      test (steg) (1.0s)
+ok      test (steg, fixtures) (4.1s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (2.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 18, 15 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T01:17:00Z'
+updated_date: '2026-11-18T01:21:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.125
@@ -24,10 +25,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ffc63839f742'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1163,6 +1162,27 @@ created: 2026-11-18T01:17:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.128: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T01:21:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Second round, scoped to the round-1 fix only.
+
+1. Code diff since round 1 (2ca675d7..14a11971, crates/server/src/pane.rs and crates/server/tests/attach.rs, 27 insertions/3 deletions): exactly a doc comment on flush_ended's catch-up Full carrying seq: tracked_seq possibly 0, a reworded assertion message, and a rename of attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else to ...gets_a_final_full_then_ended. No behaviour changed. Checked the doc comment's claim directly: crates/app/src/model.rs Model::apply (ScreenUpdate::Full { screen, .. }), and both apply_update test helpers (crates/server/src/pane.rs:2616, crates/server/tests/attach.rs:482), all destructure Full with `..` and never read seq; the sdk itself (crates/sdk/src/screen.rs) has no other reader. The claim holds.
+
+2. Evidence: the implementation notes now record a failing-then-passing control pair for each of the five new attach.rs socket-level tests (pane_close_force_reports_ended_closed_not_the_signals_own_exit_code; a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code; two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit; attaching_to_a_pane_whose_program_already_ended... [recorded under its pre-rename name - the rename that followed changed only the name and a comment, not the test's body, so the control still proves the same mechanism]; a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach), each disabling a distinct mechanism (MarkClosing's pass 0, flush_ended's end_stream call, the Arm handler's late-end branch, finish_attach's armed==false fix) and failing for the stated reason. I repeated a different one than round 1's forced-close control: disabled flush_ended's end_stream call in pane.rs (scratch edit), ran `cargo test -p steg-server --test attach -- a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code --exact` (bounded by the test's own 5s wait), it failed with "no update arrived on stream 1 within ~5s" exactly as recorded, then reverted with `git checkout --` and confirmed `git status` clean. The recorded `just check` clean run is at commit 7cca969023bd; diffing it against final head 14a11971 (excluding backlog/) shows no code difference - the recorded evidence is against the final code.
+
+3. The Departures section states the late-attach change: "late attach to an already-ended pane sends one Full then Ended, where the plan's own first draft said Ended alone - found by a test flaking under load during the build ... fixed before the first review, and doc-14 already reflects it." Present and explained.
+
+No findings. What I did not check: anything outside this round's diff and evidence gap (round 1's own findings, the rest of the task's diff, CI) - out of this round's scope per the brief.
 
 ---
 <!-- COMMENTS:END -->

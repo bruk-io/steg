@@ -1,11 +1,11 @@
 ---
 id: TASK-1.128
 title: 'Server and app: an attached client is told on its stream when its pane ends'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:20:00Z'
+updated_date: '2026-11-18T00:35:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -13,6 +13,9 @@ dependencies:
   - TASK-1.125
   - TASK-1.114
   - TASK-1.117
+references:
+  - task-1.128-server-and-app-an-attached-client-is
+  - https://github.com/bruk-io/steg/pull/73
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -791,6 +794,26 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Built per the plan (server/sdk half): ScreenUpdate::Ended/EndReason (sdk), Outbound::end_stream (a safe stream half-close that defers teardown until the writer has actually drained the final frame), the pane worker's ended flag/flush_ended/MarkClosing, force_end's new pass 0, finish_attach's TASK-1.125-race fix, and five new attach.rs socket-level tests. Full details and rationale are in the two commit messages.
+
+Two real bugs found and fixed during the build, beyond the plan's own text:
+
+1. The Arm handler's late-end branch (attaching to an already-ended pane) sent only Ended, with no catch-up content - found by a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content flaking under heavy machine load (the program fully ended before arm() ran, a real window since attach/arm are two separate calls). Fixed: Arm now sends a fresh Full read from the terminal before Ended on that path. Updated the two tests this changes the shape of (both now documented with why).
+
+2. call_and_read_reply (crates/server/tests/attach.rs, pre-existing) fell through to a blocking read on any non-matching poll() result, not only on None - harmless before this task, since nothing used to produce an extra StreamControl frame on an attached stream around the same time as a pane.close/pane.detach reply. My own new forced-close test exposed it (detaching_a_pane_that_already_closed_still_releases_the_stream also started failing intermittently). Fixed to drain every already-decoded frame before reading more, the same shape reply_within already used.
+
+One platform quirk, not a bug, worth recording for whoever touches outbound.rs's own tests next: on this machine (macOS), UnixStream::set_read_timeout returns EINVAL once the socket's own peer has already closed - not a value-rounding issue, confirmed with a minimal, unrelated repro. My own new flush_ended_still_delivers_its_frame_when_the_attachments_own_queue_is_already_full test hit this by re-setting the read timeout inside its own read loop, racing the writer thread finishing and dropping its own end of the pair; fixed by setting it once, before the writer thread (and so that peer) can possibly exist.
+
+Checks recorded via asdlc record-check against TASK-1.128, each as just check at a clean tree:
+- One early run caught a race from editing screen.rs/lib.rs while a background record-check was still reading them (noise, not a real baseline - don't read that first exit-101 entry as a finding).
+- Two genuinely clean just check runs recorded (exit 0) before the final two commits; a third, final exit-0 run recorded at the pushed head (commit 2ca675d7).
+- Two environmental flakes observed and confirmed unrelated by rerunning in isolation (always passed alone): login_env's own known grandchild flake, and a pre-existing, unrelated stuck-pane timing test (an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane) - both coincided with TASK-1.121's own concurrent just check running on this same machine at the time (confirmed via ps).
+- CI's first run failed on a third, also pre-existing and unrelated test (runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap, a terminal-scrolling timing assertion) - reran it myself (gh run rerun --failed) and it passed clean on the second attempt; not something I changed.
+
+Contract-change requests from the plan (doc-14's own wording, decision-2's addendum, PROTOCOL_VERSION's confirmation) are still open for you - none of those are mine to edit.
+
+The app's own placeholder arm in crates/app/src/model.rs is the one, intentionally minimal touch in crates/app this task makes - DRAFT-1 is where the real behaviour lands, once this and TASK-1.121 are both merged.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

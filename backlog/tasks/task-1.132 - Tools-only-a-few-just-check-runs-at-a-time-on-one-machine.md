@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:28:00Z'
+updated_date: '2026-11-18T03:36:00Z'
 labels:
   - size-2
   - changes-requested
@@ -525,6 +525,53 @@ Built per the approved, engineer-tightened plan. The limiter: each heavy cargo s
 Checks recorded on the task: an initial just test-tools baseline; the implementation's own unit/functional tests passing; ten mechanism-removed-then-restored control pairs (20 record-check calls, detail in the task's notes) covering lock acquisition, the SIGKILL release property, the first-to-free race, the no-limit path, heavy-step detection, and each of the five pure functions; a full just check recorded live against the real default lock directory while five other workers were building. CI on PR #75 failed once on an unrelated flaky server test (signal::tests::send_reaches_the_whole_process_group_not_only_the_leader, not in the named known-flakes list, not touched by this change) and passed clean on rerun - noted on the task, not investigated further.
 
 No departures from the approved plan.
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_bounded_wait_fails_cleanly_without_running_its_command'` exited 1 at 2026-11-18T03:36:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851 with uncommitted changes, last 40 of 42 lines:
+
+```text
+=================================== FAILURES ===================================
+________ test_a_bounded_wait_fails_cleanly_without_running_its_command _________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-692/test_a_bounded_wait_fails_clea0')
+
+    def test_a_bounded_wait_fails_cleanly_without_running_its_command(tmp_path: Path) -> None:
+        """The plan's own step 7: STEG_CHECK_SLOT_WAIT_S expiring fails the step, rather than running it unslotted."""
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        holder_duration, bound = 8.0, 2.0
+    
+        holder, holder_start, _, holder_pid = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="holder", duration_s=holder_duration, lock_dir=lock_dir, slots="1"
+        )
+        try:
+            _wait_for(holder_start)  # the one slot is now held for the next 8s
+    
+            started = time.monotonic()
+            waiter, waiter_start, _waiter_end, _ = _spawn_heavy(
+                tmp_path=tmp_path,
+                bin_dir=bin_dir,
+                label="waiter",
+                duration_s=0.1,
+                lock_dir=lock_dir,
+                slots="1",
+                wait_bound=str(bound),
+            )
+            output, _ = waiter.communicate(timeout=HARNESS_BOUND_S)
+            elapsed = time.monotonic() - started
+    
+>           assert waiter.returncode != 0, "a wait that crosses its own bound must fail the step"
+E           AssertionError: a wait that crosses its own bound must fail the step
+E           assert 0 != 0
+E            +  where 0 = <Popen: returncode: 0 args: ['/Users/brukhabtu/src/github.com/bruk-io/steg.w...>.returncode
+
+tools/tests/functional/test_quiet_slots.py:336: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_bounded_wait_fails_cleanly_without_running_its_command
+1 failed in 8.25s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

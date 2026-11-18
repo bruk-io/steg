@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T06:01:00Z'
+updated_date: '2026-11-18T06:11:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1293,6 +1293,43 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 174 filtered out; fi
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-18T06:11:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 0dc279da37fc with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (12.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (72.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (3.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (28.6s)
+ok      test (steg-server) (54.2s)
+ok      test (steg-server, race-fixture) (52.2s)
+ok      test (steg-server, pty-race-fixture) (61.9s)
+ok      test (steg-server, accept-backoff-fixture) (57.1s)
+ok      build (steg) (1.2s)
+ok      test (steg) (5.3s)
+ok      test (steg, fixtures) (12.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (1.1s)
+ok      test (steg-app) (1.9s)
+ok      tool tests (40.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 30, 30 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:35:00Z'
+updated_date: '2026-11-18T00:36:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=0'
 asdlc_review_policies: ["review", "app"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -2411,6 +2412,15 @@ Live run and PR images/recording: all made on 2c127d4f, before the writer thread
 Answering the two things asked for the reviewer:
 - Queue bound: corrected to 64 (not 256 - that was an earlier number I'd since lowered and re-justified before your message crossed with mine; see the two commits and the board's earlier departures note for the full reasoning). try_send never blocks regardless of the number; the bound caps how large the backlog can grow once the kernel's own 8 KiB socket buffer is also exhausted, which plain keystroke-at-a-time typing would take minutes to do - the bound mainly matters after a single oversized command (a large paste) has already filled the kernel buffer by itself.
 - A full queue, from the user's side: the window moves to Phase::Disconnected (the same "disconnected: <message>" placeholder a reader-side drop already shows) and stays there - there is no reconnect path in this app's own code once that happens. The only way back is relaunching the app, which re-runs startup and reattaches to the same session with its scrollback (already verified live on 2c127d4f). A paste is one queue entry regardless of its own size, so the backlog's memory is bounded by whatever the clipboard holds for that one entry, not by the queue's own count.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T00:36:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.121: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

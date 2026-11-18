@@ -108,3 +108,9 @@ Risks:
 
 Closing sentence for the notes: a later task's new dispatch test for an existing noun goes in dispatch/<noun>.rs (session.rs/tab.rs/pane.rs/api.rs/setting.rs); one that tests api.call's own forwarding or targeting for that noun goes in dispatch/api.rs regardless of which noun it names; one that crosses several nouns in one call sequence, or exercises dispatch's own completeness/shape guarantees rather than one noun's behaviour, goes in dispatch/cross_cutting.rs; a genuinely new noun gets its own new dispatch/<noun>.rs, declared with one more `mod` line in dispatch/main.rs.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (a5fe3026a112) checked against the task's four criteria by @bruk.o: ok. Move only: dispatch.rs becomes dispatch/main.rs plus fixtures, session, tab, pane, api, setting and cross_cutting, still one test binary; the rename is its own commit and each module one commit, with a lint check after the first noun. Proofs with controls: the test list apart from module prefixes; a per-module sequence diff against the original file's own marked sections, stricter than the task's suggested comparison; build and link time measured before and after. The starting point's claim about a shared 'mod support' was wrong and is corrected (the helpers file is fixtures.rs). Comments elsewhere that name dispatch.rs are fixed in a final comments-only commit; TASK-1.131 edits other comment lines in the same test files, so whichever merges second merges main first.
+<!-- SECTION:NOTES:END -->

@@ -611,6 +611,51 @@ test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-18T02:36:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129 on task-1.129-app-the-bare-window-shows-that-its at 2dd9f5117641 with uncommitted changes, last 40 of 41 lines:
+
+```text
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129/crates/app/src/client.rs:480:
+         assert!(
+             matches!(
+                 event,
+[31m-                Some(ClientEvent::Ended(EndReason::ProgramExited { exit_code: 3 }))
+(B[m[32m+                Some(ClientEvent::Ended(EndReason::ProgramExited {
+(B[m[32m+                    exit_code: 3
+(B[m[32m+                }))
+(B[m             ),
+             "expected Ended, not Update or Disconnected: {event:?}"
+         );
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129/crates/app/src/main.rs:537:
+                         .flex_col()
+                         .track_focus(&self.focus_handle)
+                         .on_key_down(cx.listener(Self::on_key_down))
+[31m-                        .child(
+(B[m[31m-                            div().flex_1().child(terminal_element::terminal(
+(B[m[31m-                                Rc::clone(&state.model),
+(B[m[31m-                                state.metrics.clone(),
+(B[m[31m-                                terminal_theme,
+(B[m[31m-                                Rc::clone(&state.row_cache),
+(B[m[31m-                                self.focus_handle.clone(),
+(B[m[31m-                                cx.entity(),
+(B[m[31m-                                Rc::clone(&state.last_bounds),
+(B[m[31m-                            )),
+(B[m[31m-                        )
+(B[m[32m+                        .child(div().flex_1().child(terminal_element::terminal(
+(B[m[32m+                            Rc::clone(&state.model),
+(B[m[32m+                            state.metrics.clone(),
+(B[m[32m+                            terminal_theme,
+(B[m[32m+                            Rc::clone(&state.row_cache),
+(B[m[32m+                            self.focus_handle.clone(),
+(B[m[32m+                            cx.entity(),
+(B[m[32m+                            Rc::clone(&state.last_bounds),
+(B[m[32m+                        )))
+(B[m                         .child(
+                             div()
+                                 .flex_none()
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 157 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

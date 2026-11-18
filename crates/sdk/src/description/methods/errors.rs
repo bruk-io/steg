@@ -28,6 +28,15 @@ pub(super) fn errors() -> Vec<ErrorRecord> {
             exit_status: 1,
         },
         ErrorRecord {
+            code: ErrorCode::ProgramNotRunning,
+            summary: "Nothing is currently running in the pane".into(),
+            // The mirror of ProgramRunning, which is also 1, not 2
+            // ("bad usage") - the request is well-formed; the pane's own
+            // current state is what refuses it (doc-2, "pane send refuses
+            // a pane with no running program, with status 1").
+            exit_status: 1,
+        },
+        ErrorRecord {
             code: ErrorCode::PositionOutOfRange,
             summary: "The position given is beyond the end of its siblings".into(),
             exit_status: 2,

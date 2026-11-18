@@ -11,7 +11,7 @@ use steg_sdk::{ConnectError, Description, ErrorCode};
 ///
 /// # Panics
 /// Never in practice: `description()`'s own completeness test
-/// (`errors_has_twelve_codes_with_their_exit_statuses`, `steg-sdk`)
+/// (`errors_has_thirteen_codes_with_their_exit_statuses`, `steg-sdk`)
 /// guarantees every [`ErrorCode`] the server can answer with has a
 /// matching record in `api.errors`.
 #[must_use]

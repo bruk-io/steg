@@ -1,10 +1,98 @@
 //! Input and declared size (TASK-1.131 seam: "input and declared size").
 
-use steg_kernel::SizeChanged;
-use steg_sdk::{ApiError, ClientId, Description, PaneId, Request, Size, validate};
+use std::time::Instant;
+
+use steg_kernel::{Moment, SizeChanged};
+use steg_sdk::{ApiError, ClientId, Description, PaneId, Request, Response, Size, validate};
 
 use super::{Runtime, State};
 use crate::dispatch::{self, Context};
+
+impl Runtime {
+    /// `pane.send` (TASK-1.90, AC #1): validates and resolves the target
+    /// through `dispatch::dispatch_raw`'s own pure, I/O-free arm
+    /// (`dispatch::pane::send`), under the lock, then - only on success -
+    /// delivers the bytes to the pane's own worker. The same shape as
+    /// `start_and_dispatch`/`close_and_dispatch`/`move_and_dispatch`, for
+    /// the same reason they exist: `pane.send` has no kernel-tree effect
+    /// at all (unlike those three), only a `PaneHandle` effect dispatch's
+    /// own `&mut Tree` signature can never reach - `dispatch_raw`'s role
+    /// here is purely the validation/refusal half (target resolution,
+    /// `text`-and-`key`-together, `ProgramNotRunning`).
+    pub(super) fn send_and_dispatch(
+        &self,
+        description: &Description,
+        context: &Context,
+        request: &Request,
+    ) -> Response {
+        let mut state = self.lock();
+        let outcome = {
+            // See `handle`'s own comment: one explicit deref so the two
+            // `&mut` arguments below project to disjoint fields of a
+            // plain `&mut State`.
+            let state: &mut State = &mut state;
+            let now = Moment::new(Instant::now().duration_since(state.clock_origin));
+            dispatch::dispatch_raw(
+                &mut state.tree,
+                &mut state.settings,
+                description,
+                context,
+                request,
+                now,
+            )
+        };
+        if let Err(error) = outcome {
+            return Response::Error(error);
+        }
+
+        // Re-resolves the same target `dispatch_raw` just validated,
+        // still under the one lock it used - cheaper than threading a
+        // `PaneId` out of `Outcome`, which carries nothing for this
+        // method (`Returns::Nothing`).
+        let Ok(pane) = dispatch::target_pane(&state.tree, context, request) else {
+            // Never in practice: `dispatch_raw` just resolved this exact
+            // target successfully, under this same lock, with nothing in
+            // between that could make it fail now.
+            return Response::Ok(serde_json::Value::Null);
+        };
+
+        // Deliberately not `Tree::note_input`: this is the unattached,
+        // one-shot path (AC #1 - "without a client attached"), and
+        // `note_input`'s own `ClientNotViewingPane` precondition would
+        // refuse a client that is not viewing the pane anyway. No
+        // "latest client"/size reapplication and no status-clearing
+        // happen for this call.
+        if let Some(bytes) = send_bytes(request)
+            && let Some(handle) = state.panes.get(&pane)
+        {
+            // A plain, non-blocking `mpsc::Sender::send` - never waits on
+            // the pane's own worker thread, whatever it is doing.
+            let _ = handle.send_input(bytes);
+        }
+
+        Response::Ok(serde_json::Value::Null)
+    }
+}
+
+/// The bytes [`Runtime::send_and_dispatch`] delivers, from `text` or
+/// `key` - `dispatch::pane::send`'s own arm already refused both being
+/// given at once, so this never has to choose between them. `None` when
+/// neither is given (nothing to send - still a success: doc-2 names no
+/// refusal for this, and a well-behaved CLI always supplies one or the
+/// other, reading standard input into `text` when neither was given on
+/// the command line) or when `key` somehow names nothing
+/// [`steg_sdk::named_key_bytes`] maps (never in practice once `key`'s own
+/// `ValueKind::Choice` has already refused an unlisted name during
+/// `validate`, inside `dispatch_raw`, above).
+fn send_bytes(request: &Request) -> Option<Vec<u8>> {
+    if let Some(text) = dispatch::param_str(request, "text") {
+        return Some(text.as_bytes().to_vec());
+    }
+    if let Some(key) = dispatch::param_str(request, "key") {
+        return steg_sdk::named_key_bytes(key, false);
+    }
+    None
+}
 
 impl Runtime {
     /// Applies a kernel [`SizeChanged`] to every pane it names (TASK-1.76

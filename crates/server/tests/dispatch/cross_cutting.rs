@@ -85,9 +85,8 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
             vec![("direction", json!("right")), ("by", json!(1))],
             "Tab::size",
         ),
-        ("pane.send", vec![], "TASK-1.90"),
-        ("pane.capture", vec![], "TASK-1.90"),
-        ("pane.wait", vec![("for", json!("exit"))], "TASK-1.90"),
+        ("pane.capture", vec![], "not built yet"),
+        ("pane.wait", vec![("for", json!("exit"))], "not built yet"),
         ("server.show", vec![], "socket and lifecycle"),
         ("server.start", vec![], "socket and lifecycle"),
         ("server.stop", vec![], "socket and lifecycle"),
@@ -297,11 +296,24 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
             steg_sdk::PaneKind::Terminal,
         )
         .unwrap();
+    // `pane.send` (TASK-1.90) refuses `ErrorCode::ProgramNotRunning`
+    // unless something is running in the target - the default pane has
+    // nothing recorded by default (`fresh()` never calls
+    // `Tree::start_program`, the same reason `pane.rs`'s own
+    // `pane_show_returns_the_panes_record` does this directly), so this
+    // case needs the same direct kernel-level setup, done once here
+    // rather than per-call below.
+    tree.start_program(
+        context.default_pane.unwrap(),
+        steg_sdk::Program::Shell {
+            cwd: "/tmp".to_string(),
+        },
+    )
+    .unwrap();
 
     let not_yet: &[&str] = &[
         "session.focus",
         "pane.resize",
-        "pane.send",
         "pane.detach",
         "tab.declare-size",
         "server.start",
@@ -373,6 +385,7 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
                 ("with", json!(pane_for_swap.to_string())),
             ],
             "pane.split" => vec![("direction", json!("right"))],
+            "pane.send" => vec![("text", json!("hi"))],
             "setting.set" => vec![("target", json!("appearance")), ("value", json!("light"))],
             "setting.unset" => vec![("target", json!("appearance"))],
             other => panic!(

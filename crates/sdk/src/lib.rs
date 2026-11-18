@@ -22,6 +22,7 @@ mod client_kind;
 mod colour;
 mod description;
 mod ids;
+mod keys;
 mod layout;
 mod pane_kind;
 mod program;
@@ -39,6 +40,7 @@ pub use description::{
     Param, Request, Response, Returns, Role, ValueKind, Version, description, validate,
 };
 pub use ids::{ClientId, PaneId, SessionId, TabId};
+pub use keys::{key_names, named_key_bytes};
 pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;
 pub use program::{Program, ProgramStatus};

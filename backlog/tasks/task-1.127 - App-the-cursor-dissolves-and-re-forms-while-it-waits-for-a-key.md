@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T04:40:00Z'
+updated_date: '2026-11-18T04:42:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -190,6 +190,12 @@ Workers must not launch the app, drive input, capture the screen, or touch the c
 
 Recommending **yes, split**: the generator support (`tools/`, step 1) and the pure core (step 2-3) are buildable and provable now, with no dependency on the engineer's own step; the wiring, painting and PR recording (step 4-6) cannot proceed until the foundations values land. Splitting lets the first piece merge without waiting on a design-artifact edit that is entirely out of this worker's hands, and keeps the second piece's own review scoped to "does this read the real generated values correctly and paint them right" rather than also re-litigating the pure functions' own correctness a second time. If the engineer would rather keep it as one task and simply wait, that is a smaller cost than it looks (steps 1-3 together are most of this task's own line count) but is the engineer's call, not this plan's.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split by @bruk.o on 2026-11-18, as the plan recommended: the design values and the generator's whole-number lists moved to a draft task, 'ui: the cursor fade's named values, exported from the design, and whole-number lists in the generator', which this task will depend on once it is accepted. This task keeps the pure functions, the driver, the painting and all five criteria; its first criterion is met by reading the values that task exports. On the overlap with TASK-1.100 (the Cursor atom in crates/ui): the plan keeps the fade's pure functions in crates/app with the terminal's cell geometry, under doc-17's carve-out for the terminal view; TASK-1.100 decides for itself whether to reuse them. The orchestrator agrees and has noted it on TASK-1.100.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:48:00Z'
+updated_date: '2026-11-18T00:49:00Z'
 labels:
   - size-3
   - changes-requested
@@ -877,6 +877,34 @@ running 1 test
 test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.33s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach -- a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code --exact` exited 101 at 2026-11-18T00:49:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... FAILED
+
+failures:
+
+---- a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code stdout ----
+
+thread 'a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code' (55926172) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 4.991071917s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 5.05s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
 ```
 
 Commits since the review: 0.

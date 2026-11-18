@@ -357,6 +357,51 @@ test api::api_call_matches_a_direct_call_for_every_served_method_with_its_own_ta
 
 test result: ok. 85 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-18T22:53:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 18da1c97edb1 with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m }
+ 
+ #[test]
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/crates/server/tests/dispatch/client.rs:153:
+ fn client_show_reports_the_sessions_it_views() {
+     let (mut tree, context, api) = fresh();
+     let client = tree.connect_client(ClientKind::App, None);
+[31m-    tree.view_pane(client, context.default_pane.unwrap()).unwrap();
+(B[m[32m+    tree.view_pane(client, context.default_pane.unwrap())
+(B[m[32m+        .unwrap();
+(B[m 
+     let value = ok(dispatch(
+         &mut tree,
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/crates/server/tests/dispatch/client.rs:215:
+         &request("client.list", vec![]),
+         moment(0),
+     ));
+[31m-    assert_eq!(tree.clients().to_vec(), before, "client.list changed the tree");
+(B[m[32m+    assert_eq!(
+(B[m[32m+        tree.clients().to_vec(),
+(B[m[32m+        before,
+(B[m[32m+        "client.list changed the tree"
+(B[m[32m+    );
+(B[m 
+     ok(dispatch(
+         &mut tree,
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/crates/server/tests/dispatch/client.rs:225:
+         &request("client.show", vec![("target", json!(client.to_string()))]),
+         moment(0),
+     ));
+[31m-    assert_eq!(tree.clients().to_vec(), before, "client.show changed the tree");
+(B[m[32m+    assert_eq!(
+(B[m[32m+        tree.clients().to_vec(),
+(B[m[32m+        before,
+(B[m[32m+        "client.show changed the tree"
+(B[m[32m+    );
+(B[m }
+ 
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 163 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -27,9 +27,8 @@ Agreed with the engineer on 2026-11-17 to let more server tasks run at once. Of 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 The session, tab, pane, server, event, client, setting and api parts of crates/sdk/src/description/methods.rs each live in their own file, with the shared helpers in one place; the description's serialised form is byte for byte the same before and after, shown by a recorded comparison
-- [ ] #2 crates/server/tests/dispatch.rs is split by noun the same way; the list of test names that run is identical before and after, none ignored, shown by a recorded comparison
-- [ ] #3 No behaviour changes: no public item is added, removed or renamed, and no function body changes beyond imports and visibility
-- [ ] #4 just check passes, and the notes say which files a new method now touches
+- [ ] #2 No behaviour changes: no public item is added, removed or renamed, and no function body changes beyond imports and visibility
+- [ ] #3 just check passes, and the notes say which files a new method now touches
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -162,4 +161,6 @@ Control: before trusting a "match," make one real edit to one function/test body
 
 <!-- SECTION:NOTES:BEGIN -->
 After this lands, a new API method touches: the one noun file under crates/sdk/src/description/methods/ it belongs to, plus methods/tests.rs (both doc_2_section_8() and doc_2_section_8_targets(), and the "== N methods" count assertion) - that file stays the one place every method-adding task still collides, this split does not remove it, only shrinks it from a 2,122-line file to a ~400-line one. On the server side it touches the matching noun file under crates/server/tests/dispatch/ (or dispatch/cross_cutting.rs, for a method with no noun-specific behavioural test yet). Recommend splitting this task into two child tasks (sdk description; server dispatch tests) before build: different crates, different proof setups, no shared file, and either can be approved and merged without the other.
+
+Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the sdk description (crates/sdk/src/description/methods.rs into methods/ by noun); the server dispatch tests moved to a draft task, 'Server tests: the dispatch tests split by noun, in one test binary'. The title still names both halves; the criteria are the scope.
 <!-- SECTION:NOTES:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T01:50:00Z'
+updated_date: '2026-11-18T01:51:00Z'
 labels:
   - size-2
   - changes-requested
@@ -2687,6 +2687,20 @@ Control: removed send_pasted_text's own body (the reviewer's exact regression - 
 What remains untested, as asked: the one line in on_key_down that calls cx.read_from_clipboard() itself - reading the real clipboard is exactly what must not be exercised by a test or a live run.
 
 just check recorded clean (exit 0) at the final head (e6a811b6, clean tree, after merging origin/main - board-only changes, no conflicts).
+
+---
+
+created: 2026-11-18T01:51:00Z
+
+---
+
+Merged origin/main (TASK-1.128, PR 73) in, no rebase, no force: kept main's ScreenUpdate::Ended no-op arm in model.rs exactly as it merged in, confirmed no other exhaustive match on ScreenUpdate in crates/app needs an arm for it (only model.rs matches on it; client.rs only constructs/deserialises it, never matches exhaustively). connection.rs: the merge auto-resolved it, but my own copy still differed from main's by one match arm's position (the event.watch arm) - confirmed via diff it was the same reorder-only difference the first review already found, no real change - replaced it with main's exact file.
+
+Controls unaffected: the merge touched none of my own test files (client.rs, main.rs, ime.rs, keys.rs), so every recorded control stands as-is; no re-recording needed for mechanism changes.
+
+just check needed three runs at the final head (d67e61bf) before a clean one: twice it failed on login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open (crates/server, nothing I've touched - a known flake noted earlier in this task's own history, confirmed passing in isolation both times it failed in the full run). Machine load was 6.17 at the time (867 processes, several other workers' own checks running concurrently), which plausibly explains the timing-sensitive failure. Third run passed clean (exit 0), recorded.
+
+Pushing now and running gh pr checks 71 --watch.
 
 ---
 <!-- COMMENTS:END -->

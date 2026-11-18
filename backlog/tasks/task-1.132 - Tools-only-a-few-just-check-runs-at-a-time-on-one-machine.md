@@ -240,6 +240,14 @@ tools/tests/functional/test_quiet_slots.py:236: AssertionError
 FAILED tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one
 1 failed in 4.23s
 ```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one'` exited 0 at 2026-11-18T02:44:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpDSSMx2` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 4.13s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

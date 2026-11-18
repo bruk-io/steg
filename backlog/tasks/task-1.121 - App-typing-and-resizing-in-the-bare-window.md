@@ -2212,6 +2212,25 @@ error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-app --bin steg-app send_pasted_text` exited 0 at 2026-11-18T00:49:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 78de7a12b196 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 4 tests
+test send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own ... ok
+test send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send ... ok
+test send_pasted_text_tests::an_empty_clipboard_string_sends_nothing ... ok
+test send_pasted_text_tests::no_clipboard_text_sends_nothing ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished in 0.20s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

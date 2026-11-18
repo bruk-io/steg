@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T04:10:00Z'
+updated_date: '2026-11-18T04:16:00Z'
 labels:
   - size-2
   - changes-requested
@@ -607,6 +607,43 @@ Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo 
 ```text
     Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.79s
+```
+
+Commits since the review: 74, 60 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-18T04:16:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 94d88814c569:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (57.7s)
+ok      build (steg-sdk) (0.6s)
+ok      test (steg-sdk) (1.4s)
+ok      test (steg-sdk, local-socket) (1.7s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (0.9s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (57.0s)
+ok      test (steg-server, race-fixture) (58.6s)
+ok      test (steg-server, pty-race-fixture) (60.5s)
+ok      test (steg-server, accept-backoff-fixture) (58.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.0s)
+ok      test (steg, fixtures) (6.4s)
+ok      build (steg-ui) (20.1s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (2.4s)
+ok      test (steg-app) (2.0s)
+ok      tool tests (14.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 74, 60 without the Asdlc-Worker trailer.

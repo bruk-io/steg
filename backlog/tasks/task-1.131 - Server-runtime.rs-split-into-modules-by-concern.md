@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:18:00Z'
+updated_date: '2026-11-18T05:20:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -746,6 +746,51 @@ kill: 26868: No such process
 test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
 
 test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+```
+
+Check passed: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-colormoved.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main` exited 0 at 2026-11-18T05:20:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes, last 40 of 269 lines:
+
+```text
++use crate::dispatch::{self, Context, Outcome};
++use crate::dispatch::{self, Context};
++use crate::outbound::Outbound;
++use crate::pane;
++use crate::pane::{self, DEFAULT_PANE_SIZE};
++use crate::pane::PaneEvent;
++use crate::pty::LaunchSpec;
++use crate::pty::ProgramLauncher;
++use events::{apply_event_locked, broadcast, emit_focus_event};
++use input::{apply_size_changed_locked, reapply_every_sized_tab};
++use std::sync::Arc;
++use std::sync::mpsc::Sender;
++use std::time::Instant;
++use steg_kernel::{CommandEnded, CommandOutputStarted, ExitOutcome, Moment};
++use steg_kernel::{Moment, Settings, Tree};
++use steg_kernel::{Moment, Tree};
++use steg_kernel::Moment;
++use steg_kernel::SizeChanged;
++use steg_kernel::Tree;
++use steg_sdk::{
++use steg_sdk::{ApiError, ClientId, Description, PaneId, Request, Size, validate};
++use steg_sdk::{ApiError, Description, ErrorCode, PaneId, Program, Request, Response, validate};
++use steg_sdk::{ApiError, Description, PaneId, Request, Response, SessionId};
++use steg_sdk::{ApiError, Description, PaneId, Request, SessionId, validate};
++use steg_sdk::{ClientId, ClientKind};
++use steg_sdk::{ClientId, Description, PaneId, Request, Response};
++use steg_sdk::{Connection, PaneId, Request, SessionId};
++use steg_sdk::{Description, Request, Response};
++use steg_sdk::Program;
++use super::{FORCE_JOIN_TIMEOUT, Runtime, apply_size_changed_locked};
++use super::{FORCE_JOIN_TIMEOUT, Runtime, State, broadcast, reapply_every_sized_tab};
++use super::{LoginShell, State};
++use super::{Runtime, State, broadcast, reapply_every_sized_tab};
++use super::{Runtime, State};
++use super::{Runtime, Subscriber, apply_size_changed_locked};
++use super::{State, broadcast, reapply_every_sized_tab};
++use super::close::force_end;
++use super::Runtime;
++use super::State;
++use super::tree::session_owning_tab;
 ```
 <!-- SECTION:NOTES:END -->
 

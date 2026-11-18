@@ -151,3 +151,9 @@ Read `boundaries.toml` and `.claude/rules/architecture.md`: both operate at the 
 
 `pane.rs` (about 2,600 lines) is a good candidate for the same treatment now, on two independent signals read above: TASK-1.90's own capture/wait and TASK-1.115's own scrollback paging both read `PaneHandle`'s own screen/terminal state the same way `attach_pane` already does, and are likely to land inside it, in roughly the same area, at close to the same time. `connection.rs` (about 1,300 lines) is smaller and its own merge-churn was not read here (no per-file touch count was pulled the way runtime.rs's "12 of the last 40 merges" was given in this task's own description) - recommend checking that count before committing to a split, rather than assuming one is warranted from size alone; TASK-1.109's own `client.connected`/`client.left`/`client.started_viewing`/`client.stopped_viewing` events are the one concrete signal that touches it, and that alone may not be enough to warrant a split.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against the task's four criteria by @bruk.o: ok. Move only: runtime.rs becomes runtime/mod.rs plus login, tree, start, attach, input, close, moving, events and lifecycle, with test helpers in a test-only module; eleven private items widen to pub(super) and no further. Proofs with controls: public surface unchanged; test list identical apart from module prefixes; a sorted normalised-line comparison of bodies, with moved-line counts recorded to cover what that comparison cannot see. Stale comments naming runtime.rs elsewhere are fixed in a final comments-only commit. Collisions that remain after the split are stated: TASK-1.109 touches most of the new files and pairs with 1.116 and 1.88.
+<!-- SECTION:NOTES:END -->

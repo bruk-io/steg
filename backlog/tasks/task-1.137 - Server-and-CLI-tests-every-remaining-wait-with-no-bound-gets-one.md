@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.137
 title: 'Server and CLI tests: every remaining wait with no bound gets one'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-18T14:03:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.123
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

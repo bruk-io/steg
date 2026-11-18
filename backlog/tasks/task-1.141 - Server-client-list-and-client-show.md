@@ -1,7 +1,7 @@
 ---
-id: DRAFT-5
+id: TASK-1.141
 title: 'Server: client list and client show'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-18T14:10:00Z'
 labels:
@@ -10,6 +10,7 @@ milestone: m-3
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-5
 ---
 
 ## Description

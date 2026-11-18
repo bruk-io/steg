@@ -1,7 +1,7 @@
 ---
-id: DRAFT-4
+id: TASK-1.140
 title: 'Server: wait for a pane''s program to exit, with a timeout'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-18T14:09:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.90
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-4
 ---
 
 ## Description

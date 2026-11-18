@@ -1,9 +1,11 @@
 ---
 id: TASK-1.132
 title: 'Tools: only a few just check runs at a time on one machine'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
+updated_date: '2026-11-18T02:11:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -11,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
+asdlc_branch: task-1.132-tools-only-a-few-just-check-runs-at-a
 ---
 
 ## Description

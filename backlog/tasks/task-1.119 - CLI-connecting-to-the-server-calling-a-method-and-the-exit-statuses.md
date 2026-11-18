@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T04:47:00Z'
+updated_date: '2026-11-18T04:52:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1096,6 +1096,40 @@ running 1 test
 test with_json_a_failed_command_still_prints_the_message_on_stderr_not_json ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.39s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_exit_statuses --features fixtures -- oversized_stdin_on_api_call_exits_2_without_panicking` exited 101 at 2026-11-18T04:52:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test oversized_stdin_on_api_call_exits_2_without_panicking ... FAILED
+
+failures:
+
+---- oversized_stdin_on_api_call_exits_2_without_panicking stdout ----
+
+thread 'oversized_stdin_on_api_call_exits_2_without_panicking' (58896842) panicked at crates/steg/tests/cli_exit_statuses.rs:359:5:
+assertion `left == right` failed: stderr: 
+thread 'main' (58896843) panicked at crates/sdk/src/wire/connection.rs:271:14:
+an unvalidated method call fits under the frame cap: TooLarge { size: 9437289, limit: 8388603 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  left: Some(101)
+ right: Some(2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    oversized_stdin_on_api_call_exits_2_without_panicking
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.47s
+
+error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
 ```
 
 Commits since the review: 19, 16 without the Asdlc-Worker trailer.

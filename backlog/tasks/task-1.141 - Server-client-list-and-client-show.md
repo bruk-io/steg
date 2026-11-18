@@ -1,13 +1,14 @@
 ---
 id: TASK-1.141
 title: 'Server: client list and client show'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T23:37:00Z'
+updated_date: '2026-11-18T23:48:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -20,8 +21,10 @@ asdlc_branch: task-1.141-server-client-list-and-client-show
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '48ee00882225'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -552,6 +555,27 @@ created: 2026-11-18T23:37:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.141: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T23:48:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review. The diff does not match the plan.
+
+[Evidence, Important] client.rs:30-250's AC #4 negative controls (both the generic client-model-not-yet-arm restore covering all 8 new tests, and the --all-filter mutation covering client_list_returns_every_connected_client_by_default_except_cli) are recorded only at intermediate commit 18da1c97edb1 "with uncommitted changes" (22:52:16-22:52:50 UTC), before that same commit's own `just check` failed on format in this exact test file (22:53:10) and before the subsequent rebases to 9a0d4db9ddc9, 39063591a155 and the pushed head 191fbf53. No control was re-run at the final head. The plan's step 5 explicitly requires the controls "at the final head... not earlier in the sequence", and the implementation notes assert this was done there; the board record does not support that. Per review policy: "a check recorded before the last commit... is a finding" and "a sentence in the notes that was true of an earlier state and never revisited does not count."
+
+[Evidence, Nit] The dedicated --all-filter control only re-ran client_list_returns_every_connected_client_by_default_except_cli, not its sibling client_list_with_all_includes_cli_clients_too, which also proves part of AC #1's --all clause and has no distinct control beyond the generic batch one. I repeated the missing control myself in a scratch edit (changed dispatch/client.rs's filter from `all || client.kind() != ClientKind::Cli` to always exclude Cli) and confirmed client_list_with_all_includes_cli_clients_too does fail (left/right inverted), then reverted and confirmed it passes again - so the test's own mechanism is sound, only the recorded evidence for it is incomplete.
+
+[Compliance, Nit] `git -C <repo> merge-tree --write-tree origin/task-1.141-... origin/task-1.88-server-server-show-server-stop-and-the` (PR #82) reports real conflicts in crates/sdk/src/lib.rs, crates/server/src/dispatch/mod.rs and crates/server/src/dispatch/outcome.rs (both branches insert at the same anchor line in a shared `pub use` list, the NOT_YET_NOUNS array, and right after the same TabRecords enum variant), contradicting the plan's risk note that the merge is "expected clean". Against PR #83 (TASK-1.139) the same command is clean. Mechanical only - whoever lands second still just needs an ordinary rebase, per the plan's own mitigation.
+
+[Compliance, Nit] crates/server/tests/dispatch/client.rs adds client_show_matches_exactly_the_fields_the_description_declares, an 8th dispatch-level test not named in the plan's step 5 list of 7; additive and low-risk (mirrors the list version's field-matching test for show), but not called out as a departure in the implementation notes.
+
+Everything else checked out: Tree::resolve_client (target.rs) reuses resolve_session's own generic resolve/to_result machinery with no new matching logic or error variant; client list excludes Cli clients unless --all, with no self-exclusion, matching doc-2 section 8/section 5 and decision-5; ClientRecord's fields match client.list/client.show's declared fields exactly, with no change under crates/sdk/src/description/; dispatch/mod.rs, outcome.rs and cross_cutting.rs only touch client entries, server and pane rows are untouched; both dispatch arms take &Tree and never mutate; the .expect calls in record_for/show are sound (every Client passed in came straight out of tree.clients() or a just-resolved id with no mutation in between); last_active stays None for M1 per the plan's settled question 1 (not re-raised here). Plan approval present ("Plan approved by @bruk (48ee00882225, size-2)").
 
 ---
 <!-- COMMENTS:END -->

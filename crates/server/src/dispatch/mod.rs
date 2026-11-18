@@ -16,6 +16,7 @@ mod kernel_error;
 mod lookup;
 pub(crate) mod outcome;
 mod pane;
+mod server;
 mod session;
 mod setting;
 mod tab;
@@ -29,6 +30,7 @@ pub(crate) use lookup::{
     target_pane, target_session, target_tab, wire_position_to_index,
 };
 pub use outcome::Outcome;
+pub(crate) use server::SERVER_VERSION;
 
 use steg_kernel::{Settings, Tree};
 use steg_sdk::{
@@ -90,6 +92,7 @@ fn handled() -> Vec<(&'static str, &'static str)> {
     all.extend(pane::HANDLED.iter().copied());
     all.extend(api::HANDLED.iter().copied());
     all.extend(setting::HANDLED.iter().copied());
+    all.extend(server::HANDLED.iter().copied());
     all.extend(NOT_YET_NOUNS.iter().copied());
     all.extend(INTERCEPTED_BEFORE_DISPATCH.iter().copied());
     all
@@ -107,7 +110,12 @@ fn handled() -> Vec<(&'static str, &'static str)> {
 /// note_input` are just as unreachable from here, one step further back.
 /// The same structural reason `event.watch` is expected to leave
 /// [`NOT_YET_NOUNS`] for this list too, once its own server-side task
-/// lands. Test-only, for the same reason as [`handled`].
+/// lands. `server.stop` (TASK-1.88) joins this list for the identical
+/// reason: it needs the connection's own `Arc<Outbound>` (to flush its
+/// reply before anything closes) and the server's `Stopper` (to actually
+/// end the accept loop), neither reachable from `dispatch`'s plain
+/// `(&mut Tree, ...)` signature. Test-only, for the same reason as
+/// [`handled`].
 #[cfg(test)]
 const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[
     ("pane", "attach"),
@@ -119,17 +127,17 @@ const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[
     // needed a connection's own `Arc<Outbound>`; this needs neither, only
     // the `ClientId` itself).
     ("tab", "declare-size"),
+    ("server", "stop"),
 ];
 
-/// The nouns with no served arm at all in this task (`server`, `event`,
-/// `client`): every one of their methods answers
-/// `ErrorCode::NotImplementedYet`, naming what it waits on. Test-only, for
-/// the same reason as [`handled`].
+/// The nouns/methods with no served arm at all in this task (`event`,
+/// `client`), plus `server.stop` is NOT here (see
+/// [`INTERCEPTED_BEFORE_DISPATCH`] instead) - `server.show`/`server.start`
+/// are not here either (TASK-1.88: both are now plain `HANDLED` arms in
+/// [`server`]). Every pair here answers `ErrorCode::NotImplementedYet`,
+/// naming what it waits on. Test-only, for the same reason as [`handled`].
 #[cfg(test)]
 const NOT_YET_NOUNS: &[(&str, &str)] = &[
-    ("server", "show"),
-    ("server", "start"),
-    ("server", "stop"),
     ("event", "watch"),
     ("client", "list"),
     ("client", "show"),
@@ -200,12 +208,13 @@ pub(crate) fn program_not_running() -> ApiError {
 /// once `validate` has already confirmed the method is in `description`
 /// (every described method's name is `{noun}.{verb}`, R101), and every
 /// described method is matched by one of the per-noun `HANDLED` lists, the
-/// three not-yet nouns, or `pane.attach`/`pane.detach`/`tab.declare-size`'s
-/// own arms (TASK-1.47/TASK-1.114, each built but never reached this way
-/// in the real system), which `mod.rs`'s own completeness test checks
-/// against `description()` directly. Panics instead, rather than silently
-/// misrouting, if ever called with `"api.call"` itself - the one case the
-/// doc above says never to pass here.
+/// remaining not-yet nouns, or `pane.attach`/`pane.detach`/
+/// `tab.declare-size`/`server.stop`'s own arms (TASK-1.47/TASK-1.114/
+/// TASK-1.88, each built but never reached this way in the real system),
+/// which `mod.rs`'s own completeness test checks against `description()`
+/// directly. Panics instead, rather than silently misrouting, if ever
+/// called with `"api.call"` itself - the one case the doc above says
+/// never to pass here.
 pub(crate) fn dispatch_raw(
     tree: &mut Tree,
     settings: &mut Settings,
@@ -242,8 +251,14 @@ pub(crate) fn dispatch_raw(
         (noun, verb) if setting::HANDLED.contains(&(noun, verb)) => {
             setting::dispatch(settings, request, verb)
         }
-        ("server", _) => Err(not_implemented_yet(
-            "the server's own socket and lifecycle (TASK-1.44)",
+        (noun, verb) if server::HANDLED.contains(&(noun, verb)) => {
+            server::dispatch(tree, now, verb)
+        }
+        ("server", "stop") => Err(not_implemented_yet(
+            "connection.rs's own interception (TASK-1.88) - a described method, fully built, \
+             but never reached through dispatch in the real system: answering it needs the \
+             connection's own Arc<Outbound> (to flush its reply) and the server's Stopper (to \
+             actually stop), neither reachable from this function's signature",
         )),
         // `event.watch` (TASK-1.46) is never actually routed here in
         // production: it needs a connection's own registered subscriber

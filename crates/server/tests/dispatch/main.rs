@@ -16,6 +16,7 @@ mod api;
 mod cross_cutting;
 mod fixtures;
 mod pane;
+mod server;
 mod session;
 mod setting;
 mod tab;

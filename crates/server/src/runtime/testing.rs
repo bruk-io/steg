@@ -70,6 +70,7 @@ pub(super) fn test_state(
         clock_origin: Instant::now(),
         subscribers: HashMap::new(),
         notify_session_count_changed: None,
+        stopper: None,
         applied_marks: HashMap::new(),
     }
 }

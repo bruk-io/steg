@@ -525,6 +525,34 @@ test client::tests::ended_closes_this_connections_own_side_so_a_later_frame_on_t
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `cargo test -p steg-app -- writer_disarm_makes_every_later_send` exited 101 at 2026-11-18T02:31:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129 on task-1.129-app-the-bare-window-shows-that-its at 2dd9f5117641 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::writer_disarm_makes_every_later_send_a_silent_no_op_with_no_disconnected_either ... FAILED
+
+failures:
+
+---- client::tests::writer_disarm_makes_every_later_send_a_silent_no_op_with_no_disconnected_either stdout ----
+
+thread 'client::tests::writer_disarm_makes_every_later_send_a_silent_no_op_with_no_disconnected_either' (56671693) panicked at crates/app/src/client.rs:659:9:
+nothing should reach the wire after disarm: Ok(21)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::writer_disarm_makes_every_later_send_a_silent_no_op_with_no_disconnected_either
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

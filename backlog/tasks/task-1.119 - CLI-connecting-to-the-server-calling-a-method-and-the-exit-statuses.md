@@ -1,11 +1,11 @@
 ---
 id: TASK-1.119
 title: 'CLI: connecting to the server, calling a method, and the exit statuses'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T08:52:00Z'
+updated_date: '2026-11-18T13:50:00Z'
 labels:
   - size-2
   - review-passed

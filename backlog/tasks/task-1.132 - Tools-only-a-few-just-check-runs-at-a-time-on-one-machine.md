@@ -1,11 +1,11 @@
 ---
 id: TASK-1.132
 title: 'Tools: only a few just check runs at a time on one machine'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T04:10:00Z'
+updated_date: '2026-11-18T04:34:00Z'
 labels:
   - size-2
   - review-passed

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:22:00Z'
+updated_date: '2026-11-18T03:29:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -125,7 +125,7 @@ Control: before trusting a "match", make one real edit to one function/test body
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-After this lands, a new API method touches: the one noun file under crates/sdk/src/description/methods/ it belongs to, plus methods/tests.rs (both doc_2_section_8() and doc_2_section_8_targets(), and the "== N methods" count assertion). methods/tests.rs stays the one place every method-adding task still collides - this split shrinks the file that collision happens in from 2,122 lines to roughly 230 (the size of the current #[cfg(test)] mod tests block), it does not remove the collision itself. Follow-up, not this task: if method-adding tasks keep colliding on methods/tests.rs once this lands, split it along the same seams its own assertions already group by (the doc-2 section 8 pairs/targets tables, the events/errors counts, the nested-type allow-list) - not attempted here, since all 18 of its tests (not 22, corrected below) are whole-description invariants, none noun-scoped, and deciding how to split an invariant test without changing what it asserts is a separate, smaller design question from this move-only task.
+After this lands, a new API method touches: the one noun file under crates/sdk/src/description/methods/ it belongs to, plus methods/tests.rs (both doc_2_section_8() and doc_2_section_8_targets(), and the "== N methods" count assertion). methods/tests.rs stays the one place every method-adding task still collides - this split shrinks the file that collision happens in from 2,122 lines to roughly 230 (the size of the current #[cfg(test)] mod tests block), it does not remove the collision itself. Follow-up, not this task: if method-adding tasks keep colliding on methods/tests.rs once this lands, split it along the same seams its own assertions already group by (the doc-2 section 8 pairs/targets tables, the events/errors counts, the nested-type allow-list) - not attempted here, since all 18 of its tests are whole-description invariants, none noun-scoped, and deciding how to split an invariant test without changing what it asserts is a separate, smaller design question from this move-only task.
 
 Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the sdk description (crates/sdk/src/description/methods.rs into methods/ by noun); the server dispatch tests moved to a draft task, 'Server tests: the dispatch tests split by noun, in one test binary'. The title still names both halves; the criteria are the scope.
 
@@ -133,24 +133,11 @@ Plan checked against the task's three criteria by @bruk.o: ok. Move only: method
 
 Build notes:
 
-Departure #1: the tests.rs block has 18 tests, not 22 as the plan said - a count error in planning, not a code difference; the plan's "22" elsewhere in this task's history is wrong, 18 is what the task actually has, confirmed by cargo test -p steg-sdk --lib -- --list both before and after this task's commits.
+Departures:
+- The tests.rs block has 18 tests, not 22 as the plan said - a count error in planning, not a code difference, confirmed by cargo test -p steg-sdk --lib -- --list both before and after this task's commits.
+- Proof (c)'s mechanism: the plan's sorted-normalised-line-sha256 pipeline hit a real bug on this machine's sed (macOS/BSD sed's -E does not support \s or \b, so the plan's own sed -E 's/^\s+//' was a silent no-op on this sed). Replaced it with an ordered per-file diff against the exact original line range (located by grep on the pre-task file's own section banners, not guessed), modulo only the pub(super) qualifier AC #2 allows - stricter than a sorted hash, since it preserves order and so cannot hide a reorder-and-collide false pass. Also ran the plan's own attribute-lines-only comparison as an extra. All four proofs (a, b, c, and the attribute extra) recorded with their own control: control recorded failing (scratch edit in place), reverted, then the real proof recorded passing, at the final head.
 
-Departure #2 (proof (c)'s mechanism): the plan's sorted-normalised-line-sha256 pipeline hit a real bug on this machine's sed (BSD/macOS sed's -E does not support \s or \b, so the plan's own sed -E 's/^\s+//' was a silent no-op) and, once fixed, still left one unexplained stray line from reformatting noise I could not pin down cheaply. Rather than debug a hash further, I replaced it with a stronger, more legible check: a script (scratchpad/task-1130-prove-c.sh) that diffs each new file's real content against the *exact* line range it was mechanically extracted from in the pristine pre-task methods.rs (located by grep on the file's own section banners, not guessed), modulo only the pub(super) qualifier AC #2 explicitly allows. It is stricter than the planned hash (an exact ordered diff per file, not a sorted bag of lines) and its control (one character changed in one method's summary in pane.rs) correctly fails before passing clean. I also ran the plan's own attribute-lines-only comparison (sorted, before/after) as an extra, both recorded with their control, confirming no #[...]/#![...] line changed anywhere in scope - this was the one thing the stricter per-file diff could in principle miss if it had still been sort-based; it is not, but the extra check is recorded anyway.
-
-Sighting: just check's test step failed twice in a row (2026-11-18, ~22:05 and ~22:09 UTC-5) on crates/server/tests/attach.rs's own an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane - 'pane.show must answer within a bound, even with the other pane stuck'. This file is outside this task's scope (crates/sdk/src/description/methods/ only); run alone it passes in ~2-15s both times I tried, consistent with the known stuck-pane timing test flaking under this machine's concurrent worker load, not with this task's change. Recorded the isolated passing run as evidence. Have not yet recorded a fully clean just check; asking the engineer how to proceed (retry again, or accept the isolated confirmation) before finishing.
-
-Check passed: `sh -c 'cargo test -p steg-server --test attach -- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane 2>&1 | tail -8'` exited 0 at 2026-11-18T03:22:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
-
-```text
-
-
-failures:
-    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
-
-test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 22.77s
-
-error: test failed, to rerun pass `-p steg-server --test attach`
-```
+Sighting for TASK-1.123: just check's test step failed 4 times across this build (2026-11-18, ~22:05 through ~22:26 UTC-5), every time in crates/server/tests/attach.rs - a file outside this task's scope (crates/sdk/src/description/methods/ only). The specific test(s) varied: an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed all 4 times; stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck and a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach each failed once more alongside it. Failure modes seen: a bound-timeout panic ('pane.show/pane.attach must answer within a bound, even with the other pane stuck') on three runs, and once a genuine OS-level error reading a reply socket (Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }) - the clearest sign this is real host contention, not a race in the test or the code: the kernel itself refused a read because the machine was out of some resource (likely fds or scheduler time) under load. 22:29  up 4 days,  7:31, 6 users, load averages: 4.14 5.85 7.37 during the build: load averages 9.18/7.80/8.65 (6 users) on the failing runs, 4.93/6.10/7.50 after. Every one of these tests passes cleanly in isolation (confirmed 3 times, ~2-22s each); the only run where an isolated pair also flaked once was itself under the same heavy load. Recorded: the 4th just check run as an honest failing record (exit 101, only crates/server/tests/attach.rs affected, unrecorded first to confirm no environment data in the output), and the isolated passing rerun of both of that run's failing tests. CI's run on the pushed commit is the clean just check for this head, on an unloaded machine.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

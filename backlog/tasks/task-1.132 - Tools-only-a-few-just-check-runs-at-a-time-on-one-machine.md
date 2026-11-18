@@ -1,13 +1,14 @@
 ---
 id: TASK-1.132
 title: 'Tools: only a few just check runs at a time on one machine'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:20:00Z'
+updated_date: '2026-11-18T03:28:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -20,8 +21,10 @@ asdlc_branch: task-1.132-tools-only-a-few-just-check-runs-at-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd9a4c4cb7361'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -568,6 +571,31 @@ created: 2026-11-18T03:20:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.132: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T03:28:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review. The diff matches the plan.
+
+[Evidence, Important] tools/tests/functional/test_quiet_slots.py:56-83 (plan step 7; quiet.py:180-184,373-375): `_spawn_heavy`'s `wait_bound` parameter is defined and wired into the subprocess env (lines 64,69-70) but no call site in the file ever passes it - grep confirms zero `wait_bound=` arguments across every `_spawn_heavy(` call. So the refusal branch the plan names explicitly ("the step fails ... rather than silently proceeding unslotted" when STEG_CHECK_SLOT_WAIT_S expires, i.e. `_race_all_slots`'s TimeoutError reaching `main`'s `except TimeoutError: print("FAILED ...")`) is never exercised by any test, and none of the notes' ten recorded control pairs covers it either - they cover `wait_bound_seconds` the parser, not the timeout-and-fail behaviour it feeds. A plan-named branch with no test reaching it is unmet per the Evidence pass even though the ordinary (unbounded) wait path is well covered.
+
+[Bugs, Nit] justfile:212: `cargo install cargo-deny --locked` runs through `steg-quiet` but `install` is not in `_HEAVY_CARGO_SUBCOMMANDS`, so this from-source compile never takes a slot. Low impact (idempotent, guarded by `command -v`, not part of `just check`/`just test`), but it is a cargo-through-steg-quiet invocation the detection misses, worth naming.
+
+[Evidence, Nit] tools/tests/functional/test_quiet_slots.py: no functional test captures stdout and asserts the wait line is actually printed when `held_slot` takes the slow path; only the pure `wait_line()` function is unit-tested (test_quiet.py:115-124). Tests (d) and (e) already drive the slow path and already capture output, so asserting the line appears there is nearly free and would close the gap between "the formatter is right" and "AC #2's one line is actually emitted."
+
+[Bugs, Nit] quiet.py:88,117: an empty or non-numeric STEG_CHECK_SLOTS or STEG_CHECK_SLOT_WAIT_S raises a raw, unformatted traceback (bare `int()`/`float()`), not the clear one-line failure the rest of the file gives elsewhere. It does fail loudly rather than silently run unlimited, so not Important, but inconsistent with the file's own style.
+
+Verified myself: read quiet.py, the justfile's full recipe list (every `cargo build/test/clippy` invocation in check/test/test-all/check-packages/lint/build/capture-gallery/test-openpty-race-control correctly classified heavy; cargo fmt --check and cargo deny check licenses correctly not), both test files in full, and the task's full plan/notes/checks history. Traced fd lifetimes for the fast path, the slow-path race, SIGKILL, the 900s step timeout, and KeyboardInterrupt - all release correctly; the scan fds and the racer fds are distinct open file descriptions on the same files, so no self-deadlock. The ten recorded control pairs are genuine mechanism-removed-then-restored controls (e.g. test c's control made the slot fd inheritable into the fake-cargo child to show close-on-exec is load-bearing), not just pre-implementation baselines.
+
+Control repeated myself (different from a pure function): scratch-edited `_race_all_slots` in the worktree to spawn only one thread, pinned to `paths[0]`, breaking the first-to-free race. Ran `uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one` directly (bounded, under 60s) - it failed exactly as expected, the waiter stuck behind the long holder instead of the short one ("the waiter should acquire the slot that freed quickly", assert 1794972279.37 <= 1794972276.69). Reverted with `git checkout --`, confirmed `git status --porcelain` empty and the diff against origin/main unchanged (still only justfile, quiet.py, the two test files).
+
+Did not check: did not independently stress-test the timing-margin assertions (SLACK_S=0.5s) for flakiness under this machine's current load beyond the one control above; did not re-run the SIGKILL or fd-inheritance controls myself, only read their recorded transcripts.
 
 ---
 <!-- COMMENTS:END -->

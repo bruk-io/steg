@@ -7,6 +7,8 @@
 use std::io::{self, Read, Write as _};
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use std::thread::{self, JoinHandle};
 
@@ -85,15 +87,20 @@ enum WriterCommand {
 }
 
 /// How many commands the writer's own queue holds before a sender is told it is full
-/// (review finding 1: "say what bounds the queue"). Generous for ordinary interactive
-/// use: a person typing, even fast, or one resize's own coalesced declarations, comes
-/// nowhere near this many commands a second. Still small enough that a genuinely stalled
-/// peer (the kernel's own 8 KiB socket buffer already full, and nothing draining it) is
-/// noticed well within a second of continued typing, not left to grow without bound - an
-/// unbounded queue behind a stalled server is a memory problem instead of a frozen
-/// window, which is the one risk this task's own writer thread exists to remove, not
-/// reintroduce in a different shape.
-const WRITER_QUEUE_CAPACITY: usize = 256;
+/// (review finding 1: "say what bounds the queue"). `try_send` never blocks the caller
+/// regardless of this number - the bound's own job is to cap how large the backlog can
+/// grow once the kernel's own much larger 8 KiB socket buffer (measured on this machine,
+/// `net.local.stream.sendspace`) is *also* exhausted, not to guarantee any particular
+/// detection time. Plain keystroke-at-a-time typing, even at a fast held-key autorepeat
+/// rate, produces only a few bytes a command and would take minutes to exhaust the
+/// kernel's own buffer first - this bound plays no part in that case. What it does bound
+/// is the case review finding 1 named: a single oversized command (a large paste, several
+/// kilobytes in one `WriterCommand::Input`) that by itself can exceed the kernel buffer
+/// and block the writer thread's one in-flight write - after that, up to this many more
+/// commands can still queue up (comfortably more than a few seconds of further typing or
+/// resizing) before the connection is reported lost, while keeping the worst-case backlog
+/// a small, fixed amount of memory instead of unbounded growth.
+const WRITER_QUEUE_CAPACITY: usize = 64;
 
 /// The main thread's own writer (review finding 1): owns nothing about the socket
 /// directly any more - every `send_input`/`declare_size` call hands its own bytes to a
@@ -110,12 +117,12 @@ pub(crate) struct Writer {
     /// uses for the reader (`shutdown()` on one fd fails a blocked write on another fd of
     /// the same socket, the identical POSIX guarantee, not a different one).
     shutdown_handle: UnixStream,
-    /// Reported once, the first time either a `try_send` finds the queue full or the
-    /// writer thread's own write fails - never twice for the same writer, since nothing
-    /// after that first report is still true to say twice, and a second
-    /// `ClientEvent::Disconnected` would be redundant, not incorrect (`handle_client_
-    /// event`'s own arm is already idempotent) but still worth not doing needlessly.
     events: UnboundedSender<ClientEvent>,
+    /// Guards `events` so `Disconnected` is reported once, the first time either a
+    /// `try_send` finds the queue full or the writer thread's own write fails - shared
+    /// (not merely duplicated) between this struct and the writer thread's own closure,
+    /// since either side can be the one that first notices.
+    reported: Arc<AtomicBool>,
 }
 
 impl Writer {
@@ -135,6 +142,8 @@ impl Writer {
             .expect("clone the write handle for Writer::stop");
         let (commands_tx, commands_rx) = sync_channel(WRITER_QUEUE_CAPACITY);
         let thread_events = events.clone();
+        let reported = Arc::new(AtomicBool::new(false));
+        let thread_reported = Arc::clone(&reported);
         let thread = thread::spawn(move || {
             write_loop(
                 handle,
@@ -143,6 +152,7 @@ impl Writer {
                 tab_target,
                 &commands_rx,
                 &thread_events,
+                &thread_reported,
             );
         });
         Self {
@@ -150,6 +160,7 @@ impl Writer {
             thread: Some(thread),
             shutdown_handle,
             events,
+            reported,
         }
     }
 
@@ -177,7 +188,7 @@ impl Writer {
         match commands.try_send(command) {
             Ok(()) => {}
             Err(TrySendError::Full(_) | TrySendError::Disconnected(_)) => {
-                let _ = self.events.unbounded_send(ClientEvent::Disconnected);
+                report_disconnected(&self.events, &self.reported);
             }
         }
     }
@@ -218,6 +229,7 @@ fn write_loop(
     tab_target: String,
     commands: &Receiver<WriterCommand>,
     events: &UnboundedSender<ClientEvent>,
+    reported: &Arc<AtomicBool>,
 ) {
     while let Ok(command) = commands.recv() {
         let frame = match command {
@@ -237,9 +249,18 @@ fn write_loop(
             continue;
         };
         if handle.write_all(&frame).is_err() {
-            let _ = events.unbounded_send(ClientEvent::Disconnected);
+            report_disconnected(events, reported);
             return;
         }
+    }
+}
+
+/// Sends `Disconnected` the first time either caller (`Writer::try_send`'s own full or
+/// dead queue, or `write_loop`'s own failed write) calls this - the `swap` is what makes
+/// "once" true across the two threads that can each call it, not merely documented.
+fn report_disconnected(events: &UnboundedSender<ClientEvent>, reported: &Arc<AtomicBool>) {
+    if !reported.swap(true, Ordering::SeqCst) {
+        let _ = events.unbounded_send(ClientEvent::Disconnected);
     }
 }
 
@@ -707,6 +728,34 @@ mod tests {
             matches!(event, Some(ClientEvent::Disconnected)),
             "a queue that never drains must be reported the same way a dead connection \
              is, not silently dropped with no consequence at all, got {event:?}",
+        );
+    }
+
+    #[test]
+    fn a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls() {
+        let (_server_side, mut writer, mut events) = writer_against_a_peer_that_never_reads(7);
+        let bytes = vec![b'x'; 64];
+        // Several times past the bound, so `try_send` fails on many further calls, not
+        // just the one that first crosses it - the shape under test is "every failed
+        // `try_send` reports", not merely "the first one does".
+        for _ in 0..(PROMPT_RETURN_CALLS * 4) {
+            writer.send_input(bytes.clone());
+        }
+
+        let count = bounded(move || {
+            let mut count = 0;
+            let deadline = Instant::now() + Duration::from_millis(500);
+            while Instant::now() < deadline {
+                if let Ok(ClientEvent::Disconnected) = events.try_recv() {
+                    count += 1;
+                }
+            }
+            count
+        });
+        assert_eq!(
+            count, 1,
+            "a full queue must report the connection lost exactly once, not once per \
+             failed try_send",
         );
     }
 

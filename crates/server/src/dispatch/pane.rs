@@ -48,9 +48,10 @@ pub(super) fn dispatch(
              cell delta, and Tab::size() can be unknown",
         )),
         "swap" => swap(tree, context, request),
-        "send" | "capture" | "wait" => Err(not_implemented_yet(
-            "TASK-1.90 - dispatch has no I/O by design; these need a Runtime-level wrapper, \
-             not a dispatch arm",
+        "send" => send(tree, context, request),
+        "capture" | "wait" => Err(not_implemented_yet(
+            "pane capture and pane wait are not built yet - dispatch has no I/O by design; \
+             each needs a Runtime-level wrapper, not a dispatch arm",
         )),
         _ => unreachable!("HANDLED names every verb this match covers"),
     }
@@ -346,5 +347,28 @@ fn swap(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome
     let with = param_str(request, "with").ok_or_else(|| bad_request("needs with"))?;
     let other = resolve_pane_str(tree, context, with)?;
     tree.swap_panes(pane, other).map_err(map_kernel_error)?;
+    Ok(Outcome::Nothing)
+}
+
+/// `pane.send`'s pure, I/O-free half (TASK-1.90, AC #1): resolves the
+/// target, refuses `text` and `key` given together (doc-2: "`--text`
+/// together with `--key` is bad usage"), and refuses
+/// `ErrorCode::ProgramNotRunning` when nothing is running in the target
+/// (doc-2: "`pane send` refuses a pane with no running program, with
+/// status 1") - the same shape `close`'s own `ProgramRunning` refusal
+/// already uses, over the same `any_pane_running` helper. The real
+/// delivery - building the bytes from `text`/`key` and handing them to
+/// the pane's own worker - is `Runtime::send_and_dispatch`'s job
+/// (`crates/server/src/runtime/input.rs`): this function's own
+/// signature, like every other dispatch arm's, has no way to reach a
+/// `PaneHandle` at all (TASK-1.89's own finding, still true).
+fn send(tree: &Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
+    let pane = target_pane(tree, context, request)?;
+    if param_str(request, "text").is_some() && param_str(request, "key").is_some() {
+        return Err(bad_request("send either text or a key, not both"));
+    }
+    if !super::any_pane_running(tree, &[pane]) {
+        return Err(super::program_not_running());
+    }
     Ok(Outcome::Nothing)
 }

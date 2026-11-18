@@ -331,6 +331,10 @@ pub enum ErrorCode {
     AmbiguousTarget,
     /// A program is still running and `--force` was not given.
     ProgramRunning,
+    /// Nothing is currently running in the pane (the mirror of
+    /// [`ErrorCode::ProgramRunning`], TASK-1.90 - doc-2's own "`pane send`
+    /// refuses a pane with no running program").
+    ProgramNotRunning,
     /// A move or reorder named a position beyond the end of its siblings.
     PositionOutOfRange,
     /// A split would leave a pane under doc-15 R100's floor.

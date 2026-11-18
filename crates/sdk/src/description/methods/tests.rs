@@ -218,11 +218,11 @@ fn events_has_r38s_fourteen_m1_names_each_once() {
 }
 
 #[test]
-fn errors_has_twelve_codes_with_their_exit_statuses() {
+fn errors_has_thirteen_codes_with_their_exit_statuses() {
     use crate::description::shapes::ErrorCode;
 
     let api = description();
-    assert_eq!(api.errors.len(), 12);
+    assert_eq!(api.errors.len(), 13);
 
     let status_of = |code: ErrorCode| {
         api.errors
@@ -237,6 +237,10 @@ fn errors_has_twelve_codes_with_their_exit_statuses() {
     assert_eq!(status_of(ErrorCode::AmbiguousTarget), 3);
     assert_eq!(status_of(ErrorCode::PositionOutOfRange), 2);
     assert_eq!(status_of(ErrorCode::ProgramRunning), 1);
+    // `ProgramNotRunning` (TASK-1.90): the mirror of `ProgramRunning`,
+    // also 1, not 2 - doc-2's own "pane send refuses a pane with no
+    // running program, with status 1".
+    assert_eq!(status_of(ErrorCode::ProgramNotRunning), 1);
     assert_eq!(status_of(ErrorCode::SplitTooSmall), 1);
     assert_eq!(status_of(ErrorCode::NoSplitInDirection), 1);
     assert_eq!(status_of(ErrorCode::PanesNotInSameTab), 1);

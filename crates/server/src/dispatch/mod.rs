@@ -164,6 +164,17 @@ pub(crate) fn program_running() -> ApiError {
     )
 }
 
+/// `ErrorCode::ProgramNotRunning` (TASK-1.90): the mirror of
+/// [`program_running`], used by `pane.send`'s own refusal - nothing is
+/// currently running in the target pane, so there is nothing to deliver
+/// bytes to.
+pub(crate) fn program_not_running() -> ApiError {
+    ApiError::new(
+        ErrorCode::ProgramNotRunning,
+        "nothing is currently running in this pane",
+    )
+}
+
 /// The core of [`dispatch`] (TASK-1.46): validates, then routes to the
 /// matching noun's own arm, returning the *typed* [`Outcome`] rather than
 /// the `Value` it becomes. `dispatch` itself is the one public entry point

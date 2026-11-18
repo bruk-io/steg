@@ -96,38 +96,14 @@ fn control_byte(key: &str) -> Option<u8> {
 /// `Z`) - every other named key's own modifiers are dropped, not encoded (TASK-1.121 plan,
 /// section 1: "modifiers on an arrow are dropped, not encoded", generalised here to every
 /// named key, since none of them has an xterm modifier-CSI table built yet either).
+///
+/// A thin delegation to `steg_sdk::named_key_bytes` (TASK-1.90, open question 2(a)): the
+/// table itself now lives in the sdk, the one package both this app and the server are
+/// allowed to depend on (doc-16), so `pane send --key` and this app's own keyboard handling
+/// read one definition rather than two. This function's own name, signature and behaviour
+/// are unchanged, so every test below still exercises it exactly as before.
 fn named_key_bytes(key: &str, shift: bool) -> Option<Vec<u8>> {
-    let bytes: &[u8] = match key {
-        "enter" => b"\r",
-        "tab" if shift => b"\x1b[Z",
-        "tab" => b"\t",
-        "backspace" => b"\x7f",
-        "escape" => b"\x1b",
-        "left" => b"\x1b[D",
-        "right" => b"\x1b[C",
-        "up" => b"\x1b[A",
-        "down" => b"\x1b[B",
-        "home" => b"\x1b[H",
-        "end" => b"\x1b[F",
-        "pageup" => b"\x1b[5~",
-        "pagedown" => b"\x1b[6~",
-        "insert" => b"\x1b[2~",
-        "delete" => b"\x1b[3~",
-        "f1" => b"\x1bOP",
-        "f2" => b"\x1bOQ",
-        "f3" => b"\x1bOR",
-        "f4" => b"\x1bOS",
-        "f5" => b"\x1b[15~",
-        "f6" => b"\x1b[17~",
-        "f7" => b"\x1b[18~",
-        "f8" => b"\x1b[19~",
-        "f9" => b"\x1b[20~",
-        "f10" => b"\x1b[21~",
-        "f11" => b"\x1b[23~",
-        "f12" => b"\x1b[24~",
-        _ => return None,
-    };
-    Some(bytes.to_vec())
+    steg_sdk::named_key_bytes(key, shift)
 }
 
 #[cfg(test)]

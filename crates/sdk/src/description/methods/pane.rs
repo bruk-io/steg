@@ -284,9 +284,10 @@ pub(super) fn pane_methods() -> Vec<Method> {
                 flag("text", ValueKind::Text, false, "Text to send"),
                 flag(
                     "key",
-                    ValueKind::Text,
+                    ValueKind::Choice(crate::keys::key_names()),
                     false,
-                    "A key to send, by name. May be given more than once",
+                    "A key to send, by name. In M1 a call sends at most one key - doc-2's \
+                     own 'may be given more than once' waits on a list-valued flag kind",
                 ),
             ],
             returns: Returns::Nothing,
@@ -294,6 +295,7 @@ pub(super) fn pane_methods() -> Vec<Method> {
                 ErrorCode::BadRequest,
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
+                ErrorCode::ProgramNotRunning,
             ],
             follows: Follows::Nothing,
             since: VERSION,

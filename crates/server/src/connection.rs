@@ -729,19 +729,6 @@ fn handle_request(
             let bytes = Connection::reply(id, response);
             outbound.enqueue_control(bytes).is_ok()
         }
-        // `event.watch` (TASK-1.46 §4), reached directly or through
-        // `api.call` (already resolved above, the same way `pane.attach`/
-        // `pane.detach` are), bypasses the generic reply-after-the-fact
-        // path below entirely: `Runtime::subscribe` enqueues its own
-        // reply atomically with registering the filter, so nothing here
-        // must enqueue a second one.
-        "event.watch" => match runtime.subscribe(description, context, &resolved, client_id, id) {
-            Ok(()) => true,
-            Err(error) => {
-                let bytes = Connection::reply(id, Response::Error(error));
-                outbound.enqueue_control(bytes).is_ok()
-            }
-        },
         "tab.declare-size" => {
             // Params are read and range-checked here, before `Runtime::
             // declare_size` is even called: `columns`/`rows` are the one
@@ -782,6 +769,19 @@ fn handle_request(
             let bytes = Connection::reply(id, response);
             outbound.enqueue_control(bytes).is_ok()
         }
+        // `event.watch` (TASK-1.46 §4), reached directly or through
+        // `api.call` (already resolved above, the same way `pane.attach`/
+        // `pane.detach` are), bypasses the generic reply-after-the-fact
+        // path below entirely: `Runtime::subscribe` enqueues its own
+        // reply atomically with registering the filter, so nothing here
+        // must enqueue a second one.
+        "event.watch" => match runtime.subscribe(description, context, &resolved, client_id, id) {
+            Ok(()) => true,
+            Err(error) => {
+                let bytes = Connection::reply(id, Response::Error(error));
+                outbound.enqueue_control(bytes).is_ok()
+            }
+        },
         _ => {
             let response = runtime.handle(description, context, &request);
             let bytes = Connection::reply(id, response);

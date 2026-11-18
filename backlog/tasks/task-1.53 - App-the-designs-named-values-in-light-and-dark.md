@@ -4,12 +4,11 @@ title: 'App: the design''s named values, in light and dark'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T00:52:00Z'
+updated_date: '2026-11-18T02:09:00Z'
 labels:
   - size-3
 milestone: m-4
-dependencies:
-  - TASK-1.52
+dependencies: []
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -28,6 +27,12 @@ doc-10: R24, R25, R79. The app's look and behaviour is the design artifact (doc-
 - [ ] #2 The app follows the system's light or dark setting and can be pinned to either
 - [ ] #3 No colour or size is written as a literal outside that one place, checked mechanically
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Dependency on TASK-1.52 removed by @bruk.o on 2026-11-17, agreed with the engineer: the named values and the light/dark setting need a window (TASK-1.117, done), not a server connection model. If the plan finds it does need TASK-1.52 (for example to pin the theme through a server setting), it says so and the dependency goes back.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 

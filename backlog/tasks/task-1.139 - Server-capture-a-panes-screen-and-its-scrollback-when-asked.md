@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-18T23:50:00Z'
+updated_date: '2026-11-19T00:08:00Z'
 labels:
   - size-3
   - changes-requested
@@ -342,6 +342,43 @@ Departures from the plan:
 - A short, channel-only test (capture_times_out_rather_than_hanging_when_nothing_ever_answers) was added in crates/server/src/pane.rs's capture_tests, in place of an earlier attempt that wedged a real sleep 100 pane and then tried a signal_kill-based cleanup: that cleanup does not actually unwedge the worker's own stuck write_all on this platform (confirmed directly - await_exit still timed out after sending SIGKILL), so rather than leave a second, permanently-abandoned sleep 100 process (matching runtime::attach's own already-accepted choice for its identical wedge, but doubling the count of such leaks for no new coverage), this test proves the same bounded-wait mechanism with no process and nothing to clean up at all.
 - tests/pane_capture.rs's scrollback test does not declare a smaller tab size: the pane's own default 80x24 screen is already smaller than the 40 lines printed, so scrollback is populated without needing tab.declare-size at all (simpler, and avoids declare-size's own "caller must already be viewing a pane in this tab" precondition entirely).
 - pane.capture's details field (crates/sdk/src/description/methods/pane.rs) was filled in beyond the plan's bare minimum, stating AC #3's answer directly in the API's own self-description (doc-8 R37), not only in this task's own plan/notes - no param/returns/errors change, methods/tests.rs's own row for pane.capture checks only the target parameter's kind and needed no change (confirmed by reading it).
+
+Check passed: `just check` exited 0 at 2026-11-19T00:08:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.139 on task-1.139-server-capture-a-pane-s-screen-and-its at 7a21df68aa51:
+
+```text
+ok      format check (0.3s)
+ok      lint (8.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (71.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (2.7s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (54.8s)
+ok      test (steg-server, race-fixture) (68.1s)
+ok      test (steg-server, pty-race-fixture) (67.8s)
+ok      test (steg-server, accept-backoff-fixture) (63.2s)
+ok      build (steg) (1.6s)
+ok      test (steg) (5.0s)
+ok      test (steg, fixtures) (12.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (1.7s)
+ok      tool tests (40.3s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 29, 28 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

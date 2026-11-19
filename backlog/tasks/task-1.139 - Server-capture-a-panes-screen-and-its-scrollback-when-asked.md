@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-19T00:23:00Z'
+updated_date: '2026-11-19T00:29:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.90
@@ -22,10 +23,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5f557f50d334'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=4'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -445,6 +444,37 @@ created: 2026-11-19T00:23:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.139: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-19T00:29:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Second round, head 7a21df68 (fix commit 1e0e4ade + a board-only merge of origin/main - confirmed no code came in with the merge: the diff since c14bda12 touches only crates/sdk/src/description/methods/pane.rs, crates/server/src/pane.rs, crates/server/tests/pane_capture.rs, matching 1e0e4ade's own stat; the doc-2/backlog changes in the merge are TASK-1.141's board text, not this task's code).
+
+All four round-1 findings resolved, each verified myself in a fresh review worktree, not taken on the record's word:
+
+1. (was Important, Evidence) The trim_end control is now real. Removed render_rows's trim_end in a scratch edit and reran both capture_returns_the_screen_a_real_program_actually_wrote (pane.rs) and pane_capture_returns_the_screen_a_real_program_wrote (pane_capture.rs): both now genuinely fail, printing the literal padded line "hello capture   " (test data, not environment data); restored, both pass again. The notes correct the earlier false record plainly and explain why the original control never exercised trim_end (an unwritten cell renders as an empty run, not a space-padded one, on this engine - only a row with real written trailing spaces can tell trim_end apart from its absence). The notes also surface a second mis-described control (capture_still_answers_once_the_program_has_ended never reaches dispatch::pane::capture) and correct it honestly.
+
+2. (was Nit, Bugs) CaptureSender::capture now matches RecvTimeoutError::Timeout vs ::Disconnected separately (Timeout -> Error::Timeout, Disconnected -> Error::PaneGone), restoring the busy-vs-gone distinction. New test capture_answers_pane_gone_when_the_reply_sender_is_dropped_without_answering passes.
+
+3. (was Nit, Compliance) pane.capture's details now states that --scrollback reads whichever screen is currently active, so an alternate-screen pane returns that screen's own rows, not the primary screen's scrollback.
+
+4. (was Nit, Evidence) just check recorded green at the final head (7a21df68, post-merge), per the new draft rule (DRAFT-1, already open) on recording at the final head.
+
+Spot-check of a second control (per the review brief, since round 1 showed a recorded control here could be untrue): capture_and_dispatch's lock hand-off (AC #2). Scratch-edited Runtime::capture_and_dispatch to hold the state lock across CaptureSender::capture (moved the lock's drop past the worker call instead of dropping it first). Reran capture_and_dispatch_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock: it genuinely failed ("an unrelated pane.capture must answer within a bound even while a different pane's own worker is stuck on a real write_all"). Restored, passes again. This control is real.
+
+PR #83 head matches 7a21df68 (gh pr view: headRefOid 7a21df68..., CI check "check" SUCCESS).
+
+No new findings. plan-matched is "no" per the metric's own rule (any departure counts, even one the notes explain): the four departures from round 1's own finding (AC #2 proof moved to an internal test, the timeout test replaced with a channel-only one, no declared tab size for the scrollback test, details filled in beyond the bare minimum) are unchanged and still explained in the notes - not a new finding, just the metric's definition.
+
+No stray processes or worktree left behind; review worktree removed after.
 
 ---
 <!-- COMMENTS:END -->

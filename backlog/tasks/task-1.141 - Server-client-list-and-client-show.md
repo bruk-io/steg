@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T23:58:00Z'
+updated_date: '2026-11-19T00:01:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -21,10 +22,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '48ee00882225'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
-asdlc_review_policies: ["review"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -864,6 +863,29 @@ created: 2026-11-18T23:58:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.141: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-19T00:01:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Second round, narrow re-check only. Head is still 191fbf53923515a0f4787e15c40cf0fe6d5bcc97 (confirmed via git fetch/rev-parse), unchanged since round 1; no code commits since (board history after that commit is only "Record a check" commits and notes). PR #84 head matches; CI still green (13m36s, same run).
+
+Round 1's Important finding is resolved: the three AC #4 negative-control pairs (generic client-model not-yet arm; --all/kind filter mutation A for client_list_returns_every_connected_client_by_default_except_cli; mutation B for client_list_with_all_includes_cli_clients_too) are now each recorded as a failing-then-passing pair at commit 191fbf539235: the failing run is "with uncommitted changes" (the temporary mutation itself), the passing run shows a clean tree (no "with uncommitted changes"), confirming the revert. Each failing run's assertion output matches the described mechanism exactly (mutation A over-includes a Cli client where none was expected; mutation B omits the Cli client under --all where it was expected) - no run fails on something else, and none of the recorded output contains anything from the environment.
+
+The three round-1 nits are addressed: the previously-missing dedicated --all control now exists (mutation B above); the 8th test (client_show_matches_exactly_the_fields_the_description_declares) is now disclosed as an additive departure from the plan's step-5 list; PR #82 is re-confirmed still open (state OPEN, no mergedAt), so no merge is required this round, and the notes restate the pending merge of crates/sdk/src/lib.rs, dispatch/mod.rs and dispatch/outcome.rs once it lands.
+
+The notes' earlier false claim (controls done "at the final head") is not deleted from the append-only record, but the new "Fix for review findings" section explicitly names it as wrong, says what was actually recorded and where, and redoes the controls correctly at the true final head - an accurate correction, not a silent one.
+
+Two just check runs this round hit the known login_env grandchild-pid flake, unrelated to this diff (touches only target.rs/record.rs/lib.rs/client.rs/mod.rs/outcome.rs/cross_cutting.rs/main.rs); stated plainly in the notes, with CI green at this head relied on instead - acceptable.
+
+Judgement for next time: once PR #82 (TASK-1.88) merges, this branch must merge main, which will change its head and create real textual conflicts in those three files (confirmed in round 1 via merge-tree, additive but real). That merge needs the AC #4 controls re-recorded at the new head and a narrow review of how the conflicts were resolved - this review does not cover a head that does not exist yet.
 
 ---
 <!-- COMMENTS:END -->

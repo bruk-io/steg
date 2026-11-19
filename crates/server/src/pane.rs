@@ -893,7 +893,19 @@ impl CaptureSender {
                 reply: reply_tx,
             })
             .map_err(|_| Error::PaneGone)?;
-        reply_rx.recv_timeout(timeout).map_err(|_| Error::Timeout)?
+        reply_rx
+            .recv_timeout(timeout)
+            .map_err(|error| match error {
+                // A real timeout: the worker is there, just busy with
+                // something ahead of this command in its own queue - the
+                // exact busy-vs-gone distinction `Error::Timeout` exists to
+                // keep separate from `PaneGone` (review finding 2).
+                RecvTimeoutError::Timeout => Error::Timeout,
+                // The worker's own reply sender was dropped without ever
+                // answering - it panicked or was torn down after this
+                // command was already sent, so it really is gone, not busy.
+                RecvTimeoutError::Disconnected => Error::PaneGone,
+            })?
     }
 }
 
@@ -2324,18 +2336,26 @@ mod capture_tests {
         }
     }
 
-    /// Writes known text through the real `send_input`/pty path, waits
-    /// (via `recv_timeout` on the capture call itself - a real pty write
-    /// is fast enough that a single bounded capture, not a poll, is
-    /// enough once the program has echoed) and confirms
-    /// `CaptureSender::capture(false, ...)` returns it rendered the way
-    /// `render_rows` promises: trimmed per row, joined by `\n`.
+    /// Writes known text, with real trailing spaces `cat` actually
+    /// echoes back (not merely a short line with nothing after it -
+    /// review finding 1: an *unwritten* cell past a row's own content
+    /// renders as an empty run, never a padded one, on this engine, so a
+    /// row with nothing explicitly written after it cannot tell
+    /// `render_rows`'s own `trim_end` apart from its absence at all; only
+    /// a row whose own program really wrote trailing space characters
+    /// can), through the real `send_input`/pty path, waits (via
+    /// `recv_timeout` on the capture call itself - a real pty write is
+    /// fast enough that a single bounded capture, not a poll, is enough
+    /// once the program has echoed) and confirms `CaptureSender::
+    /// capture(false, ...)` returns it trimmed, the way `render_rows`
+    /// promises.
     ///
     /// Negative control, run by hand against this exact test (not
     /// committed as a toggle): with `render_rows`'s own `trim_end` call
-    /// removed, this assertion fails on trailing padding (the terminal's
-    /// own screen is padded to its full column width) - recorded on the
-    /// task; reverted before this test was committed.
+    /// removed, this assertion fails - the captured line reads `"hello
+    /// capture   "` (the three real trailing spaces `cat` echoed), not
+    /// `"hello capture"` - recorded on the task; reverted before this
+    /// test was committed.
     #[test]
     fn capture_returns_the_screen_a_real_program_actually_wrote() {
         let (events_tx, _events_rx) = mpsc::channel();
@@ -2348,7 +2368,7 @@ mod capture_tests {
         )
         .unwrap();
 
-        handle.send_input(b"hello capture\n".to_vec()).unwrap();
+        handle.send_input(b"hello capture   \n".to_vec()).unwrap();
 
         let deadline = std::time::Instant::now() + EVENT_TIMEOUT;
         let text = loop {
@@ -2368,8 +2388,8 @@ mod capture_tests {
 
         assert!(
             text.lines().any(|line| line == "hello capture"),
-            "expected a line reading exactly \"hello capture\" (no trailing \
-             padding), got: {text:?}"
+            "expected a line reading exactly \"hello capture\" (the real, \
+             written trailing spaces trimmed), got: {text:?}"
         );
     }
 
@@ -2439,6 +2459,46 @@ mod capture_tests {
         assert!(
             elapsed < Duration::from_secs(1),
             "capture must return close to its own given bound, not hang past it: took {elapsed:?}"
+        );
+    }
+
+    /// AC #2/review finding 2: a worker that received the command but is
+    /// genuinely gone - its own reply sender dropped without ever
+    /// answering, the way a panicked or torn-down worker thread would
+    /// leave it - answers `Error::PaneGone`, not `Error::Timeout`: the
+    /// busy-vs-gone distinction `Error::Timeout` exists to keep, checked
+    /// from its other side.
+    #[test]
+    fn capture_answers_pane_gone_when_the_reply_sender_is_dropped_without_answering() {
+        let (tx, rx) = mpsc::channel();
+        let sender = super::CaptureSender(tx);
+
+        // Receives the one `PaneCommand::Capture` this `capture` call
+        // below sends, then drops its own `reply` sender immediately,
+        // without ever calling `.send(...)` on it - simulating a worker
+        // that read the command but died before answering, not one that
+        // never read it at all (which `send` itself, not `recv_timeout`,
+        // would already catch as `PaneGone`).
+        std::thread::spawn(move || {
+            let super::PaneCommand::Capture { reply, .. } = rx.recv().unwrap() else {
+                panic!("expected a Capture command")
+            };
+            drop(reply);
+        });
+
+        let began = std::time::Instant::now();
+        let result = sender.capture(false, Duration::from_secs(10));
+        let elapsed = began.elapsed();
+
+        assert!(
+            matches!(result, Err(super::Error::PaneGone)),
+            "expected Error::PaneGone when the reply sender is dropped without answering, got: \
+             {result:?}"
+        );
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "a dropped reply sender must answer promptly, not wait out the full timeout: took \
+             {elapsed:?}"
         );
     }
 }

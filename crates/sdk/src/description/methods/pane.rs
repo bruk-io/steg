@@ -309,8 +309,11 @@ pub(super) fn pane_methods() -> Vec<Method> {
                       today's scrollback is read whole, bounded by how many rows the server is \
                       currently keeping (doc-9 R15), not paged or addressed by row identity; \
                       fetching scrollback in pages, by absolute row identity, is TASK-1.115's \
-                      own. Works on a pane whose program has already ended (doc-2 section 6): \
-                      its last screen and scrollback stay readable."
+                      own. `scrollback` reads whichever screen is active right now: a pane in \
+                      the alternate screen (a full-screen program) returns the alternate \
+                      screen's own rows, not the primary screen's scrollback. Works on a pane \
+                      whose program has already ended (doc-2 section 6): its last screen and \
+                      scrollback stay readable."
                 .into(),
             params: vec![
                 target("The pane to capture. Defaults to the current pane"),

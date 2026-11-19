@@ -366,10 +366,15 @@ fn close_pane_forced(stream: &mut UnixStream, connection: &mut Connection, pane:
 }
 
 /// AC #1: `pane.capture` returns the pane's screen as text, matching
-/// exactly what a real program echoed - not merely `contains`, so a
-/// control that stops trimming trailing whitespace per row (`render_rows`,
-/// `crates/server/src/pane.rs`) is caught by this test, not only by the
-/// worker-level unit test in `pane.rs` itself.
+/// exactly what a real program echoed, including trimming real,
+/// explicitly written trailing spaces - the text sent has three of them
+/// before its own newline, which `cat` echoes back verbatim, so this row
+/// really is padded, not merely short with nothing after it (review
+/// finding 1: an *unwritten* cell past a row's own content renders as an
+/// empty run on this engine, never a padded one, so a row with nothing
+/// explicitly written after it cannot tell `render_rows`'s own
+/// `trim_end` (`crates/server/src/pane.rs`) apart from its absence at
+/// all).
 #[test]
 fn pane_capture_returns_the_screen_a_real_program_wrote() {
     let (_socket_dir, socket_path, stop, handle) = start_server();
@@ -383,7 +388,7 @@ fn pane_capture_returns_the_screen_a_real_program_wrote() {
 
     let mut params = Map::new();
     params.insert("target".to_string(), json!(pane));
-    params.insert("text".to_string(), json!("hello capture\n"));
+    params.insert("text".to_string(), json!("hello capture   \n"));
     let response = call_and_read_reply(
         &mut sender_stream,
         &mut sender_connection,
@@ -408,7 +413,8 @@ fn pane_capture_returns_the_screen_a_real_program_wrote() {
     let text = value.as_str().expect("pane.capture returns a plain string");
     assert!(
         text.lines().any(|line| line == "hello capture"),
-        "expected a line reading exactly \"hello capture\" (no trailing padding), got: {text:?}"
+        "expected a line reading exactly \"hello capture\" (the real, written \
+         trailing spaces trimmed), got: {text:?}"
     );
 
     close_pane_forced(&mut sender_stream, &mut sender_connection, &pane);

@@ -4,7 +4,7 @@ title: 'Server and CLI tests: every remaining wait with no bound gets one'
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-18T23:29:00Z'
+updated_date: '2026-11-18T23:59:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -33,4 +33,6 @@ Split from TASK-1.123 by its plan on 2026-11-18. TASK-1.113's sweep counted abou
 
 <!-- SECTION:NOTES:BEGIN -->
 Sighting after TASK-1.123 merged, noted by @bruk.o on 2026-11-18: TASK-1.88's worker, on a branch that already contained TASK-1.123's fixes, had two local just check runs fail under three concurrent builds - one in login_env.rs's backgrounded-grandchild test, one in attach.rs's pty-race tests - each green on a single retry; CI was green. So TASK-1.123 narrowed these clashes but did not end them under heavy load. Which attach.rs tests failed was not recorded; whoever takes this task should try to reproduce with three worktrees building at once.
+
+More sightings on 2026-11-18, noted by @bruk.o: with three builds running, login_env's backgrounded-grandchild test failed two consecutive local just check runs for TASK-1.141's worker and two for TASK-1.139's, all on branches that already contain TASK-1.123's widened bounds; CI stayed green each time. Under that load it now fails more often than it passes locally, so start here.
 <!-- SECTION:NOTES:END -->

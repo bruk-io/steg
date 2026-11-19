@@ -1,14 +1,14 @@
 ---
 id: TASK-1.141
 title: 'Server: client list and client show'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T23:52:00Z'
+updated_date: '2026-11-19T00:01:00Z'
 labels:
   - size-2
-  - changes-requested
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -22,9 +22,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '48ee00882225'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
-asdlc_review_policies: ["review"]
-asdlc_plan_matched: no
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -604,6 +603,216 @@ test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 77 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch client::client_list_returns_every_connected_client_by_default_except_cli 2>&1'` exited 101 at 2026-11-18T23:53:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 191fbf539235 with uncommitted changes:
+
+```text
+warning: unused import: `ClientKind`
+  --> crates/server/src/dispatch/client.rs:11:26
+   |
+11 | use steg_sdk::{ApiError, ClientKind, ClientRecord, Request};
+   |                          ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/dispatch/main.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test client::client_list_returns_every_connected_client_by_default_except_cli ... FAILED
+
+failures:
+
+---- client::client_list_returns_every_connected_client_by_default_except_cli stdout ----
+
+thread 'client::client_list_returns_every_connected_client_by_default_except_cli' (63785577) panicked at crates/server/tests/dispatch/client.rs:30:5:
+assertion `left == right` failed
+  left: ["00000003", "00000004", "00000005"]
+ right: ["00000003", "00000005"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::client_list_returns_every_connected_client_by_default_except_cli
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test dispatch`
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd crates/server && cargo test --test dispatch client::client_list_returns_every_connected_client_by_default_except_cli 2>&1'` exited 0 at 2026-11-18T23:53:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 191fbf539235:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running tests/dispatch/main.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test client::client_list_returns_every_connected_client_by_default_except_cli ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch client::client_list_with_all_includes_cli_clients_too 2>&1'` exited 101 at 2026-11-18T23:53:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 191fbf539235 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/dispatch/main.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test client::client_list_with_all_includes_cli_clients_too ... FAILED
+
+failures:
+
+---- client::client_list_with_all_includes_cli_clients_too stdout ----
+
+thread 'client::client_list_with_all_includes_cli_clients_too' (63791195) panicked at crates/server/tests/dispatch/client.rs:55:5:
+assertion `left == right` failed
+  left: ["00000003", "00000005"]
+ right: ["00000003", "00000004", "00000005"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::client_list_with_all_includes_cli_clients_too
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test dispatch`
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd crates/server && cargo test --test dispatch client::client_list_with_all_includes_cli_clients_too 2>&1'` exited 0 at 2026-11-18T23:53:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 191fbf539235:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.86s
+     Running tests/dispatch/main.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test client::client_list_with_all_includes_cli_clients_too ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check` exited 101 at 2026-11-18T23:55:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 191fbf539235, last 40 of 71 lines:
+
+```text
+test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+kill: 82103: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 82068: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (63805802) panicked at crates/server/src/login_env.rs:675:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 204 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check` exited 101 at 2026-11-18T23:57:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 191fbf539235, last 40 of 78 lines:
+
+```text
+test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 88123: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 88092: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (63836390) panicked at crates/server/src/login_env.rs:675:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 204 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Fix for review findings (@bruk.r2, changes requested: 1 Important, 3 nit):
+
+1. [Important - fixed] The three AC #4 controls had only been recorded at intermediate commit 18da1c97edb1 with uncommitted changes, before the fmt fix and three rebases - not at the final head. Re-run and recorded fresh, all with a clean `git status` (confirmed via `git diff --stat` before each recording) at the final pushed commit 191fbf53923515a0f4787e15c40cf0fe6d5bcc97 - no code changed, only these three mechanisms were temporarily mutated and reverted between each failing/passing pair:
+   - The generic client-model not-yet arm (covers all 8 dispatch-level tests): restored `("client", _) => Err(not_implemented_yet(...))` in dispatch/mod.rs, confirmed all 8 fail (NotImplementedYet), recorded; reverted, confirmed all 8 pass, recorded.
+   - The `--all`/kind filter, mutation A (`|_client| all || true`, always include regardless of kind): confirmed this breaks only client_list_returns_every_connected_client_by_default_except_cli (and does not break client_list_with_all_includes_cli_clients_too, checked directly), recorded failing then reverted and recorded passing.
+   - The `--all`/kind filter, mutation B (drop `all ||`, always exclude Cli regardless of the flag): confirmed this breaks only client_list_with_all_includes_cli_clients_too (and leaves its sibling unaffected, checked directly), recorded failing then reverted and recorded passing.
+
+2. [Nit - disclosed] Departure from the plan's step 5 list: tests/dispatch/client.rs has an 8th test, client_show_matches_exactly_the_fields_the_description_declares, not named in the plan - the show-side mirror of client_list_matches_exactly_the_fields_the_description_declares (the plan's own list only named the list-side version). Additive, same shape, no design change.
+
+3. [Nit - checked, no merge needed yet] Re-checked just now: PR #82 (TASK-1.88) is still open, not merged (`gh pr view 82 --json state,mergedAt` - state OPEN, mergedAt null). No merge of origin/main is needed for this round. When PR #82 lands, this branch's crates/sdk/src/lib.rs, dispatch/mod.rs and dispatch/outcome.rs will need an ordinary merge keeping both sides' entries (this task's client lines beside TASK-1.88's server lines) - flagging again for whoever merges next, per the plan's own risk note.
+
+4. [Nit - no code change] The missing dedicated --all-filter control for client_list_with_all_includes_cli_clients_too is now covered by mutation B above, with its own recorded failing+passing pair.
+
+Checks recorded on the board, all at final head 191fbf53: the three control pairs above (6 recordings); `just check` - green on the first run after the review's findings were addressed is not available verbatim: the run after fixing the controls hit a known cross-worktree flake (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, a timing-sensitive test this task's diff never touches - confirmed via `git show --stat HEAD`, which names only target.rs/record.rs/lib.rs/client.rs/mod.rs/outcome.rs/cross_cutting.rs/main.rs), recorded failing, retried once more, same flake, recorded failing again; relying on CI green at this exact head instead, stated plainly: https://github.com/bruk-io/steg/actions/runs/44420282004/job/135211117386, pass, 13m36s, re-checked just now (gh pr checks 84) and still reporting pass - no new commits were made this round, so this is the same CI run against the same pushed head.
+
+No branch was pushed in this round (no code changed - only task notes and recorded checks).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -645,6 +854,38 @@ Findings: 1 Important, 3 nit. Cites: review. The diff does not match the plan.
 [Compliance, Nit] crates/server/tests/dispatch/client.rs adds client_show_matches_exactly_the_fields_the_description_declares, an 8th dispatch-level test not named in the plan's step 5 list of 7; additive and low-risk (mirrors the list version's field-matching test for show), but not called out as a departure in the implementation notes.
 
 Everything else checked out: Tree::resolve_client (target.rs) reuses resolve_session's own generic resolve/to_result machinery with no new matching logic or error variant; client list excludes Cli clients unless --all, with no self-exclusion, matching doc-2 section 8/section 5 and decision-5; ClientRecord's fields match client.list/client.show's declared fields exactly, with no change under crates/sdk/src/description/; dispatch/mod.rs, outcome.rs and cross_cutting.rs only touch client entries, server and pane rows are untouched; both dispatch arms take &Tree and never mutate; the .expect calls in record_for/show are sound (every Client passed in came straight out of tree.clients() or a just-resolved id with no mutation in between); last_active stays None for M1 per the plan's settled question 1 (not re-raised here). Plan approval present ("Plan approved by @bruk (48ee00882225, size-2)").
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T23:58:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.141: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-19T00:01:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Second round, narrow re-check only. Head is still 191fbf53923515a0f4787e15c40cf0fe6d5bcc97 (confirmed via git fetch/rev-parse), unchanged since round 1; no code commits since (board history after that commit is only "Record a check" commits and notes). PR #84 head matches; CI still green (13m36s, same run).
+
+Round 1's Important finding is resolved: the three AC #4 negative-control pairs (generic client-model not-yet arm; --all/kind filter mutation A for client_list_returns_every_connected_client_by_default_except_cli; mutation B for client_list_with_all_includes_cli_clients_too) are now each recorded as a failing-then-passing pair at commit 191fbf539235: the failing run is "with uncommitted changes" (the temporary mutation itself), the passing run shows a clean tree (no "with uncommitted changes"), confirming the revert. Each failing run's assertion output matches the described mechanism exactly (mutation A over-includes a Cli client where none was expected; mutation B omits the Cli client under --all where it was expected) - no run fails on something else, and none of the recorded output contains anything from the environment.
+
+The three round-1 nits are addressed: the previously-missing dedicated --all control now exists (mutation B above); the 8th test (client_show_matches_exactly_the_fields_the_description_declares) is now disclosed as an additive departure from the plan's step-5 list; PR #82 is re-confirmed still open (state OPEN, no mergedAt), so no merge is required this round, and the notes restate the pending merge of crates/sdk/src/lib.rs, dispatch/mod.rs and dispatch/outcome.rs once it lands.
+
+The notes' earlier false claim (controls done "at the final head") is not deleted from the append-only record, but the new "Fix for review findings" section explicitly names it as wrong, says what was actually recorded and where, and redoes the controls correctly at the true final head - an accurate correction, not a silent one.
+
+Two just check runs this round hit the known login_env grandchild-pid flake, unrelated to this diff (touches only target.rs/record.rs/lib.rs/client.rs/mod.rs/outcome.rs/cross_cutting.rs/main.rs); stated plainly in the notes, with CI green at this head relied on instead - acceptable.
+
+Judgement for next time: once PR #82 (TASK-1.88) merges, this branch must merge main, which will change its head and create real textual conflicts in those three files (confirmed in round 1 via merge-tree, additive but real). That merge needs the AC #4 controls re-recorded at the new head and a narrow review of how the conflicts were resolved - this review does not cover a head that does not exist yet.
 
 ---
 <!-- COMMENTS:END -->

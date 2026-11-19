@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-19T00:22:00Z'
+updated_date: '2026-11-19T00:23:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=4'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -435,6 +436,15 @@ Findings: 1 Important, 4 nit. Cites: review. The diff does not match the plan.
 [Compliance, Nit] pane.capture's details (crates/sdk/src/description/methods/pane.rs) doesn't say that --scrollback addresses only the active screen's own scrollback: both screen() and page() read the engine's current (possibly alternate) screen, so a pane in the alternate screen (e.g. a full-screen program) returns alternate-screen content with --scrollback, not the primary screen's scrollback, and the method's self-description is silent on this.
 
 [Evidence, Nit] No just check run recorded green at the final head c14bda12: both recorded runs at that head hit the same pre-existing login_env flake; CI (gh pr checks) green at that head is cited instead. The flake is well-diagnosed (unrelated file, isolated reruns passed) and the claim's own "CI green" field confirms it, so this is minor, but the plan's Proof step literally asked for "just check green at the final head, recorded."
+
+---
+
+author: @bruk.r1
+created: 2026-11-19T00:23:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.139: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

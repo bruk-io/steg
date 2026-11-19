@@ -1,14 +1,13 @@
 ---
 id: TASK-1.139
 title: 'Server: capture a pane''s screen, and its scrollback when asked'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-19T00:08:00Z'
+updated_date: '2026-11-19T00:22:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.90
@@ -379,6 +378,22 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 29, 28 without the Asdlc-Worker trailer.
+
+Review findings addressed, each checked at this head (7a21df68, merged with origin/main - board-only, no code conflicts):
+
+[Important] Finding 1: the previously recorded control for render_rows's own trim_end was false, exactly as the review found - correcting the record plainly rather than papering over it. What actually happened: both content tests only ever sent text with nothing explicitly written after it ("hello capture\n"), and on this engine an *unwritten* cell past a row's own content renders as an empty-string run, never a padded one - confirmed directly with a scratch probe (a real program writing "abc" followed by three real, written space characters: the captured run was "abc   ", 6 characters, not an empty run) before touching any code, so this is not dead code to remove, only a test that never exercised it. Both tests (pane::capture_tests::capture_returns_the_screen_a_real_program_actually_wrote; tests/pane_capture.rs's pane_capture_returns_the_screen_a_real_program_wrote) now send text with three real trailing spaces before the newline, which cat echoes back verbatim, genuinely padding the row. Re-ran the control for real at this head, unrecorded first (confirmed it prints nothing from the environment): with trim_end removed, both tests now fail, printing the literal padded line ("hello capture   ") in the panic message, not environment data; restored, both pass. Recording this failing-then-passing pair now, for the first time truthfully.
+
+While re-checking every other recorded control per the review's own instruction, found a second one that was also mis-described: pane::capture_tests::capture_still_answers_once_the_program_has_ended calls CaptureSender::capture directly on the worker's own handle and never reaches dispatch::pane::capture at all, so adding a mistaken any_pane_running check there and re-running that specific test left it passing unchanged (confirmed by actually adding the check and running it) - it cannot have been the control it was described as. Only the socket-level test (tests/pane_capture.rs's pane_capture_still_answers_after_the_program_has_exited) goes through dispatch and genuinely fails with that same mistaken check added (re-confirmed at this head: fails naming ProgramNotRunning, reverted, passes). The worker-level test's own doc comment already said this correctly ("the socket-level test... proves the refusal this task must not add"); only the earlier board notes mis-attributed the control to the wrong test - corrected here.
+
+Every other recorded control re-run for real at this head, each a genuine failing-then-passing pair: the scrollback branch short-circuited to screen()-only (fails: earliest line missing, reverted, passes); the state lock held across capture_and_dispatch's own worker round-trip (fails: the unrelated pane.capture on a healthy pane does not answer within its 2s bound, reverted, passes).
+
+[Nit] Finding 2: CaptureSender::capture now matches on RecvTimeoutError explicitly - Timeout maps to Error::Timeout (busy), Disconnected maps to Error::PaneGone (actually gone), restoring the distinction Error::Timeout exists for. New test capture_answers_pane_gone_when_the_reply_sender_is_dropped_without_answering (a worker that received the command but drops its own reply sender before answering, simulating a death mid-processing, as distinct from one that never reads the command at all, which `send` itself already catches). Control: folded both variants back to Error::Timeout - the new test fails (got Timeout, expected PaneGone); reverted, passes. capture_times_out_rather_than_hanging_when_nothing_ever_answers already covered the Timeout side and needed no change.
+
+[Nit] Finding 3: pane.capture's own details (crates/sdk/src/description/methods/pane.rs) now states that --scrollback reads whichever screen is currently active, so a pane in the alternate screen (a full-screen program) returns the alternate screen's own rows, not the primary screen's scrollback - confirmed Terminal::alternate_screen() exists and page()/screen() both read the engine's current screen regardless of which one that is.
+
+[Nit] Finding 4: just check recorded green at this exact final head (7a21df68, after merging origin/main - board-only, no code conflicts) before pushing, per the new draft rule on recording checks/controls at the final head, not a pre-rebase/pre-merge commit (DRAFT-1, found while this review was running).
+
+Checks: just check green at 7a21df68 (recorded). cargo clippy --all-targets and cargo fmt --check both clean on steg-server/steg-sdk. gh pr checks 83 green at this exact head (confirmed via gh run view: status in_progress then completed/success). No stray processes or threads after any test run.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

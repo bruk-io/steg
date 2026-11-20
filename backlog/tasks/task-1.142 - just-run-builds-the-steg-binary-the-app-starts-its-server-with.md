@@ -1,14 +1,13 @@
 ---
 id: TASK-1.142
 title: just run builds the steg binary the app starts its server with
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
 updated_date: '2026-11-20T04:54:00Z'
 labels:
   - size-1
-  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -196,6 +195,8 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 0.
+
+Corrected check recording: ran exact command without pipes or wrapping. Exit code 0 - all checks passed.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T17:33:00Z'
+updated_date: '2026-11-20T17:34:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -267,6 +267,27 @@ test a_program_still_running_refuses_close_with_status_1 ... ok
 test a_value_outside_a_closed_set_exits_2_with_no_server_contacted ... ok
 
 test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_api_call` exited 0 at 2026-11-20T17:34:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 22e089e3ff4c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-51a926aaf823770e)
+
+running 10 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::one_scoped_temp_dir_can_hand_out_two_different_paths ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test api_call_prints_json_with_no_json_flag_given ... ok
+test api_call_sends_stdin_params_flat_to_the_named_method ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
 ```
 <!-- SECTION:NOTES:END -->
 

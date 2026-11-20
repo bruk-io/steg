@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T19:05:00Z'
+updated_date: '2026-11-20T19:09:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.49
@@ -23,10 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e49be2b088c1'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=2'
-asdlc_review_policies: ["review", "rust"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -962,6 +961,31 @@ created: 2026-11-20T19:05:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.120: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-20T19:09:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Round 2 (narrow) review of the diff 65b9e3561bac..eed259fbd8d7, confirming the four round-1 findings are fixed.
+
+1. [Evidence] Third negative control (Nothing + --json passthrough) now recorded as a failing-then-passing pair at eed259fb, for both the output.rs unit test and the cli_output_formats.rs real-server test, each run directly via cargo test -p steg --lib / --test cli_output_formats (no sh -c/pipe/tail). All four control pairs (seventh Returns variant, Nothing+--json, pty raw-mode removed, decision 6) are recorded failing then passing at eed259fb, and `just check` is recorded passing at eed259fb (direct `just --justfile ... check`).
+
+2. [Compliance] Decision 6 now has tests: output.rs's own unit test puts a literal \t/\n/\r in a Record field value and asserts plain text becomes "p1\ta b c d\n" while --json stays exact; cli_output_formats.rs adds a real-binary test through a session label (kernel's label.rs bans only '/' and all-digits, confirmed) proving the same through session new/show. I repeated this control myself in a fresh detached worktree (review-task-1.120-bruk.r1, removed after): made sanitize_for_plain_text a no-op (return raw.to_owned()), ran both tests under env ZIG=.../zig cargo test - the plain-text unit test failed with exactly the recorded diff (left "p1\ta\tb\nc\rd\n" vs right "p1\ta b c d\n"), the real-binary test failed with exactly the recorded diff ("00000001\ta\tb\nc\rd\t1\tviolet\t00000002\n" vs expected "...\ta b c d\t..."); the --json unit test correctly still passed (by design, --json never sanitizes). Reverted via the same scripted edit, git status clean, both tests pass again. The mechanism is real and load-bearing.
+
+3. [Rust, nit] RenderError is now an enum (MissingStringField, NotAnObject, NotAnArray, NotAString), each carrying the Value that arrived; implements std::error::Error; no wildcard arm anywhere in output.rs (grepped). connect.rs now passes the RenderError itself into io::Error::other(err) rather than err.to_string() first, so context survives the ConnectError::Io boundary. exit.rs (the exit-status mapping) is untouched in this diff - confirmed unchanged.
+
+4. [Evidence, nit] The correcting comment (@bruk.w8, comment #4) is on the task, stating TASK-1.143 is In Progress not merged, with the underlying claim (both just check failures are TASK-1.143's own pre-existing flake, touching no file this task changed) still intact.
+
+Nothing else changed behaviour in the diff: the only other changes are board documents (task-1.120's own notes, draft-3, and task-1.143's doc brought in by the origin/main merge, consistent with the recorded "clean, board documents only" merge).
+
+No new findings. Verdict: clean.
 
 ---
 <!-- COMMENTS:END -->

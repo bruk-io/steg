@@ -729,7 +729,7 @@ mod tests {
     /// sufficient (passes at 5s) by construction, not by chance.
     #[test]
     fn capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild()
-     {
+    {
         let grandchild_pid_file = std::env::temp_dir().join(format!(
             "steg-grandchild-pid-{}-{}",
             std::process::id(),

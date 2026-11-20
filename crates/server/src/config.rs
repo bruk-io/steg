@@ -131,6 +131,14 @@ pub struct ServerConfig {
     /// shared between an explicit and an on-demand start, and defaulting
     /// to `Some` here would make an explicit start idle-stop too.
     pub idle_timeout: Option<Duration>,
+    /// How long `force_end` (`Runtime::stop`/a forced close) waits for a
+    /// pane's own polite signal before escalating (TASK-1.78 §3; TASK-1.88:
+    /// moved here from being `crate::runtime::FORCE_GRACE_DEFAULT` read
+    /// directly by `listen::run`, per the task's own historical note, so
+    /// it is settable the same way `handshake_timeout`/`arbitration_timeout`
+    /// already are) - see [`crate::runtime::FORCE_GRACE_DEFAULT`] for the
+    /// production default.
+    pub force_grace: Duration,
 }
 
 impl Default for ServerConfig {
@@ -146,6 +154,7 @@ impl Default for ServerConfig {
             login_environment_timeout: DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT,
             attach_tick: DEFAULT_ATTACH_TICK,
             idle_timeout: None,
+            force_grace: crate::runtime::FORCE_GRACE_DEFAULT,
         }
     }
 }
@@ -164,6 +173,7 @@ impl std::fmt::Debug for ServerConfig {
             .field("login", &self.login)
             .field("accept_error_backoff", &self.accept_error_backoff)
             .field("idle_timeout", &self.idle_timeout)
+            .field("force_grace", &self.force_grace)
             .finish()
     }
 }

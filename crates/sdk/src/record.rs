@@ -163,6 +163,25 @@ pub struct SettingRecord {
     pub default: String,
 }
 
+/// The server's own state, as `server.show` returns it (TASK-1.88, doc-2
+/// section 8): its version, how long it has been up, and how many
+/// sessions and clients it holds - the same fields `description::methods::
+/// server_fields` declares.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ServerRecord {
+    /// The server's own version string (`"steg/<cargo version>"`).
+    pub version: String,
+    /// How long it has been running, in seconds - time is read by the
+    /// server and reaches this record as plain data (AC #1); the one
+    /// honesty gap is named on `steg_kernel::Moment::since_origin`'s own
+    /// doc, which is what this is built from.
+    pub uptime: u64,
+    /// How many sessions it holds.
+    pub sessions: usize,
+    /// How many clients are connected.
+    pub clients: usize,
+}
+
 /// One tab with its panes embedded (TASK-1.46, AC #1) — `TabRecord`'s own
 /// fields, flattened, plus the panes `TabRecord.layout`'s own leaves name by
 /// id. `layout` says *where* each pane sits (a structural reference, the
@@ -605,6 +624,59 @@ mod tests {
                 "{dotted}'s declared fields and SettingRecord's own keys must match"
             );
         }
+    }
+
+    use super::ServerRecord;
+
+    fn server_example() -> ServerRecord {
+        ServerRecord {
+            version: "steg/0.1.0".to_string(),
+            uptime: 42,
+            sessions: 2,
+            clients: 3,
+        }
+    }
+
+    #[test]
+    fn server_record_serde_round_trips() {
+        let record = server_example();
+        let json = serde_json::to_string(&record).unwrap();
+        assert_eq!(serde_json::from_str::<ServerRecord>(&json).unwrap(), record);
+    }
+
+    /// Ties `ServerRecord`'s own shape to the description's, the same way
+    /// `matches_the_fields_session_show_and_session_list_declare` does for
+    /// `SessionRecord` above - `server.show` is the only method with a
+    /// record to check (`server.start`/`server.stop` both return Nothing).
+    #[test]
+    fn matches_the_fields_server_show_declares() {
+        use std::collections::HashSet;
+
+        let api = crate::description::description();
+        let value = serde_json::to_value(server_example()).unwrap();
+        let record_keys: HashSet<&str> = value
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+
+        let method = api.method("server.show").unwrap();
+        let fields = match &method.returns {
+            crate::description::Returns::Record { fields }
+            | crate::description::Returns::Records { fields } => fields,
+            other @ (crate::description::Returns::Nothing
+            | crate::description::Returns::Identifier { .. }
+            | crate::description::Returns::Text
+            | crate::description::Returns::Nested { .. }) => {
+                panic!("server.show's returns is not a record: {other:?}")
+            }
+        };
+        let declared: HashSet<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(
+            declared, record_keys,
+            "server.show's declared fields and ServerRecord's own keys must match"
+        );
     }
 
     use super::{SessionTree, TabTree, TreeSnapshot};

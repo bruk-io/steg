@@ -46,6 +46,21 @@ impl Moment {
     pub const fn plus(self, duration: Duration) -> Self {
         Self(self.0.saturating_add(duration))
     }
+
+    /// This moment's own duration since whatever origin its caller picked
+    /// (TASK-1.88, `server.show`'s own uptime field) - the one legitimate
+    /// exception to this type's own doc above ("never read as a wall-clock
+    /// value... the kernel only asks is this one later than that one, this
+    /// one ten minutes on, never what time is it"): the caller already
+    /// knows what the origin means (`Runtime::new`'s own construction
+    /// time), and uptime literally *is* that duration. The one honesty gap
+    /// this carries: `clock_origin` is `Runtime::new`'s own construction
+    /// time, a few milliseconds after the arbiter actually bound the
+    /// socket - not the process's own start.
+    #[must_use]
+    pub const fn since_origin(self) -> Duration {
+        self.0
+    }
 }
 
 #[cfg(test)]
@@ -78,6 +93,13 @@ mod tests {
             Moment::new(Duration::from_secs(1)),
             Moment::new(Duration::from_secs(1))
         );
+    }
+
+    #[test]
+    fn since_origin_returns_exactly_what_new_was_given() {
+        let moment = Moment::new(Duration::from_secs(42));
+
+        assert_eq!(moment.since_origin(), Duration::from_secs(42));
     }
 
     #[test]

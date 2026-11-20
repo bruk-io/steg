@@ -85,10 +85,15 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
             vec![("direction", json!("right")), ("by", json!(1))],
             "Tab::size",
         ),
+        // `pane.capture` is a real `dispatch` arm now (a sibling task) -
+        // not in this list any more.
         ("pane.wait", vec![("for", json!("exit"))], "TASK-1.140"),
-        ("server.show", vec![], "socket and lifecycle"),
-        ("server.start", vec![], "socket and lifecycle"),
-        ("server.stop", vec![], "socket and lifecycle"),
+        // `server.show`/`server.start` are real `dispatch` arms now
+        // (TASK-1.88) - not in this list any more. `server.stop` stays:
+        // it is intercepted in `connection.rs`, never reached through
+        // `dispatch` in the real system, the same reason `pane.attach`/
+        // `pane.detach`/`tab.declare-size` are not in this list either.
+        ("server.stop", vec![], "connection.rs's own interception"),
         ("event.watch", vec![], "Runtime::subscribe"),
     ];
 
@@ -309,7 +314,10 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
         "pane.resize",
         "pane.detach",
         "tab.declare-size",
-        "server.start",
+        // `server.start` is a real `dispatch` arm now (TASK-1.88) - not
+        // here any more; see its own `"server.start" => vec![]` case
+        // below. `server.stop` stays: still `NotImplementedYet` through
+        // `dispatch` directly (it is intercepted in `connection.rs`).
         "server.stop",
     ];
     let mut covered: Vec<String> = Vec::new();
@@ -381,6 +389,10 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
             "pane.send" => vec![("text", json!("hi"))],
             "setting.set" => vec![("target", json!("appearance")), ("value", json!("light"))],
             "setting.unset" => vec![("target", json!("appearance"))],
+            // TASK-1.88: always `Ok(null)` regardless of `on_demand` -
+            // over the API you are, by definition, already talking to a
+            // running server.
+            "server.start" => vec![],
             other => panic!(
                 "{other} is Nothing/Identifier-returning but this test has no case for it - \
                  add one above"

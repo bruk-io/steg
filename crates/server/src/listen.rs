@@ -377,9 +377,18 @@ pub fn run(
     let mut runtime = Runtime::new(
         Arc::clone(&config.launcher),
         config.login.clone(),
-        crate::runtime::FORCE_GRACE_DEFAULT,
+        config.force_grace,
         config.attach_tick,
     );
+
+    // Unconditionally, unlike the idle wiring just below (TASK-1.88): a
+    // `server.stop` request (`connection.rs`'s own interception) reaches
+    // this same `Stopper` on every server, explicit or on-demand - R99's
+    // other half ("a server started explicitly stops only when told to")
+    // is answered by `server.stop`, which has had no way to reach this
+    // `Stopper` at all until now, even though every caller of `run`
+    // already builds one and passes it in.
+    runtime.set_stopper(stop.clone());
 
     // Built before the loop, same reasoning as `runtime` above - only
     // `Some` when `config.idle_timeout` is (TASK-1.86); `None` for an

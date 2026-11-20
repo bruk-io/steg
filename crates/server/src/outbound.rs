@@ -72,11 +72,22 @@ pub(crate) enum EnqueueDataError {
     Closed,
 }
 
+/// One queued control frame, and - only for [`Outbound::
+/// enqueue_control_and_wait_until_written`]'s own callers (TASK-1.88) - a
+/// one-shot sender that fires strictly after this exact frame's bytes
+/// have left [`run_writer`]'s own `write_all`, never before and never for
+/// any other frame. `None` for every ordinary [`Outbound::enqueue_control`]
+/// call - nothing waits on those, so there is nothing to send.
+struct ControlItem {
+    bytes: Vec<u8>,
+    sent: Option<std::sync::mpsc::Sender<()>>,
+}
+
 /// The state behind one [`Outbound`]'s lock: the control queue, every open
 /// stream's own data queue, the round-robin order streams are drained in,
 /// and whether this connection is closing.
 struct Queues {
-    control: VecDeque<Vec<u8>>,
+    control: VecDeque<ControlItem>,
     data: HashMap<u32, VecDeque<Vec<u8>>>,
     /// Open stream ids, in the order [`Outbound::open_stream`] was called -
     /// decision-2 §3's own "takes one frame from each attachment in turn".
@@ -123,9 +134,15 @@ impl Queues {
     /// still queued behind its own final frame keeps being served
     /// normally, by every rule above, until that frame too is the one
     /// popped).
-    fn pop_next(&mut self) -> Option<Vec<u8>> {
-        if let Some(bytes) = self.control.pop_front() {
-            return Some(bytes);
+    ///
+    /// Returns the popped item's own ack sender alongside its bytes
+    /// (TASK-1.88) - `None` for every data-stream frame (never carries
+    /// one) and for an ordinary [`Outbound::enqueue_control`] item (also
+    /// `None`); `Some` only for the one kind
+    /// [`Outbound::enqueue_control_and_wait_until_written`] builds.
+    fn pop_next(&mut self) -> Option<(Vec<u8>, Option<std::sync::mpsc::Sender<()>>)> {
+        if let Some(item) = self.control.pop_front() {
+            return Some((item.bytes, item.sent));
         }
         let streams = self.order.len();
         for _ in 0..streams {
@@ -137,7 +154,7 @@ impl Queues {
                 if queue.is_empty() && self.closing.contains(&stream) {
                     self.remove_stream(stream);
                 }
-                return Some(bytes);
+                return Some((bytes, None));
             }
         }
         None
@@ -199,8 +216,63 @@ impl Outbound {
         if queues.control.len() >= CONTROL_CAP {
             return Err(EnqueueControlError::Full);
         }
-        queues.control.push_back(bytes);
+        queues.control.push_back(ControlItem { bytes, sent: None });
         self.ready.notify_one();
+        Ok(())
+    }
+
+    /// Queues a control-kind frame exactly like [`Outbound::
+    /// enqueue_control`], then blocks the *calling* thread until
+    /// [`run_writer`] has actually called `write_all` for these exact
+    /// bytes and it returned, or until `bound` passes, or until it
+    /// becomes clear it never will (the queue was already closed, or the
+    /// writer ends before reaching this item - a broken socket) -
+    /// whichever comes first (TASK-1.88, `server.stop`'s own AC #2: "the
+    /// reply must be written and flushed to the caller before its
+    /// connection is closed", given that replies are written by this
+    /// connection's own writer thread, asynchronously, not by whichever
+    /// thread calls this).
+    ///
+    /// Confirmed directly, not assumed: once `write_all` has returned
+    /// `Ok` on one end of a real `UnixStream` pair, a `shutdown(Both)` on
+    /// a `try_clone()`'d duplicate of that same end - exactly the shape
+    /// `connection.rs`'s own `shutdown_handle` already is - does not
+    /// discard those bytes before the peer reads them (a throwaway
+    /// 2,000-trial probe against a real socket pair, 0 losses). That is
+    /// what makes "wait for the write to return, then act" sufficient: a
+    /// caller does not need the *client* to have read anything, only
+    /// this connection's own writer thread to have handed the bytes to
+    /// the kernel.
+    ///
+    /// Returns `Ok(())` in every outcome but a failed enqueue
+    /// ([`EnqueueControlError::Full`]/[`EnqueueControlError::Closed`],
+    /// surfaced exactly as `enqueue_control` already does) - whether the
+    /// wait actually saw the write happen, timed out, or found the
+    /// channel disconnected, there is nothing further for a caller to do
+    /// in any of those three cases: either the bytes are already written,
+    /// or the connection is already gone and there is nothing left to
+    /// lose by proceeding.
+    pub(crate) fn enqueue_control_and_wait_until_written(
+        &self,
+        bytes: Vec<u8>,
+        bound: std::time::Duration,
+    ) -> Result<(), EnqueueControlError> {
+        let (sent_tx, sent_rx) = std::sync::mpsc::channel();
+        {
+            let mut queues = self.lock();
+            if queues.closed {
+                return Err(EnqueueControlError::Closed);
+            }
+            if queues.control.len() >= CONTROL_CAP {
+                return Err(EnqueueControlError::Full);
+            }
+            queues.control.push_back(ControlItem {
+                bytes,
+                sent: Some(sent_tx),
+            });
+            self.ready.notify_one();
+        }
+        let _ = sent_rx.recv_timeout(bound);
         Ok(())
     }
 
@@ -322,8 +394,8 @@ pub(crate) fn run_writer<W: Write>(outbound: &Outbound, mut sink: W) {
         let item = {
             let mut queues = outbound.lock();
             loop {
-                if let Some(bytes) = queues.pop_next() {
-                    break Some(bytes);
+                if let Some(popped) = queues.pop_next() {
+                    break Some(popped);
                 }
                 if queues.closed {
                     break None;
@@ -334,7 +406,7 @@ pub(crate) fn run_writer<W: Write>(outbound: &Outbound, mut sink: W) {
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
             }
         };
-        let Some(bytes) = item else { return };
+        let Some((bytes, ack)) = item else { return };
         if sink.write_all(&bytes).is_err() {
             // The socket itself is broken (not the "client never reads"
             // case `Outbound::close` already covers from the reader's
@@ -343,9 +415,17 @@ pub(crate) fn run_writer<W: Write>(outbound: &Outbound, mut sink: W) {
             // replies nobody will ever send, up to `CONTROL_CAP`, before
             // anything notices. Closing here means the reader's own next
             // `enqueue_control` fails and the connection ends promptly
-            // instead.
+            // instead. `ack` (if any) is simply dropped here, unsent -
+            // its own receiver sees the channel disconnect and returns,
+            // the same outcome `enqueue_control_and_wait_until_written`'s
+            // own doc already names as needing no special handling.
             outbound.close();
             return;
+        }
+        // Fires strictly after this exact frame's bytes left `write_all`
+        // above - never before, never for any other frame (TASK-1.88).
+        if let Some(ack) = ack {
+            let _ = ack.send(());
         }
     }
 }
@@ -773,6 +853,106 @@ mod tests {
 
         proceed_tx.send(()).unwrap(); // lets `write("the-end")` itself return
         writer.join().unwrap();
+    }
+
+    // --- `Outbound::enqueue_control_and_wait_until_written` (TASK-1.88) ---
+
+    /// Pins the ordering deterministically via `StepWriter`, not by timing
+    /// (the same technique `end_stream_tears_the_stream_down_only_once_the_
+    /// writer_actually_drains_it` already uses above): the calling thread's
+    /// own wait must not return - its ack has not fired - while `run_writer`
+    /// is still genuinely blocked *inside* `write_all` for this exact frame,
+    /// even though `StepWriter::write` has already forwarded the bytes onto
+    /// the real socket by that point (it forwards first, then blocks) - the
+    /// bytes reaching the wire is not what this method waits on; `write_all`
+    /// itself *returning* is. Only once `write_all` is let return (by
+    /// releasing `StepWriter`) does the ack fire and the wait return.
+    #[test]
+    fn enqueue_control_and_wait_until_written_does_not_return_until_write_all_itself_returns() {
+        let outbound = Arc::new(Outbound::new());
+        let (mut client, server) = UnixStream::pair().unwrap();
+        let (proceed_tx, proceed_rx) = mpsc::channel();
+        let step = StepWriter {
+            inner: server,
+            proceed: proceed_rx,
+        };
+        let writer_outbound = Arc::clone(&outbound);
+        let writer = std::thread::spawn(move || run_writer(&writer_outbound, step));
+
+        let (done_tx, done_rx) = mpsc::channel();
+        let wait_outbound = Arc::clone(&outbound);
+        std::thread::spawn(move || {
+            let result = wait_outbound.enqueue_control_and_wait_until_written(
+                b"stop-reply".to_vec(),
+                Duration::from_secs(5),
+            );
+            let _ = done_tx.send(result);
+        });
+
+        // Deterministic absence, not a race against a clock: `StepWriter`
+        // cannot release on its own - nothing but this test's own
+        // `proceed_tx.send` below can ever unblock it - so a bounded wait
+        // finding nothing here is a structural fact, not a timing guess
+        // that could flake under load (the same reasoning this crate's
+        // own idle-checker tests already rely on for an absence window).
+        assert_eq!(
+            done_rx.recv_timeout(Duration::from_millis(300)),
+            Err(mpsc::RecvTimeoutError::Timeout),
+            "the wait must not return while run_writer is still inside write_all for this frame"
+        );
+
+        // The client already has the bytes - `StepWriter` forwards before
+        // it blocks - but that is not what the method waits on.
+        let mut buf = vec![0_u8; b"stop-reply".len()];
+        client.read_exact(&mut buf).unwrap();
+        assert_eq!(buf, b"stop-reply");
+        assert_eq!(
+            done_rx.recv_timeout(Duration::from_millis(50)),
+            Err(mpsc::RecvTimeoutError::Timeout),
+            "the client reading the bytes must not itself unblock the wait"
+        );
+
+        proceed_tx.send(()).unwrap(); // lets write_all itself return
+        assert_eq!(
+            done_rx.recv_timeout(Duration::from_secs(5)),
+            Ok(Ok(())),
+            "the wait must return promptly once write_all has actually returned"
+        );
+
+        outbound.close();
+        writer.join().unwrap();
+    }
+
+    /// The timeout/closed-queue half: nothing ever arrives to ack a frame
+    /// whose writer has already ended (the queue closes itself, the same
+    /// way a broken write already does) - must not hang past `bound`.
+    #[test]
+    fn enqueue_control_and_wait_until_written_returns_promptly_once_the_queue_is_already_closed() {
+        let outbound = Outbound::new();
+        outbound.close();
+
+        let result = outbound
+            .enqueue_control_and_wait_until_written(b"too-late".to_vec(), Duration::from_secs(5));
+
+        assert_eq!(result, Err(EnqueueControlError::Closed));
+    }
+
+    #[test]
+    fn enqueue_control_and_wait_until_written_delivers_the_frame_over_a_real_writer() {
+        let outbound = Arc::new(Outbound::new());
+        let (mut client, server) = UnixStream::pair().unwrap();
+        let writer_outbound = Arc::clone(&outbound);
+        let writer = std::thread::spawn(move || run_writer(&writer_outbound, server));
+        let _writer_guard = ClosingWriterGuard::new(Arc::clone(&outbound), writer);
+
+        let result = outbound
+            .enqueue_control_and_wait_until_written(b"real-reply".to_vec(), Duration::from_secs(5));
+
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            read_exact_bytes(&mut client, b"real-reply".len()),
+            b"real-reply"
+        );
     }
 
     /// A client that keeps sending requests while never reading any reply

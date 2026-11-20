@@ -76,6 +76,40 @@ impl Runtime {
         self.lock().notify_session_count_changed = Some(notify);
     }
 
+    /// Lets a later `server.stop` request (TASK-1.88, `connection.rs`'s
+    /// own interception) reach the same mechanism an idle server already
+    /// stops itself through - `Stopper::stop()`, the one public way to
+    /// end `listen::run`'s accept loop. Called once, unconditionally, by
+    /// `listen::run`, for every server (explicit or on-demand) - unlike
+    /// [`Runtime::set_idle_notifier`], which an explicit start never
+    /// calls (R99: it never idle-stops), an explicit start still needs
+    /// this: R99's other half, "a server started explicitly stops only
+    /// when told to", is answered by `server.stop`, which needs the same
+    /// `Stopper` every server is already given by its own caller today
+    /// (`run_server_start` constructs one and passes `&stopper` into
+    /// `steg_server::run` on both paths) - nothing downstream could reach
+    /// it at all until this.
+    pub(crate) fn set_stopper(&self, stopper: crate::listen::Stopper) {
+        self.lock().stopper = Some(stopper);
+    }
+
+    /// How many sessions this server holds right now (TASK-1.88): the
+    /// refusal check `server.stop` makes before anything else - a plain,
+    /// one-off read, not [`Runtime::session_counter`]'s long-lived
+    /// closure (that one exists for the idle checker's thread, which
+    /// outlives any `&Runtime` borrow - a different need, unrelated here).
+    pub(crate) fn session_count(&self) -> usize {
+        self.lock().tree.sessions().len()
+    }
+
+    /// A clone of the `Stopper` [`Runtime::set_stopper`] recorded, if any -
+    /// `None` only in a test `Runtime` nothing ever wired one into (every
+    /// real server, explicit or on-demand, has one by the time it can
+    /// accept a request at all).
+    pub(crate) fn stopper(&self) -> Option<crate::listen::Stopper> {
+        self.lock().stopper.clone()
+    }
+
     /// Stops this `Runtime`: ends every running program, reaps each one,
     /// joins every worker thread, then joins the one drain thread too
     /// (review finding 3; rewritten for TASK-1.78 §4 to reuse [`force_end`],
@@ -137,6 +171,80 @@ mod tests {
     use super::Runtime;
     use crate::pty::RealLauncher;
     use crate::runtime::testing::{TEST_GRACE, TEST_TICK, login};
+
+    /// `Runtime::session_count` (TASK-1.88): tracks real sessions minted
+    /// and closed through `Runtime::handle` itself, not a re-derivation -
+    /// the one fact `server.stop`'s own refusal check reads.
+    #[test]
+    fn session_count_tracks_sessions_created_and_closed_through_handle() {
+        use steg_sdk::{Request, Response};
+
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
+        let description = steg_sdk::description();
+        let context = crate::dispatch::Context::none();
+        assert_eq!(runtime.session_count(), 0);
+
+        let session = match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            Response::Ok(value) => value,
+            Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        assert_eq!(runtime.session_count(), 1);
+
+        let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+        match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "session.close".to_string(),
+                params: serde_json::json!({"target": session_id.to_string(), "force": true})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            Response::Ok(_) => {}
+            Response::Error(error) => panic!("session.close failed: {error:?}"),
+        }
+        assert_eq!(runtime.session_count(), 0);
+    }
+
+    /// `Runtime::set_stopper`/`stopper` (TASK-1.88): a thin, self-locking
+    /// wrapper proof - a `Runtime` with none set reports `None`, and
+    /// setting one makes it reachable again, by whatever its own `Clone`
+    /// equality would show (`Stopper` carries no `PartialEq`, so this
+    /// only checks presence, not identity - the real behavioural proof,
+    /// that the clone returned actually stops the same `run`, is
+    /// `server_stop.rs`'s own socket-level test, which alone can observe
+    /// a `Stopper` doing anything).
+    #[test]
+    fn stopper_is_none_until_set_then_some() {
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
+        assert!(runtime.stopper().is_none());
+
+        runtime.set_stopper(crate::listen::Stopper::new());
+
+        assert!(runtime.stopper().is_some());
+    }
 
     /// `Runtime::connect_client`/`disconnect_client` (TASK-1.45 §1): a
     /// thin, self-locking wrapper proof, not a re-proof of the kernel's

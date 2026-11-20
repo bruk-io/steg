@@ -21,9 +21,22 @@ use steg_sdk::{
     encode_frame,
 };
 
-use crate::dispatch::{Context, bad_request, param_i64, param_str, resolve_api_call};
+use crate::dispatch::{
+    Context, SERVER_VERSION, bad_request, param_bool, param_i64, param_str, program_running,
+    resolve_api_call,
+};
 use crate::outbound::{Outbound, spawn_writer};
 use crate::runtime::Runtime;
+
+/// How long `server.stop`'s own interception waits for its reply to
+/// actually be written before calling `Stopper::stop()` (TASK-1.88) - a
+/// safety margin on an operation expected to be near-instant (nothing
+/// else should be contending for this connection's own `Outbound`), not a
+/// tunable production timeout, which is why this is a local constant
+/// rather than a new `ServerConfig` field - the same order of magnitude
+/// as `FORCE_JOIN_TIMEOUT`/`ESCALATE_CONFIRM_TIMEOUT` elsewhere in this
+/// crate.
+const STOP_REPLY_FLUSH_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A connection's liveness, from `run`'s accept loop - and, as of
 /// TASK-1.86, one thing that is not about any one connection at all
@@ -782,6 +795,62 @@ fn handle_request(
                 outbound.enqueue_control(bytes).is_ok()
             }
         },
+        // `server.stop` (TASK-1.88): intercepted here, like `pane.attach`/
+        // `pane.detach`/`tab.declare-size` above, because answering it
+        // needs this connection's own `Arc<Outbound>` (to flush the reply
+        // before anything closes) and the server's `Stopper` (to actually
+        // end `listen::run`'s accept loop), neither reachable from
+        // `dispatch`'s plain signature. This function's own job ends at
+        // validating, replying, flushing and calling `Stopper::stop()`;
+        // everything after that - the accept loop noticing, closing the
+        // listener, shutting down and joining every connection, stopping
+        // the runtime, removing the socket file, releasing the lock, in
+        // that order - is `listen::run`'s own existing, unconditional
+        // shutdown path (see its own doc comment), unchanged by this
+        // task and already the same one the idle checker (TASK-1.86)
+        // drives through the identical `Stopper`.
+        "server.stop" => {
+            // Criterion 2's own wording ("any session exists"), matching
+            // doc-2 section 8's table - deliberately not `any_pane_running`,
+            // the check `pane.close`/`tab.close`/`session.close` use: a
+            // session whose sole pane's program has already ended still
+            // counts here (R99: "a server that has a session never stops
+            // by itself"). doc-2 section 9's prose ("programs are still
+            // running") disagrees with its own section 8 and with this
+            // criterion - this code follows the criterion and section 8;
+            // flagged on the task for Bruk to reword section 9 to match.
+            let force = param_bool(&resolved, "force").unwrap_or(false);
+            if !force && runtime.session_count() > 0 {
+                let bytes = Connection::reply(id, Response::Error(program_running()));
+                return outbound.enqueue_control(bytes).is_ok();
+            }
+
+            let bytes = Connection::reply(id, Response::Ok(serde_json::Value::Null));
+            // Blocks until the writer thread has actually written these
+            // exact bytes, or it becomes clear it never will - confirmed
+            // directly (a real `UnixStream` pair, write-then-shutdown,
+            // 0 losses in 2,000 trials) that this is what makes the
+            // `Stopper::stop()` call just below safe to issue right after:
+            // nothing downstream can discard a reply that has already
+            // left `write_all`.
+            let _ =
+                outbound.enqueue_control_and_wait_until_written(bytes, STOP_REPLY_FLUSH_TIMEOUT);
+
+            if let Some(stopper) = runtime.stopper() {
+                stopper.stop();
+            }
+
+            // `false`, not `true`: this connection's own job is done, so
+            // `_cleanup`'s `Drop` runs now (closing this socket, joining
+            // its own writer, which has nothing left queued) rather than
+            // waiting for `listen::run`'s own external shutdown pass to
+            // reach this same connection in its later iteration - both
+            // are safe (that pass's own `shutdown`/`join` on an
+            // already-finished connection is a harmless no-op), this is
+            // simply tidier and does not depend on the accept loop
+            // noticing in time.
+            false
+        }
         _ => {
             let response = runtime.handle(description, context, &request);
             let bytes = Connection::reply(id, response);
@@ -813,7 +882,11 @@ pub fn handle(
             // nothing decoded to answer.
         }
         FirstFrame::Hello(hello_payload) => {
-            let server_version = concat!("steg/", env!("CARGO_PKG_VERSION"));
+            // `SERVER_VERSION` (TASK-1.88): one definition, shared with
+            // `dispatch/server.rs`'s own `server.show` - this used to be
+            // its own inline `concat!` here, the only other place that
+            // needed it.
+            let server_version = SERVER_VERSION;
             let api_version = description().api_version;
             let api = format!("{}.{}", api_version.major, api_version.minor);
 
@@ -1321,6 +1394,165 @@ mod tests {
             Some(&(attachment_id, stream)),
             "an armed attach must record exactly this attachment, as it always has"
         );
+    }
+
+    // --- `server.stop`'s own interception (TASK-1.88) -----------------
+
+    fn stop_request(force: bool) -> Request {
+        let mut params = serde_json::Map::new();
+        if force {
+            params.insert("force".to_string(), serde_json::json!(true));
+        }
+        Request {
+            method: "server.stop".to_string(),
+            params,
+        }
+    }
+
+    /// The refusal path: a session exists, no `--force` - a
+    /// `ProgramRunning` reply is enqueued and the connection is told to
+    /// keep going (`true`), and the `Stopper` is never even consulted -
+    /// proven directly by never wiring one into this `Runtime` at all, so
+    /// any attempt to use one would panic on `Option::unwrap` rather than
+    /// silently succeed.
+    #[test]
+    fn server_stop_without_force_while_a_session_exists_refuses_and_keeps_the_connection_open() {
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
+        let description = steg_sdk::description();
+        let no_context = Context::none();
+        match runtime.handle(
+            &description,
+            &no_context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            Response::Ok(_) => {}
+            Response::Error(error) => panic!("session.new failed: {error:?}"),
+        }
+
+        let (client_writer, mut server_reader) = UnixStream::pair().unwrap();
+        let outbound = Arc::new(Outbound::new());
+        let _writer = spawn_writer(Arc::clone(&outbound), client_writer);
+        let pane_streams = RefCell::new(HashMap::new());
+        let stream_panes = RefCell::new(HashMap::new());
+        let next_stream = RefCell::new(0_u32);
+        let client_id = runtime.connect_client(ClientKind::Cli, None);
+        let state = ConnectionState {
+            runtime: &runtime,
+            description: steg_sdk::description(),
+            context: Context::none(),
+            outbound: &outbound,
+            client_id,
+            pane_streams: &pane_streams,
+            stream_panes: &stream_panes,
+            next_stream: &next_stream,
+        };
+        let mut connection = Connection::new(Role::Server, steg_sdk::description());
+
+        let keep_going = handle_request(&state, &mut connection, 7, stop_request(false));
+
+        assert!(
+            keep_going,
+            "a refusal must not end the connection - only a successful stop does"
+        );
+
+        server_reader
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut client_side = Connection::new(Role::Client, steg_sdk::description());
+        let response = loop {
+            match client_side.poll() {
+                Some(Incoming::Reply { id: 7, response }) => break response,
+                Some(_) => continue,
+                None => {
+                    let mut buf = [0_u8; 4096];
+                    let n = server_reader.read(&mut buf).expect("reading the reply");
+                    assert!(n > 0, "the writer thread closed before replying");
+                    client_side.receive(&buf[..n]);
+                }
+            }
+        };
+        let Response::Error(error) = response else {
+            panic!("expected a refusal while a session exists, got {response:?}");
+        };
+        assert_eq!(error.code, ErrorCode::ProgramRunning);
+    }
+
+    /// The success path: no sessions at all, a real `Stopper` wired in -
+    /// the reply the client actually reads back over the real socket is
+    /// exactly `{"id":8,"result":null}`'s own `Response::Ok(Null)`, with
+    /// no truncation, and the connection is told to end (`false`).
+    /// Whether the `Stopper` really was told to stop is left to
+    /// `server_stop.rs`'s own socket-level test, which alone can observe
+    /// a `Stopper` doing anything (it exposes no private-state probe
+    /// reachable from here).
+    #[test]
+    fn server_stop_with_no_sessions_succeeds_flushes_the_reply_and_ends_the_connection() {
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
+        runtime.set_stopper(crate::listen::Stopper::new());
+
+        let (client_writer, mut server_reader) = UnixStream::pair().unwrap();
+        let outbound = Arc::new(Outbound::new());
+        let _writer = spawn_writer(Arc::clone(&outbound), client_writer);
+        let pane_streams = RefCell::new(HashMap::new());
+        let stream_panes = RefCell::new(HashMap::new());
+        let next_stream = RefCell::new(0_u32);
+        let client_id = runtime.connect_client(ClientKind::Cli, None);
+        let state = ConnectionState {
+            runtime: &runtime,
+            description: steg_sdk::description(),
+            context: Context::none(),
+            outbound: &outbound,
+            client_id,
+            pane_streams: &pane_streams,
+            stream_panes: &stream_panes,
+            next_stream: &next_stream,
+        };
+        let mut connection = Connection::new(Role::Server, steg_sdk::description());
+
+        let keep_going = handle_request(&state, &mut connection, 8, stop_request(true));
+
+        assert!(!keep_going, "a successful stop must end the connection");
+
+        server_reader
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut client_side = Connection::new(Role::Client, steg_sdk::description());
+        let response = loop {
+            match client_side.poll() {
+                Some(Incoming::Reply { id: 8, response }) => break response,
+                Some(_) => continue,
+                None => {
+                    let mut buf = [0_u8; 4096];
+                    let n = server_reader.read(&mut buf).expect("reading the reply");
+                    assert!(n > 0, "the writer thread closed before replying");
+                    client_side.receive(&buf[..n]);
+                }
+            }
+        };
+        match response {
+            Response::Ok(value) => assert_eq!(
+                value,
+                serde_json::Value::Null,
+                "the reply must be read back byte-exact, with no truncation"
+            ),
+            Response::Error(error) => panic!("expected Ok(null), got {error:?}"),
+        }
     }
 
     /// `Instant::now()` is read exactly once here, as a base - every

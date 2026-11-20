@@ -45,8 +45,8 @@ pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;
 pub use program::{Program, ProgramStatus};
 pub use record::{
-    ClientRecord, PaneRecord, SessionRecord, SessionTree, SettingRecord, TabRecord, TabTree,
-    TreeSnapshot,
+    ClientRecord, PaneRecord, ServerRecord, SessionRecord, SessionTree, SettingRecord, TabRecord,
+    TabTree, TreeSnapshot,
 };
 pub use screen::{
     CellStyle, Cursor, CursorShape, EndReason, Page, PaneAttached, Rgb, Row, RowId, Run, Screen,

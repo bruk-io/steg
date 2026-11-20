@@ -88,6 +88,15 @@ struct State {
     /// until `listen::run` calls `Runtime::set_idle_notifier`; always
     /// `None` for an explicit start, which has no idle checker to tell.
     notify_session_count_changed: Option<Sender<ConnectionEvent>>,
+    /// Lets a `server.stop` request (TASK-1.88, `connection.rs`'s own
+    /// interception) reach the one existing way to end `listen::run`'s
+    /// accept loop - `Stopper::stop()`, the same mechanism the idle
+    /// checker (TASK-1.86) already drives. `None` only in a test
+    /// `Runtime` nothing has wired one into; every real server, explicit
+    /// or on-demand, has one set by `listen::run` itself, unconditionally,
+    /// before it can accept a connection at all - see `set_stopper`'s own
+    /// doc (`lifecycle.rs`).
+    stopper: Option<crate::listen::Stopper>,
     /// How many `PaneEvent::CommandOutputStarted`/`CommandEnded` events
     /// `apply_event_locked` has applied for each pane (TASK-1.84 review):
     /// test-only, since nothing outside a test needs it. A mark the
@@ -188,6 +197,7 @@ impl Runtime {
             clock_origin: Instant::now(),
             subscribers: HashMap::new(),
             notify_session_count_changed: None,
+            stopper: None,
             #[cfg(test)]
             applied_marks: HashMap::new(),
         }));

@@ -3,8 +3,9 @@ id: TASK-1.136
 title: >-
   ui: the cursor fade's named values, exported from the design, and whole-number
   lists in the generator
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
 updated_date: '2026-11-20T17:32:00Z'
 labels:
@@ -14,6 +15,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.136-ui-the-cursor-fade-s-named-values
 ---
 
 ## Description

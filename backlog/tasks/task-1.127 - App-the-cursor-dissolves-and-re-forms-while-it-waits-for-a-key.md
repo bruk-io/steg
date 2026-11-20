@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-20T17:42:00Z'
+updated_date: '2026-11-20T17:45:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -216,6 +216,8 @@ Split by @bruk.o on 2026-11-18, as the plan recommended: the design values and t
 Engineer's decisions of 2026-11-20 (recorded by @bruk.o), design artifact version 143 (id 1795195942-6a0a), Foundations page section 12 and the Cursor atom: (a) the animation is option 2B, as the Cursor atom already draws it: cycle 1400 ms; six pieces row-major 0 to 5; out in the order 3, 0, 4, 2, 1, 5 and back in reverse; each step 3 percent of the cycle; a piece spends one step as medium shade each way, medium shade being the flat colour half way between the cursor colour and the ground (not a dither); whole 43 percent, going 18, empty 21, returning 18. (b) There is NO idle rest: the fade runs for as long as the window has focus and stops, whole, when the window loses focus. Any idle-time value or criterion clause is dropped. (c) Reduce Motion is a stub that always allows motion until TASK-1.63, with the steady cursor built behind it. (d) The animation is meant to become a setting later: build only 2B, but hold the animation as data (order, step, shade) so another variant is an addition, not a rewrite; the setting itself is a separate follow-up task.
 
 Revised plan checked against doc-17 (R120 to R123), the design's Cursor atom and Foundations section 12 (artifact version 143) and the engineer's decisions of 2026-11-20 by @bruk.o: ok. Option 2B with its values read from foundations (TASK-1.136), no idle rest, stops whole on losing focus, Reduce Motion stub, animation held as parameters. The driver is a one-shot GPUI timer to the next step boundary, re-armed only from a paint with the gate open and dropped when it closes: about 9 to 10 repaints a second while focused, none otherwise; the cost is reasoned, not measured. Regaining focus restarts the cycle from whole: decided by the orchestrator, for the engineer to overrule. Known limit for review: that a closed gate arms nothing is argued from structure and the gate function's own tests, not shown by a test of the scheduling itself. Build waits on TASK-1.136 merging.
+
+Name to read from foundations, settled by @bruk.o on 2026-11-20: the whole-phase value this plan calls hold_fraction is exported by TASK-1.136 as phase_whole, in the entry motion.cursor-fade.shaded-dissolve. Reading it under that name is not a departure from this plan.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

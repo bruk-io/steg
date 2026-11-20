@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-20T17:21:00Z'
-updated_date: '2026-11-20T18:56:00Z'
+updated_date: '2026-11-20T19:01:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -22,8 +23,10 @@ asdlc_branch: task-1.143-server-tests-the-login-env-grandchild
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '880746049d3b'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -520,6 +523,31 @@ created: 2026-11-20T18:56:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.143: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-20T19:01:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff matches the plan.
+
+No Important findings.
+
+[Compliance, Nit] PR #88 history: the worker used `git rebase` where the brief said merge, never rebase a pushed branch. Checked via `gh api .../pulls/88/commits` and the issue timeline: all three commits (429c767d, 629b11e, 97005f3c) share committer date 2026-11-20T18:14:46Z, before the PR was opened (18:22:05Z); the timeline shows only "committed" events, no head_ref_force_pushed. The rebase happened before the branch's first push, not a rewrite of already-pushed/reviewed history, so the concern behind "never rebase a pushed branch" doesn't apply here. It is disclosed in the notes ("before and after the rebase onto origin/main"). Recorded as a Nit for process hygiene only; no pushed history was rewritten.
+
+Verified independently (brief point 5): in a fresh review worktree (removed after), temporarily lowered capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild's own timeout argument from 5s to 1s (the only line touched) - failed at 30.00s with exactly "the backgrounded grandchild's own pid file never appeared", matching the recorded forced-failure run. Reverted (confirmed byte-identical via git diff) - passed in 5.06s, matching the recorded passing run. The control is genuine, not narrated.
+
+Evidence: every recorded check on the task names the final head (97005f3c), was run directly (no sh -c/pipe/tail), and together cover the login_env control pair, the login_env module, `just check-packages`, and `just check`; only the deliberate forced-failure run carries "with uncommitted changes", as expected. The record-check blocks an earlier --notes edit wiped, and the orchestrator's restored plan-approval note, are already accounted for on the task and not re-raised here.
+
+login_env (AC #1): only the test's own inline timeout changed (1s -> 5s); the product default (DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT, 3s) and the 15s/30s liveness bounds are untouched. The new control's 2s fixture delay is commented as the deliberate, stated exception.
+
+attach.rs (AC #2-4): the fix (cross_process_flood_guard's acquire bound 60s -> 180s) is tied to a disclosed, bounded experiment (2 reps x 4 binaries under genuine sibling load; 3/8 failed, all the same already-guarded test, all at the old 60s bound) and derived from observed numbers (worst-case total suite time ~150s), not guessed. The one post-fix repetition is reported as exactly that ("re-ran ... once more"), not overclaimed as proof. Raising this bound lengthens a wait for a contended lock; it does not weaken an assertion or remove a liveness bound (AC #4).
+
+No findings under Boundaries, Licence, Rust or Security. Files touched match the plan (crates/server/src/login_env.rs, crates/server/tests/attach.rs), no overlap with TASK-1.140. Plan approved by @bruk (880746049d3b, size-2), comment #1.
 
 ---
 <!-- COMMENTS:END -->

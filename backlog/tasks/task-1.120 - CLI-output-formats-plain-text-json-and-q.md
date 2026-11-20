@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:37:00Z'
+updated_date: '2026-11-20T18:38:00Z'
 labels:
   - size-2
   - changes-requested
@@ -585,6 +585,37 @@ Negative controls, each a recorded failing-then-passing pair at the final head, 
 - Criterion #2 (the pty is load-bearing): cli_output_formats.rs's own stty raw -echo step removed from the pty command string - the byte comparison failed on the \r\n difference (left has 0x0d 0x0a where right has 0x0a); reverted, passed.
 
 Reviewer's own attention: the plan's two earlier open items (TASK-1.49 carried no engineer decision for Returns::Nested's plain-text form; the pty proof's dependency) are both settled by the engineer's six decisions and applied as described in the PR body - nothing left open from this task's own plan.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo build -p steg` exited 101 at 2026-11-20T18:38:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/steg)
+error[E0004]: non-exhaustive patterns: `&Returns::ScratchControl` not covered
+   --> crates/steg/src/cli/output.rs:73:11
+    |
+ 73 |     match returns {
+    |           ^^^^^^^ pattern `&Returns::ScratchControl` not covered
+    |
+note: `Returns` defined here
+   --> crates/sdk/src/description/shapes.rs:206:1
+    |
+206 | pub enum Returns {
+    | ^^^^^^^^^^^^^^^^
+...
+250 |     ScratchControl,
+    |     -------------- not covered
+    = note: the matched value is of type `&Returns`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+    |
+ 79 ~         Returns::Nested { .. } => render_nested(value),
+ 80 ~         &Returns::ScratchControl => todo!(),
+    |
+
+For more information about this error, try `rustc --explain E0004`.
+error: could not compile `steg` (lib) due to 1 previous error
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

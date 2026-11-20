@@ -1,17 +1,20 @@
 ---
 id: TASK-1.120
 title: 'CLI: output formats: plain text, --json and -q'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:21:00Z'
+updated_date: '2026-11-20T18:22:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies:
   - TASK-1.49
   - TASK-1.119
+references:
+  - task-1.120-cli-output-formats-plain-text-json-and-q
+  - https://github.com/bruk-io/steg/pull/87
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
@@ -563,6 +566,20 @@ test a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.41s
 ```
+
+Built per the approved plan, in order: tree.rs's -q/--quiet flag; output.rs (the pure renderer, matched exhaustively on Returns's six variants, 27 unit tests); exit.rs's doc comment naming the new ConnectError::Io caller; connect.rs wired to call render(); api_call.rs's doc comment extending the --json exception to -q; cli_output_formats.rs (20 tests: every Returns kind through the real binary, plus the one script(1)-based pty-vs-pipe byte comparison - no new dependency, per the engineer's decision 2); cli_exit_statuses.rs's existing test reworded and extended (it previously passed only because its list was empty).
+
+Required departure from the plan, as instructed: no file-local unique_path under CARGO_TARGET_TMPDIR. Used support::ScopedTempDir (crates/steg/tests/support/mod.rs, TASK-1.123) for every socket and the pty test's typescript file instead - a target-directory path inside this worktree is long enough to risk the sockaddr_un 100-byte limit ScopedTempDir::path() itself asserts against. Added run_bounded/wait_for_socket to support/mod.rs rather than duplicating a third copy, since this was the first file beside cli_exit_statuses.rs to need a bounded wait while already using that module.
+
+Checks recorded via asdlc record-check at every step (cargo test -p steg --lib/--test <name> after each file), then at the final head (65b9e356, after merging origin/main - a clean merge, board documents only, no code conflicts):
+- cargo build -p steg: pass
+- just check: FAILED twice, both times on the exact same pre-existing, independently tracked flake (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, TASK-1.143, which merged into main during this task's own work) - retried once per instruction, both failures unrelated to any file this task touches. CI itself is green on PR 87 at this head (confirmed by the engineer and by this session's own gh pr checks --watch).
+
+Negative controls, each a recorded failing-then-passing pair at the final head, git status confirmed clean between the two:
+- Criterion #1 (no catch-all): a seventh Returns variant added to a scratch edit of shapes.rs - cargo build -p steg failed with "non-exhaustive patterns: &Returns::ScratchControl not covered" naming output.rs:49 exactly; reverted, passed.
+- Criterion #2 (the pty is load-bearing): cli_output_formats.rs's own stty raw -echo step removed from the pty command string - the byte comparison failed on the \r\n difference (left has 0x0d 0x0a where right has 0x0a); reverted, passed.
+
+Reviewer's own attention: the plan's two earlier open items (TASK-1.49 carried no engineer decision for Returns::Nested's plain-text form; the pty proof's dependency) are both settled by the engineer's six decisions and applied as described in the PR body - nothing left open from this task's own plan.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -3,7 +3,7 @@ id: TASK-1.143
 title: >-
   Server tests: the login_env grandchild and attach tests stop failing under
   sibling builds
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-20T17:21:00Z'
@@ -12,6 +12,9 @@ labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.143-server-tests-the-login-env-grandchild
+  - https://github.com/bruk-io/steg/pull/88
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -461,6 +464,24 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Final head: 97005f3c4faf8cc3dd5ca530a3d7ec89ce7ae29e. PR #88, CI green.
+
+login_env (AC #1): raised the grandchild test's own inline timeout 1s -> 5s; product default (3s) untouched. Baseline just check (recorded before any fix) failed this exact way twice organically. Deterministic control (capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild, a permanent committed test with a fixture's own deliberate 2s write delay) recorded failing at the old 1s bound and passing at the new 5s bound, both at this final head.
+
+attach.rs (AC #2, #3): bounded experiment (<=2 sibling cargo build --workspace processes as load, well inside the ~10-minute cap; four pre-built steg-server feature-variant attach binaries run directly together). Condition A (no sibling load): 4/4 passed. Condition B (2 repetitions with genuine sibling load): 3 of 8 runs failed, always the same already-guarded test, a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach, always at the identical "timed out after 60s waiting for the cross-process flood-test lock" message - no other test in the file failed, so none of the 18 unguarded tests are implicated. Fix: raised cross_process_flood_guard's own lock-acquire bound 60s -> 180s (a targeted fix, not the stated fallback, since the evidence named a specific already-guarded test's own bound, not a missing serialisation). Verified by re-running the identical load condition once more post-fix: all four variants passed.
+
+Checks recorded via asdlc record-check, each a direct command (no sh -c/pipe/tail), all re-recorded fresh at this final head after an earlier --notes edit of mine had replaced (not appended to) the Notes section and wiped the record-check blocks that had accumulated at stale, pre-rebase commit hashes - corrected by re-running every check directly against the clean final head and using --comment (append) rather than --notes (replace) for my own summary:
+- just check: FAILED x2 at the pre-fix baseline (organic login_env flake), then passing after the fix, both before and after the rebase onto origin/main, and once more at this final head.
+- login_env control pair: forced failing (old 1s bound) then passing (final 5s bound), both at this final head, each read back clean of anything from the environment before recording.
+- cargo test -p steg-server --lib login_env:: (module-level): passing at this final head.
+- just check-packages: passing at this final head (all four steg-server feature variants, all other packages).
+
+No test weakened or skipped; no liveness bound removed (the 15s/30s login_env bounds and the attach.rs lock bound were only raised, with their comments explaining why).
+
+No experiment-generated process or throwaway clone left running or on disk (ps checked, clones removed) - only raw captured output scratch logs remain, kept under the session scratchpad, not the board.
+
+Files touched: crates/server/src/login_env.rs, crates/server/tests/attach.rs - no overlap with TASK-1.140.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

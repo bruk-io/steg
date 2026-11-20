@@ -1,11 +1,11 @@
 ---
 id: TASK-1.142
 title: just run builds the steg binary the app starts its server with
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
-updated_date: '2026-11-20T04:57:00Z'
+updated_date: '2026-11-20T17:09:00Z'
 labels:
   - size-1
   - review-passed

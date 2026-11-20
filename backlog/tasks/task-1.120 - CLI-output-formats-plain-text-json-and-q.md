@@ -714,6 +714,36 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; fin
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_output_formats a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe` exited 101 at 2026-11-20T18:40:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/cli_output_formats.rs (target/debug/deps/cli_output_formats-b7f07949c8f37e3f)
+
+running 1 test
+test a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe ... FAILED
+
+failures:
+
+---- a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe stdout ----
+
+thread 'a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe' (68417316) panicked at crates/steg/tests/cli_output_formats.rs:749:5:
+assertion `left == right` failed: the CLI's own bytes must be identical whether stdout is a pty or a pipe (doc-2 section 6)
+  left: [48, 48, 48, 48, 48, 48, 48, 49, 9, 112, 116, 121, 45, 111, 110, 101, 9, 49, 9, 118, 105, 111, 108, 101, 116, 9, 48, 48, 48, 48, 48, 48, 48, 50, 13, 10, 48, 48, 48, 48, 48, 48, 48, 53, 9, 112, 116, 121, 45, 116, 119, 111, 9, 50, 9, 112, 105, 110, 107, 9, 48, 48, 48, 48, 48, 48, 48, 54, 13, 10]
+ right: [48, 48, 48, 48, 48, 48, 48, 49, 9, 112, 116, 121, 45, 111, 110, 101, 9, 49, 9, 118, 105, 111, 108, 101, 116, 9, 48, 48, 48, 48, 48, 48, 48, 50, 10, 48, 48, 48, 48, 48, 48, 48, 53, 9, 112, 116, 121, 45, 116, 119, 111, 9, 50, 9, 112, 105, 110, 107, 9, 48, 48, 48, 48, 48, 48, 48, 54, 10]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.40s
+
+error: test failed, to rerun pass `-p steg --test cli_output_formats`
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

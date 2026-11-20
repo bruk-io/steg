@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:41:00Z'
+updated_date: '2026-11-20T18:52:00Z'
 labels:
   - size-2
   - changes-requested
@@ -844,6 +844,43 @@ running 1 test
 test a_label_containing_a_tab_newline_and_carriage_return_is_sanitised_in_plain_text_only ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.40s
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 check` exited 0 at 2026-11-20T18:52:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg) (2.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (68.9s)
+ok      test (steg-server, race-fixture) (55.2s)
+ok      test (steg-server, pty-race-fixture) (76.4s)
+ok      test (steg-server, accept-backoff-fixture) (89.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.3s)
+ok      test (steg, fixtures) (12.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (1.6s)
+ok      tool tests (40.0s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.0s)
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.

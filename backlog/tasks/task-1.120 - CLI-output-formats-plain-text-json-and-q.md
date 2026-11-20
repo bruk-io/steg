@@ -656,6 +656,34 @@ error: test failed, to rerun pass `-p steg --lib`
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_output_formats nothing_prints_nothing_even_with_json_through_a_real_server` exited 101 at 2026-11-20T18:39:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_output_formats.rs (target/debug/deps/cli_output_formats-b7f07949c8f37e3f)
+
+running 1 test
+test nothing_prints_nothing_even_with_json_through_a_real_server ... FAILED
+
+failures:
+
+---- nothing_prints_nothing_even_with_json_through_a_real_server stdout ----
+
+thread 'nothing_prints_nothing_even_with_json_through_a_real_server' (68409884) panicked at crates/steg/tests/cli_output_formats.rs:425:5:
+stdout: "null\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    nothing_prints_nothing_even_with_json_through_a_real_server
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.37s
+
+error: test failed, to rerun pass `-p steg --test cli_output_formats`
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

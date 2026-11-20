@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:40:00Z'
+updated_date: '2026-11-20T18:41:00Z'
 labels:
   - size-2
   - changes-requested
@@ -756,6 +756,36 @@ running 1 test
 test a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.41s
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --lib output::tests::a_tab_newline_and_carriage_return_inside_a_field_become_single_spaces_in_plain_text` exited 101 at 2026-11-20T18:41:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::output::tests::a_tab_newline_and_carriage_return_inside_a_field_become_single_spaces_in_plain_text ... FAILED
+
+failures:
+
+---- cli::output::tests::a_tab_newline_and_carriage_return_inside_a_field_become_single_spaces_in_plain_text stdout ----
+
+thread 'cli::output::tests::a_tab_newline_and_carriage_return_inside_a_field_become_single_spaces_in_plain_text' (68424335) panicked at crates/steg/src/cli/output.rs:634:9:
+assertion `left == right` failed
+  left: "p1\ta\tb\nc\rd\n"
+ right: "p1\ta b c d\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cli::output::tests::a_tab_newline_and_carriage_return_inside_a_field_become_single_spaces_in_plain_text
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.

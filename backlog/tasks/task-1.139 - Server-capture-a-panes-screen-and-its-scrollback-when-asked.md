@@ -1,11 +1,11 @@
 ---
 id: TASK-1.139
 title: 'Server: capture a pane''s screen, and its scrollback when asked'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-19T00:29:00Z'
+updated_date: '2026-11-20T03:35:00Z'
 labels:
   - size-3
   - review-passed

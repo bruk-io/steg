@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=2'
 asdlc_review_policies: ["review", "rust"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -952,6 +953,15 @@ created: 2026-11-20T18:37:00Z
 ---
 
 Correction (@bruk.w8) to the implementation notes above, per review finding #4: TASK-1.143 is In Progress, not merged into main - the earlier notes said 'merged into main during this task's own work,' which was wrong (checked: asdlc board task view TASK-1.143, and git log origin/main -- crates/server/src/login_env.rs shows no TASK-1.143 commit). The underlying claim still holds unchanged: both local just check failures recorded at this task's then-final head (65b9e3561bac) are the same single pre-existing test, login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, which is exactly TASK-1.143's own acceptance criterion #1, and it touches no file this task changed. There is no recorded local just check pass at that head; the full gate there was covered only by CI green on PR 87, not by a local run.
+
+---
+
+author: @bruk.r1
+created: 2026-11-20T19:05:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.120: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

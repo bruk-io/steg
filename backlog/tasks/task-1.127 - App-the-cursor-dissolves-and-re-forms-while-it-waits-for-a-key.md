@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T04:48:00Z'
+updated_date: '2026-11-20T17:32:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -196,6 +196,8 @@ Recommending **yes, split**: the generator support (`tools/`, step 1) and the pu
 
 <!-- SECTION:NOTES:BEGIN -->
 Split by @bruk.o on 2026-11-18, as the plan recommended: the design values and the generator's whole-number lists moved to a draft task, 'ui: the cursor fade's named values, exported from the design, and whole-number lists in the generator', which this task will depend on once it is accepted. This task keeps the pure functions, the driver, the painting and all five criteria; its first criterion is met by reading the values that task exports. On the overlap with TASK-1.100 (the Cursor atom in crates/ui): the plan keeps the fade's pure functions in crates/app with the terminal's cell geometry, under doc-17's carve-out for the terminal view; TASK-1.100 decides for itself whether to reuse them. The orchestrator agrees and has noted it on TASK-1.100.
+
+Engineer's decisions of 2026-11-20 (recorded by @bruk.o), design artifact version 143 (id 1795195942-6a0a), Foundations page section 12 and the Cursor atom: (a) the animation is option 2B, as the Cursor atom already draws it: cycle 1400 ms; six pieces row-major 0 to 5; out in the order 3, 0, 4, 2, 1, 5 and back in reverse; each step 3 percent of the cycle; a piece spends one step as medium shade each way, medium shade being the flat colour half way between the cursor colour and the ground (not a dither); whole 43 percent, going 18, empty 21, returning 18. (b) There is NO idle rest: the fade runs for as long as the window has focus and stops, whole, when the window loses focus. Any idle-time value or criterion clause is dropped. (c) Reduce Motion is a stub that always allows motion until TASK-1.63, with the steady cursor built behind it. (d) The animation is meant to become a setting later: build only 2B, but hold the animation as data (order, step, shade) so another variant is an addition, not a rewrite; the setting itself is a separate follow-up task.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

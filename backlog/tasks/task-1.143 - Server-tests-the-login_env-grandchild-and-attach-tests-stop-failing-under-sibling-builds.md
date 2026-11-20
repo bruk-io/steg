@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-20T17:21:00Z'
-updated_date: '2026-11-20T17:34:00Z'
+updated_date: '2026-11-20T17:38:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -311,6 +311,51 @@ comment, or `record-check` invocation).
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against the task's criteria and .claude/rules/testing-rust.md by @bruk.o on 2026-11-20: ok. It touches only login_env.rs's tests and attach.rs, stays out of TASK-1.140's files, raises a test-only timeout (the product default is separate and unchanged), keeps every liveness bound, and its login_env control is a committed delayed-write test recorded failing at the old bound and passing at the new, at the final head. The attach.rs part is an experiment with a stated decision rule and a stated fallback; if nothing reproduces the task says so. Two corrections to TASK-1.137's diagnosis are accepted: 23 attach tests with 5 guarded, and the four feature-variant runs are sequential within one worktree. The planner's two questions take its recommended defaults unless the engineer says otherwise.
+
+Check FAILED: `just check` exited 101 at 2026-11-20T17:38:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at e4b4c98ad1c0, last 40 of 78 lines:
+
+```text
+test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
+test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+kill: 40809: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test outbound::tests::enqueue_control_and_wait_until_written_does_not_return_until_write_all_itself_returns ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 40750: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (67485561) panicked at crates/server/src/login_env.rs:675:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 220 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

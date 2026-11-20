@@ -789,6 +789,34 @@ error: test failed, to rerun pass `-p steg --lib`
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_output_formats a_label_containing_a_tab_newline_and_carriage_return_is_sanitised_in_plain_text_only` exited 101 at 2026-11-20T18:41:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/cli_output_formats.rs (target/debug/deps/cli_output_formats-b7f07949c8f37e3f)
+
+running 1 test
+test a_label_containing_a_tab_newline_and_carriage_return_is_sanitised_in_plain_text_only ... FAILED
+
+failures:
+
+---- a_label_containing_a_tab_newline_and_carriage_return_is_sanitised_in_plain_text_only stdout ----
+
+thread 'a_label_containing_a_tab_newline_and_carriage_return_is_sanitised_in_plain_text_only' (68426128) panicked at crates/steg/tests/cli_output_formats.rs:385:5:
+expected a row starting with "00000001\ta b c d\t1\tviolet\t", got "00000001\ta\tb\nc\rd\t1\tviolet\t00000002\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_label_containing_a_tab_newline_and_carriage_return_is_sanitised_in_plain_text_only
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.41s
+
+error: test failed, to rerun pass `-p steg --test cli_output_formats`
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

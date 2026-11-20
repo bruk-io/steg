@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
-updated_date: '2026-11-20T04:16:00Z'
+updated_date: '2026-11-20T04:17:00Z'
 labels:
   - size-1
   - changes-requested
@@ -102,6 +102,8 @@ Built and tested:
 - Pushed to origin/task-1.142-just-run-builds-the-steg-binary-the-app
 - PR #85 created and CI passed with SUCCESS status
 - No product code changes, only justfile recipe update
+
+size-1: plan approval skipped; small because the change is two lines in the justfile's run recipe (build the steg package before running the app), the plan is nine numbered steps, and no product code or design choice is involved. Checked by @bruk.o.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -311,15 +311,23 @@ impl Runtime {
 /// to `NoSuchTarget`: from the caller's own point of view, a pane whose
 /// worker thread is no longer there is indistinguishable from one that no
 /// longer exists to attach to. Every other variant is this crate's own
-/// I/O-adjacent failure (the engine, the pty, a read/write) - `pane.attach`
-/// never performs any of the latter two itself, but `EngineFailed` is the
-/// closest named code for any of them, named plainly rather than invented.
-fn map_pane_error(error: crate::error::Error) -> ApiError {
+/// I/O-adjacent failure: the engine, the pty, a read/write, and (TASK-1.139)
+/// a bounded wait on the worker that ran out before it answered.
+/// `pane.attach` never performs any of these itself, but `EngineFailed` is
+/// the closest named code for any of them, named plainly rather than
+/// invented. `Timeout` is deliberately not mapped to `NoSuchTarget`
+/// alongside `PaneGone`: the pane is not gone, only busy, and telling a
+/// caller "that target doesn't exist" for a pane that does would be a
+/// false statement (see `Error::Timeout`'s own doc). `pub(super)`, not
+/// private: `runtime::input`'s own `capture_and_dispatch` (TASK-1.139)
+/// reuses this rather than duplicating it.
+pub(super) fn map_pane_error(error: crate::error::Error) -> ApiError {
     match error {
         crate::error::Error::PaneGone => ApiError::new(ErrorCode::NoSuchTarget, error.to_string()),
         crate::error::Error::Kernel(_)
         | crate::error::Error::Pty(_)
-        | crate::error::Error::Io(_) => ApiError::new(ErrorCode::EngineFailed, error.to_string()),
+        | crate::error::Error::Io(_)
+        | crate::error::Error::Timeout => ApiError::new(ErrorCode::EngineFailed, error.to_string()),
     }
 }
 

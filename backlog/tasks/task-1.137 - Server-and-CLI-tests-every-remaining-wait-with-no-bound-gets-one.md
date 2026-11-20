@@ -1,10 +1,11 @@
 ---
 id: TASK-1.137
 title: 'Server and CLI tests: every remaining wait with no bound gets one'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w3'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-18T23:59:00Z'
+updated_date: '2026-11-20T17:12:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -13,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.137-server-and-cli-tests-every-remaining
 ---
 
 ## Description

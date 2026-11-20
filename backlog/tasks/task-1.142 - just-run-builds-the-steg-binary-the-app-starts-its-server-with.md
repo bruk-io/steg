@@ -1,15 +1,18 @@
 ---
 id: TASK-1.142
 title: just run builds the steg binary the app starts its server with
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
-updated_date: '2026-11-20T03:57:00Z'
+updated_date: '2026-11-20T04:11:00Z'
 labels:
   - size-1
 milestone: m-4
 dependencies: []
+references:
+  - task-1.142-just-run-builds-the-steg-binary-the-app
+  - https://github.com/bruk-io/steg/pull/85
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -83,4 +86,15 @@ Check passed: `sh -c 'just check 2>&1 | tail -1'` exited 0 at 2026-11-20T03:57:5
 ```text
 ok      ui colours (0.0s)
 ```
+
+Built and tested:
+- Modified justfile run recipe to build steg binary before running app
+- Added 'cargo build --package steg' before 'cargo run --package steg-app'
+- Updated recipe comment to explain the app autostarts the steg server from resolve_binary()
+- Recorded 'just --dry-run run' check showing build line before run line
+- Ran 'just check' - first attempt had one known flaky test (login_env backgrounded-grandchild), retried and passed all checks
+- Committed with message explaining the change
+- Pushed to origin/task-1.142-just-run-builds-the-steg-binary-the-app
+- PR #85 created and CI passed with SUCCESS status
+- No product code changes, only justfile recipe update
 <!-- SECTION:NOTES:END -->

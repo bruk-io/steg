@@ -237,8 +237,14 @@ fn a_real_round_trip_through_an_autostarted_server_prints_json_unchanged() {
 }
 
 /// AC #3's own built-in contrast: the identical successful call, without
-/// `--json`, prints nothing - plain-text rendering is TASK-1.120's, not
-/// reused early here.
+/// `--json`, prints nothing - true here only because the list is empty
+/// (zero records, `Returns::Records`, renders as zero lines): once
+/// TASK-1.120's own renderer exists, a *non-empty* `session list` prints
+/// a real tab-separated line, so this is the degenerate case, not a
+/// demonstration that plain-text rendering does nothing in general -
+/// `cli_output_formats.rs`'s own tests are that proof. Extended below to
+/// say so for real, rather than leaving a reader to assume general
+/// "nothing" from an empty-list coincidence.
 #[test]
 fn without_json_a_successful_command_prints_nothing_on_stdout() {
     let (_socket_dir, socket) = scoped_socket_path("no-json-success.sock");
@@ -257,6 +263,58 @@ fn without_json_a_successful_command_prints_nothing_on_stdout() {
         stdout_of(&output)
     );
     assert!(stderr_of(&output).is_empty());
+
+    // The non-empty case, so this test still earns its own name once
+    // TASK-1.120's renderer exists: a session really does print a real
+    // line, built from the same `--json` reply's own fields, in the
+    // description's own declared order (`session_fields()`,
+    // `crates/sdk/src/description/methods/session.rs`).
+    let created = run_steg(
+        &["session", "new", "--label", "plain-contrast", "--json"],
+        &socket,
+    );
+    assert_eq!(
+        created.status.code(),
+        Some(0),
+        "stderr: {}",
+        stderr_of(&created)
+    );
+    // `session.new`'s own reply is `Returns::Identifier` - `{"id": ...}`
+    // alone, never the full record - so the expected row is built from
+    // `session.list`'s own reply instead (`Returns::Records`, every
+    // field `session_fields()` declares), the same shape a real caller
+    // would read it from.
+    wait_for_socket(&socket, Duration::from_secs(5));
+    let listed_json = run_steg(&["session", "list", "--json"], &socket);
+    assert_eq!(
+        listed_json.status.code(),
+        Some(0),
+        "stderr: {}",
+        stderr_of(&listed_json)
+    );
+    let records: Vec<serde_json::Value> = serde_json::from_str(stdout_of(&listed_json).trim())
+        .expect("session.list prints a JSON array");
+    assert_eq!(records.len(), 1, "exactly the one session created above");
+    let created_value = &records[0];
+
+    let listed_plain = run_steg(&["session", "list"], &socket);
+    assert_eq!(
+        listed_plain.status.code(),
+        Some(0),
+        "stderr: {}",
+        stderr_of(&listed_plain)
+    );
+    let field_text = |name: &str| match created_value.get(name) {
+        None | Some(serde_json::Value::Null) => String::new(),
+        Some(serde_json::Value::String(text)) => text.clone(),
+        Some(other) => other.to_string(),
+    };
+    let expected_row = ["id", "label", "position", "colour", "current_tab"]
+        .iter()
+        .map(|name| field_text(name))
+        .collect::<Vec<_>>()
+        .join("\t");
+    assert_eq!(stdout_of(&listed_plain), format!("{expected_row}\n"));
 }
 
 /// `--json` is never read as "also formats errors as JSON": an error

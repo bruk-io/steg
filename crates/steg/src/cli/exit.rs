@@ -31,7 +31,13 @@ pub fn api_error_status(api: &Description, code: ErrorCode) -> i32 {
 /// wasn't, twice, which is the same outcome from this side) and
 /// [`ConnectError::Io`] (point 7 of this task's plan: grouping every
 /// "could not finish talking to a server" case under one status is the
-/// simpler rule for a script to check against).
+/// simpler rule for a script to check against). TASK-1.120 reuses this
+/// same bucket for one more case: `super::output::render`'s own
+/// `RenderError`, when a reply's shape does not match its method's
+/// declared `Returns` - the server answered something that is not a
+/// valid reply, the same kind of "could not finish talking to the
+/// server" `connect.rs::block_until_reply`'s own `Incoming::Malformed`
+/// arm already maps through `ConnectError::Io`.
 #[must_use]
 pub const fn connect_error_status(err: &ConnectError) -> i32 {
     match err {

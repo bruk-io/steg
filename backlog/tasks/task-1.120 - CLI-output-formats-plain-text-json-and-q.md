@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:07:00Z'
+updated_date: '2026-11-20T18:20:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -477,6 +477,39 @@ test result: FAILED. 220 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
 error: test failed, to rerun pass `-p steg-server --lib`
 full output: .quiet/test-steg-server.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo build -p steg` exited 101 at 2026-11-20T18:20:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 65b9e3561bac with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/sdk)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/steg)
+error[E0004]: non-exhaustive patterns: `&Returns::ScratchControl` not covered
+   --> crates/steg/src/cli/output.rs:49:11
+    |
+ 49 |     match returns {
+    |           ^^^^^^^ pattern `&Returns::ScratchControl` not covered
+    |
+note: `Returns` defined here
+   --> crates/sdk/src/description/shapes.rs:206:1
+    |
+206 | pub enum Returns {
+    | ^^^^^^^^^^^^^^^^
+...
+250 |     ScratchControl,
+    |     -------------- not covered
+    = note: the matched value is of type `&Returns`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+    |
+ 55 ~         Returns::Nested { .. } => render_nested(value),
+ 56 ~         &Returns::ScratchControl => todo!(),
+    |
+
+For more information about this error, try `rustc --explain E0004`.
+error: could not compile `steg` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
 ```
 <!-- SECTION:NOTES:END -->
 

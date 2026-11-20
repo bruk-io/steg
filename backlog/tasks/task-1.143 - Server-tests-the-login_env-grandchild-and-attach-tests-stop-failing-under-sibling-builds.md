@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-20T17:21:00Z'
-updated_date: '2026-11-20T18:21:00Z'
+updated_date: '2026-11-20T18:33:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -310,271 +310,35 @@ comment, or `record-check` invocation).
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Plan checked against the task's criteria and .claude/rules/testing-rust.md by @bruk.o on 2026-11-20: ok. It touches only login_env.rs's tests and attach.rs, stays out of TASK-1.140's files, raises a test-only timeout (the product default is separate and unchanged), keeps every liveness bound, and its login_env control is a committed delayed-write test recorded failing at the old bound and passing at the new, at the final head. The attach.rs part is an experiment with a stated decision rule and a stated fallback; if nothing reproduces the task says so. Two corrections to TASK-1.137's diagnosis are accepted: 23 attach tests with 5 guarded, and the four feature-variant runs are sequential within one worktree. The planner's two questions take its recommended defaults unless the engineer says otherwise.
+## login_env (AC #1)
 
-Check FAILED: `just check` exited 101 at 2026-11-20T17:38:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at e4b4c98ad1c0, last 40 of 78 lines:
+Fix: raised `capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open`'s own inline timeout from 1s to 5s (`crates/server/src/login_env.rs`). The product's own default, `DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT` (3s), is untouched and was never 1s - only this test's own tighter number changed. Rewrote the test's own stale comment.
 
-```text
-test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
-test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
-test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
-test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
-test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
-test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
-kill: 40809: No such process
-test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
-test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
-test outbound::tests::enqueue_control_and_wait_until_written_does_not_return_until_write_all_itself_returns ... ok
-test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
-test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
-test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
-test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
-test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
-test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
-test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
-test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
-kill: 40750: No such process
-test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
-test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
-test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
-test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+Organic confirmation: this task's own baseline `just check` (recorded on this task before any fix) failed this exact way twice in a row, both times "the backgrounded grandchild's own pid file never appeared" at ~30s, with no forcing at all.
 
-failures:
+Deterministic control (AC #1): added a permanent, committed test, `capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild`, using a fixture with a deliberate 2s write delay (the one sleep in this module's tests that is not a poll for an event - the independent variable the control forces). At the final head (committed timeout 5s), it passes. Recorded failing+passing pair, both at the final head: temporarily lowered only this test's own timeout to the old 1s bound, ran and recorded it failing (~30.0s, "the backgrounded grandchild's own pid file never appeared" - identical mechanism, forced rather than waited for); reverted (confirmed via `git diff` - byte-identical to the committed state) and recorded it passing. Both runs read back clean of anything from the environment before being recorded, per this task's safety rule.
 
----- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+## attach.rs (AC #2, #3)
 
-thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (67485561) panicked at crates/server/src/login_env.rs:675:13:
-the backgrounded grandchild's own pid file never appeared
+Experiment (bounded: at most two sibling load processes, load window kept to a few minutes total, well inside the stated ~10-minute cap): pre-built the four `steg-server` feature-variant `attach` test binaries (default, race-fixture, pty-race-fixture, accept-backoff-fixture) once each with `--no-run`, then ran the four already-built binaries directly and concurrently (default thread count, not serialised), to isolate execution-time contention from Cargo's own build-lock serialisation.
 
+- Condition A (self-contention only, no sibling load): 4/4 binaries passed, 0 failures - matches TASK-1.123's own prior measurement at this level.
+- Condition B (the same four binaries, plus two sibling `cargo build --workspace` processes in throwaway clones as load, genuinely overlapping): 2 repetitions with real overlapping load. 3 of those 8 runs (2 reps x 4 binaries) failed - every one of them the identical test, `a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach` (one of the 5 tests already under `cross_process_flood_guard`), every one of them with the identical message: "timed out after 60s waiting for the cross-process flood-test lock... another worktree's own flood test held it for longer than this bound allows". No other test in the file failed, in either condition. (A third attempted repetition used too weak a sibling load, by mistake - a partial `cargo clean` that rebuilt in ~2s - and is not counted as a genuine Condition B trial.)
 
-failures:
-    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+Decision (per the plan's decision rule, section 2d): this names a specific, already-guarded test and its exact failure mode - the lock's own 60s acquire bound, not a missing serialisation (the lock already serialises machine-wide, across worktrees, confirmed by reading `flood_lock_path`). The five guarded tests run four-to-a-worktree (the four feature variants), so one worktree's own run can already queue up to 20 acquisitions of one lock; a second worktree building concurrently slows whichever process holds it, adding more queue depth. Fix: raised the bound from 60s to 180s (`cross_process_flood_guard`, `crates/server/tests/attach.rs`) - comfortably past the observed failures (all at 60s) and past the observed total suite time under this same load (~150s worst case), while remaining a liveness bound, not removed. This is a targeted fix, not the task's stated fallback (widening the guard to all 23 tests) - the evidence does not support the fallback, since none of the 18 unguarded tests failed under either condition.
 
-test result: FAILED. 220 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.02s
+Verified: re-ran the identical Condition B load once more with the fix in place - all four variants passed; three of them showed the same lock wait cross 60s (logged via the test harness's own "has been running for over 60 seconds" notice) and still succeeded at the new 180s bound.
 
-error: test failed, to rerun pass `-p steg-server --lib`
-full output: .quiet/test-steg-server.log
-error: recipe `check-packages` failed with exit code 101
-```
+Limit stated plainly (AC #3's own spirit, even though the fallback itself was not needed): this experiment is capped at two sibling load processes, below the sighted severity ("three worktrees building"), and `STEG_CHECK_SLOTS`'s own default (2) may not have been active on every sighted worktree if any predated TASK-1.132 - a null result would not have ruled out the mechanism at higher concurrency, though this experiment was not a null result.
 
-Check FAILED: `just check` exited 101 at 2026-11-20T17:39:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at e4b4c98ad1c0, last 40 of 78 lines:
+## Checks recorded (via `asdlc record-check`)
+- Baseline `just check` (twice, before any fix): both FAILED, both the login_env flake, organically.
+- `cargo test -p steg-server --lib login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild -- --exact`: forced failing (old 1s bound), then passing (final 5s bound), both at the final head.
+- `cargo test -p steg-server --lib login_env::`: passing (module-level, all 13 tests).
+- `just check-packages`: passing (all packages, all four `steg-server` feature variants).
+- `just check` (full, before and after the rebase onto `origin/main`): both passing.
 
-```text
-test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
-test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
-test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
-test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
-test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
-test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
-kill: 42149: No such process
-test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
-test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
-test outbound::tests::enqueue_control_and_wait_until_written_does_not_return_until_write_all_itself_returns ... ok
-test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
-test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
-test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
-test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
-test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
-test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
-test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
-test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
-kill: 42069: No such process
-test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
-test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
-test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
-test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
-
-failures:
-
----- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
-
-thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (67494342) panicked at crates/server/src/login_env.rs:675:13:
-the backgrounded grandchild's own pid file never appeared
-
-
-failures:
-    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
-
-test result: FAILED. 220 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.00s
-
-error: test failed, to rerun pass `-p steg-server --lib`
-full output: .quiet/test-steg-server.log
-error: recipe `check-packages` failed with exit code 101
-```
-
-Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --lib login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild -- --exact` exited 101 at 2026-11-20T17:43:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 2be3c4430749 with uncommitted changes:
-
-```text
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
-     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
-
-running 1 test
-test login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild ... FAILED
-
-failures:
-
----- login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild stdout ----
-
-thread 'login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild' (67514142) panicked at crates/server/src/login_env.rs:766:13:
-the backgrounded grandchild's own pid file never appeared
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-
-
-failures:
-    login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild
-
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 221 filtered out; finished in 30.01s
-
-error: test failed, to rerun pass `-p steg-server --lib`
-```
-
-Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --lib login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild -- --exact` exited 0 at 2026-11-20T17:43:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 2be3c4430749:
-
-```text
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
-     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
-
-running 1 test
-kill: 46247: No such process
-test login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 221 filtered out; finished in 5.02s
-```
-
-Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --lib login_env::` exited 0 at 2026-11-20T17:43:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 2be3c4430749:
-
-```text
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
-     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
-
-running 13 tests
-test login_env::tests::parse_env_dump_splits_a_value_containing_its_own_equals_sign_on_the_first_one_only ... ok
-test login_env::tests::fallback_env_omits_user_and_logname_when_the_identity_itself_has_none ... ok
-test login_env::tests::parse_env_dump_skips_a_malformed_entry_with_no_equals_sign ... ok
-test login_env::tests::fallback_env_is_exactly_the_named_constant_set ... ok
-test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_does_not_exist ... ok
-test login_env::tests::resolve_login_identity_never_panics_and_returns_a_home_a_shell_and_a_user_that_exist ... ok
-test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... ok
-test login_env::tests::capture_login_environment_sources_the_login_profile_not_the_interactive_one ... ok
-test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
-test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
-test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
-kill: 46545: No such process
-kill: 46546: No such process
-test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
-test login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild ... ok
-
-test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 209 filtered out; finished in 5.02s
-```
-
-Check passed: `just check-packages` exited 0 at 2026-11-20T18:07:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 2be3c4430749 with uncommitted changes:
-
-```text
-ok      build (steg-sdk) (0.1s)
-ok      test (steg-sdk) (0.3s)
-ok      test (steg-sdk, local-socket) (0.5s)
-ok      build (steg-kernel) (0.1s)
-ok      test (steg-kernel) (0.3s)
-ok      build (steg-server) (0.1s)
-ok      test (steg-server) (65.0s)
-ok      test (steg-server, race-fixture) (66.8s)
-ok      test (steg-server, pty-race-fixture) (102.1s)
-ok      test (steg-server, accept-backoff-fixture) (87.0s)
-ok      build (steg) (2.7s)
-ok      test (steg) (4.0s)
-ok      test (steg, fixtures) (8.1s)
-ok      build (steg-ui) (20.4s)
-ok      test (steg-ui) (1.2s)
-ok      build (steg-app) (2.6s)
-ok      test (steg-app) (2.1s)
-```
-
-Check FAILED: `just check` exited 1 at 2026-11-20T18:07:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 2be3c4430749 with uncommitted changes:
-
-```text
-FAILED  format check (exit 1, 0.3s)
-Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143/crates/server/src/login_env.rs:729:
-     /// sufficient (passes at 5s) by construction, not by chance.
-     #[test]
-     fn capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild()
-[31m-     {
-(B[m[32m+    {
-(B[m         let grandchild_pid_file = std::env::temp_dir().join(format!(
-             "steg-grandchild-pid-{}-{}",
-             std::process::id(),
-full output: .quiet/format-check.log
-error: recipe `check-fmt` failed on line 163 with exit code 1
-```
-
-Check passed: `just check` exited 0 at 2026-11-20T18:14:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 2be3c4430749 with uncommitted changes:
-
-```text
-ok      format check (0.3s)
-ok      lint (1.6s)
-ok      boundaries (0.1s)
-ok      foundations (0.1s)
-ok      foundations public surface (0.0s)
-ok      design pages (0.1s)
-ok      licences (0.7s)
-ok      tests (-p steg -p steg-server) (64.2s)
-ok      build (steg-sdk) (0.1s)
-ok      test (steg-sdk) (0.2s)
-ok      test (steg-sdk, local-socket) (0.4s)
-ok      build (steg-kernel) (0.1s)
-ok      test (steg-kernel) (0.2s)
-ok      build (steg-server) (0.5s)
-ok      test (steg-server) (63.3s)
-ok      test (steg-server, race-fixture) (66.9s)
-ok      test (steg-server, pty-race-fixture) (71.7s)
-ok      test (steg-server, accept-backoff-fixture) (71.6s)
-ok      build (steg) (0.1s)
-ok      test (steg) (1.8s)
-ok      test (steg, fixtures) (10.2s)
-ok      build (steg-ui) (0.3s)
-ok      test (steg-ui) (0.4s)
-ok      build (steg-app) (0.3s)
-ok      test (steg-app) (0.7s)
-ok      tool tests (41.6s)
-ok      architecture (0.7s)
-ok      recipe names (0.2s)
-ok      ui levels (0.1s)
-ok      ui colours (0.1s)
-```
-
-Check passed: `just check` exited 0 at 2026-11-20T18:21:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 97005f3c4faf:
-
-```text
-ok      format check (0.3s)
-ok      lint (1.8s)
-ok      boundaries (0.1s)
-ok      foundations (0.1s)
-ok      foundations public surface (0.0s)
-ok      design pages (0.0s)
-ok      licences (0.6s)
-ok      tests (-p steg -p steg-server) (69.2s)
-ok      build (steg-sdk) (0.1s)
-ok      test (steg-sdk) (0.3s)
-ok      test (steg-sdk, local-socket) (0.4s)
-ok      build (steg-kernel) (0.1s)
-ok      test (steg-kernel) (0.2s)
-ok      build (steg-server) (0.5s)
-ok      test (steg-server) (67.5s)
-ok      test (steg-server, race-fixture) (68.0s)
-ok      test (steg-server, pty-race-fixture) (75.1s)
-ok      test (steg-server, accept-backoff-fixture) (66.1s)
-ok      build (steg) (0.1s)
-ok      test (steg) (1.8s)
-ok      test (steg, fixtures) (11.3s)
-ok      build (steg-ui) (0.3s)
-ok      test (steg-ui) (0.4s)
-ok      build (steg-app) (0.3s)
-ok      test (steg-app) (0.8s)
-ok      tool tests (40.4s)
-ok      architecture (0.7s)
-ok      recipe names (0.0s)
-ok      ui levels (0.1s)
-ok      ui colours (0.0s)
-```
+PR #88: https://github.com/bruk-io/steg/pull/88
 <!-- SECTION:NOTES:END -->
 
 ## Comments

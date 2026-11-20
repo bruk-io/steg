@@ -103,3 +103,9 @@ RISK
 
 The only genuinely new, cross-cutting state in the server is `pending_waits` itself - no existing precedent beyond `RunGate`'s own narrower, one-gate-per-run shape. Mitigated by keeping every resolution site a plain, already-lock-holding function call (no second lock, no new thread except the one, bounded, early-wakeable timer per timed wait) and by the same real-pty/real-socket proof style this crate's own `attach.rs`/`pane_send.rs`/`pane_capture.rs` already established. The sdk change (open question #1) is the one part of this task that is really an API-description change wearing a server task's name, same as TASK-1.90 flagged for `ProgramNotRunning` - worth the engineer's eyes before any of it lands.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-2 (sections 5, 6, 8) by @bruk.o on 2026-11-20: ok. It builds only pane.wait; exit 0 with the program's own code in the result and status 1 on timeout match section 6; a pane closed mid-wait answers NoSuchTarget, already in the method's errors; the wait is woken by the exit, the close or the disconnect, with one early-wakeable timer per timed wait and no polling. Three points wait on the engineer: a new ErrorCode::TimedOut (status 1) in the API description; a zero or negative --timeout; inline JSON or a typed result. Orchestrator's recommendations: add TimedOut; zero is an immediate timeout and a negative value is BadRequest (status 2) rather than clamped; typed struct.
+<!-- SECTION:NOTES:END -->

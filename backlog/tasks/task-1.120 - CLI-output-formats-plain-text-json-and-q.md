@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T17:29:00Z'
+updated_date: '2026-11-20T17:32:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -193,6 +193,51 @@ test cli::tree::tests::json_is_read_from_the_leaf_subcommand ... ok
 test cli::tree::tests::quiet_is_read_from_the_leaf_subcommand_either_spelling ... ok
 
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --lib` exited 0 at 2026-11-20T17:32:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 22e089e3ff4c with uncommitted changes, last 40 of 42 lines:
+
+```text
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 35 tests
+test cli::output::tests::nothing_prints_nothing_in_every_combination ... ok
+test cli::output::tests::record_quiet_with_json_prints_fields_zero_as_json ... ok
+test cli::output::tests::identifier_quiet_is_the_same_as_without_quiet_either_way ... ok
+test cli::output::tests::record_quiet_prints_fields_zero_alone ... ok
+test cli::output::tests::nested_plain_and_json_are_identical_bytes ... ok
+test cli::output::tests::record_plain_is_one_tab_separated_line_in_fields_order ... ok
+test cli::output::tests::identifier_json_prints_the_object_unchanged ... ok
+test cli::output::tests::nested_quiet_makes_no_difference ... ok
+test cli::output::tests::records_json_prints_the_array_unchanged ... ok
+test cli::output::tests::identifier_with_no_id_field_is_a_shape_error_not_a_panic ... ok
+test cli::output::tests::record_json_prints_the_object_unchanged ... ok
+test cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json ... ok
+test cli::output::tests::record_quiet_with_no_id_field_prints_the_first_declared_field ... ok
+test cli::output::tests::identifier_plain_prints_the_bare_id_alone ... ok
+test cli::exit::tests::every_connect_error_maps_to_4 ... ok
+test cli::output::tests::record_with_no_declared_fields_prints_nothing_in_every_combination ... ok
+test cli::output::tests::records_quiet_with_json_is_one_json_array_of_fields_zero ... ok
+test cli::output::tests::records_with_a_non_array_reply_is_a_shape_error_not_a_panic ... ok
+test cli::output::tests::records_quiet_prints_fields_zero_per_line ... ok
+test cli::output::tests::a_null_field_renders_as_an_empty_column_never_a_dropped_one ... ok
+test cli::output::tests::records_with_a_non_object_element_is_a_shape_error_not_a_panic ... ok
+test cli::output::tests::record_with_a_non_object_reply_is_a_shape_error_not_a_panic ... ok
+test cli::output::tests::records_plain_is_one_line_per_record_nothing_for_zero ... ok
+test cli::output::tests::records_with_no_declared_fields_prints_nothing_in_every_combination ... ok
+test cli::output::tests::text_json_prints_the_string_value_unchanged ... ok
+test cli::output::tests::text_plain_is_the_string_unaltered ... ok
+test cli::output::tests::text_quiet_is_the_same_as_without_quiet_either_way ... ok
+test cli::output::tests::text_with_a_non_string_reply_is_a_shape_error_not_a_panic ... ok
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... ok
+test cli::exit::tests::api_error_status_follows_the_table_not_a_parallel_match ... ok
+test cli::tree::tests::autostart_defaults_to_true_with_neither_flag_given ... ok
+test cli::tree::tests::autostart_given_after_no_autostart_wins ... ok
+test cli::tree::tests::json_is_read_from_the_leaf_subcommand ... ok
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
+test cli::tree::tests::quiet_is_read_from_the_leaf_subcommand_either_spelling ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

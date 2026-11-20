@@ -225,12 +225,13 @@ build: zig-deps-seeded
     if [ -n "{{zig}}" ]; then export ZIG="{{zig}}"; fi
     {{quiet}} "build" -- cargo build --workspace
 
-# run the app
+# run the app - builds the steg binary the app autostarts from resolve_binary()
 run: zig-deps-seeded
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "{{rust}}" = no ]; then echo "skip    run: no Rust workspace yet"; exit 0; fi
     if [ -n "{{zig}}" ]; then export ZIG="{{zig}}"; fi
+    cargo build --package steg
     cargo run --package steg-app
 
 # open the gallery for a person to look at (doc-17 R124); STEG_GALLERY_THEME=dark opens it

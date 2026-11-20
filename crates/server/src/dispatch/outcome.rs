@@ -9,8 +9,8 @@
 
 use serde_json::Value;
 use steg_sdk::{
-    Description, Method, PaneId, PaneRecord, ServerRecord, SessionId, SessionRecord, SettingRecord,
-    TabId, TabRecord,
+    ClientRecord, Description, Method, PaneId, PaneRecord, ServerRecord, SessionId, SessionRecord,
+    SettingRecord, TabId, TabRecord,
 };
 
 /// A served method's typed result, before it becomes the `Value` a
@@ -49,6 +49,10 @@ pub enum Outcome {
     TabRecords(Vec<TabRecord>),
     /// The server's own state (`server.show`; TASK-1.88).
     ServerRecord(ServerRecord),
+    /// One client, in full (`client.show`; TASK-1.141).
+    ClientRecord(ClientRecord),
+    /// Every client connected to the server (`client.list`; TASK-1.141).
+    ClientRecords(Vec<ClientRecord>),
     /// `pane.close`: what `Tree::close_pane` actually closed (TASK-1.46) -
     /// serialises the same as `Nothing` (doc-2's own `Returns::Nothing`
     /// contract for this method is unchanged; this variant exists so
@@ -128,6 +132,12 @@ impl Outcome {
             }
             Self::ServerRecord(record) => {
                 serde_json::to_value(record).expect("a ServerRecord always serialises")
+            }
+            Self::ClientRecord(record) => {
+                serde_json::to_value(record).expect("a ClientRecord always serialises")
+            }
+            Self::ClientRecords(records) => {
+                serde_json::to_value(records).expect("a Vec<ClientRecord> always serialises")
             }
             Self::PaneClosed(_) | Self::TabClosed(_) | Self::PaneMoved(_) => Value::Null,
         }
@@ -269,6 +279,34 @@ mod tests {
         let records = vec![tab_record_example()];
 
         let value = Outcome::TabRecords(records.clone()).into_value();
+
+        assert_eq!(value, serde_json::to_value(records).unwrap());
+    }
+
+    fn client_record_example() -> steg_sdk::ClientRecord {
+        steg_sdk::ClientRecord {
+            id: steg_sdk::ClientId::from_raw(1),
+            kind: steg_sdk::ClientKind::App,
+            label: None,
+            sessions: vec![SessionId::from_raw(1)],
+            last_active: None,
+        }
+    }
+
+    #[test]
+    fn a_client_record_serialises_to_its_own_typed_shape() {
+        let record = client_record_example();
+
+        let value = Outcome::ClientRecord(record.clone()).into_value();
+
+        assert_eq!(value, serde_json::to_value(record).unwrap());
+    }
+
+    #[test]
+    fn a_vec_of_client_records_serialises_to_its_own_typed_shape() {
+        let records = vec![client_record_example()];
+
+        let value = Outcome::ClientRecords(records.clone()).into_value();
 
         assert_eq!(value, serde_json::to_value(records).unwrap());
     }

@@ -13,6 +13,7 @@
 )]
 
 mod api;
+mod client;
 mod cross_cutting;
 mod fixtures;
 mod pane;

@@ -63,9 +63,9 @@ fn minimal_value(kind: &steg_sdk::ValueKind) -> Value {
 }
 
 /// doc-2's table against every arm (not the sdk's own method-set test,
-/// re-run here for good measure): for each of this task's 19
-/// `NotImplementedYet` scenarios, dispatch answers that code, names what
-/// it waits on, and creates nothing.
+/// re-run here for good measure): for each `NotImplementedYet` scenario
+/// below, dispatch answers that code, names what it waits on, and
+/// creates nothing.
 /// One `NotImplementedYet` scenario: the method called, its extra
 /// parameters beyond a bare target, and a substring its error message
 /// must name.
@@ -85,8 +85,9 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
             vec![("direction", json!("right")), ("by", json!(1))],
             "Tab::size",
         ),
-        ("pane.capture", vec![], "not built yet"),
-        ("pane.wait", vec![("for", json!("exit"))], "not built yet"),
+        // `pane.capture` is a real `dispatch` arm now (a sibling task) -
+        // not in this list any more.
+        ("pane.wait", vec![("for", json!("exit"))], "TASK-1.140"),
         // `server.show`/`server.start` are real `dispatch` arms now
         // (TASK-1.88) - not in this list any more. `server.stop` stays:
         // it is intercepted in `connection.rs`, never reached through
@@ -94,12 +95,6 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
         // `pane.detach`/`tab.declare-size` are not in this list either.
         ("server.stop", vec![], "connection.rs's own interception"),
         ("event.watch", vec![], "Runtime::subscribe"),
-        ("client.list", vec![], "client model"),
-        (
-            "client.show",
-            vec![("target", json!("placeholder"))],
-            "client model",
-        ),
     ];
 
     for (method, extra, expected_substring) in cases {

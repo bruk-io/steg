@@ -3,10 +3,14 @@
 use std::time::Instant;
 
 use steg_kernel::{Moment, SizeChanged};
-use steg_sdk::{ApiError, ClientId, Description, PaneId, Request, Response, Size, validate};
+use steg_sdk::{
+    ApiError, ClientId, Description, ErrorCode, PaneId, Request, Response, Size, validate,
+};
 
+use super::attach::map_pane_error;
 use super::{Runtime, State};
 use crate::dispatch::{self, Context};
+use crate::pane::CAPTURE_TIMEOUT;
 
 impl Runtime {
     /// `pane.send` (TASK-1.90, AC #1): validates and resolves the target
@@ -92,6 +96,73 @@ fn send_bytes(request: &Request) -> Option<Vec<u8>> {
         return steg_sdk::named_key_bytes(key, false);
     }
     None
+}
+
+impl Runtime {
+    /// `pane.capture` (TASK-1.139, AC #1/#2): validates and resolves the
+    /// target through `dispatch::dispatch_raw`'s own pure, I/O-free arm
+    /// (`dispatch::pane::capture` - target resolution only, deliberately
+    /// no "must be running" refusal), clones the target's own
+    /// `CaptureSender` under the same lock, then releases the lock before
+    /// reading the terminal on the pane's own worker thread - the same
+    /// hand-off shape `Runtime::attach_pane` already uses (resolve and
+    /// clone a sender all under one lock acquisition, then call the
+    /// worker unlocked), but bounded (`CAPTURE_TIMEOUT`), where attach's
+    /// own wait is deliberately not: attach must answer with the pane's
+    /// real screen, with no stream to recover staleness on afterward,
+    /// where capture has no such constraint and AC #2 asks for a bound by
+    /// name, so a pane whose worker is busy delays only its own capture.
+    pub(super) fn capture_and_dispatch(
+        &self,
+        description: &Description,
+        context: &Context,
+        request: &Request,
+    ) -> Response {
+        let (capture_sender, scrollback) = {
+            let mut state = self.lock();
+            let outcome = {
+                let state: &mut State = &mut state;
+                let now = Moment::new(Instant::now().duration_since(state.clock_origin));
+                dispatch::dispatch_raw(
+                    &mut state.tree,
+                    &mut state.settings,
+                    description,
+                    context,
+                    request,
+                    now,
+                )
+            };
+            if let Err(error) = outcome {
+                return Response::Error(error);
+            }
+
+            // Re-resolves the same target `dispatch_raw` just validated,
+            // still under the one lock it used - the same reasoning
+            // `send_and_dispatch` gives.
+            let Ok(pane) = dispatch::target_pane(&state.tree, context, request) else {
+                // Never in practice: see `send_and_dispatch`'s own
+                // identical comment.
+                return Response::Ok(serde_json::Value::Null);
+            };
+            let Some(handle) = state.panes.get(&pane) else {
+                // Every pane in the tree has a worker, started in the
+                // same step it was minted (the same reasoning `attach_
+                // pane`'s own doc gives for the identical defensive
+                // check) - never in practice, not a case doc-2 names.
+                return Response::Error(ApiError::new(
+                    ErrorCode::NoSuchTarget,
+                    "this pane has no running worker to capture",
+                ));
+            };
+            let scrollback = dispatch::param_bool(request, "scrollback").unwrap_or(false);
+            (handle.capture_sender(), scrollback)
+        };
+
+        match capture_sender.capture(scrollback, CAPTURE_TIMEOUT) {
+            Ok(text) => Response::Ok(serde_json::Value::String(text)),
+            Err(error) => Response::Error(map_pane_error(error)),
+        }
+    }
 }
 
 impl Runtime {
@@ -585,6 +656,151 @@ mod tests {
             screen.rows.len(),
             1,
             "the terminal was cropped, not refused"
+        );
+    }
+
+    /// AC #2: `capture_and_dispatch` releases `Runtime`'s state lock
+    /// before waiting on the pane's own worker, so a pane whose worker is
+    /// busy delays only its own capture, never an unrelated request on a
+    /// healthy pane - modelled directly on `runtime::attach::tests::
+    /// attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_
+    /// unrelated_requests_lock` (that test's own doc has the full
+    /// reasoning for the flood size: 70MB x 15 sends, the number that
+    /// file's own worker found necessary - a smaller flood let the
+    /// worker catch up before the real check ran, passing for the wrong
+    /// reason, so this reuses the already-measured number rather than
+    /// re-guessing it).
+    ///
+    /// Negative control, run by hand against this exact test (not
+    /// committed as a toggle): editing `capture_and_dispatch` to call
+    /// `CaptureSender::capture` while still holding `state`'s lock (never
+    /// releasing it first) made the assertion below fail (the unrelated
+    /// `pane.capture` on the healthy pane did not answer within its
+    /// bound) - recorded on the task; reverted before this test was
+    /// committed.
+    #[test]
+    fn capture_and_dispatch_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock() {
+        use std::sync::Arc;
+        use std::thread;
+
+        use steg_sdk::Request;
+
+        let runtime = Arc::new(Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        ));
+        let description = steg_sdk::description();
+        let context = crate::dispatch::Context::none();
+
+        let busy_session = match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "exec sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let busy_session_id: steg_sdk::SessionId =
+            busy_session["id"].as_str().unwrap().parse().unwrap();
+
+        let other_session = match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "exec sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let other_target = {
+            let state = runtime.state.lock().unwrap();
+            let other_session_id: steg_sdk::SessionId =
+                other_session["id"].as_str().unwrap().parse().unwrap();
+            let tab = &state.tree.session(other_session_id).unwrap().tabs()[0];
+            let pane = tab.panes()[0].id();
+            format!("{other_session_id}/{}/{pane}", tab.id())
+        };
+
+        let (busy_pane, busy_target) = {
+            let state = runtime.state.lock().unwrap();
+            let tab = &state.tree.session(busy_session_id).unwrap().tabs()[0];
+            let pane = tab.panes()[0].id();
+            (pane, format!("{busy_session_id}/{}/{pane}", tab.id()))
+        };
+
+        // Wedges the busy pane's own worker inside a real `write_all`
+        // (see this test's own doc for the flood size's own provenance).
+        {
+            let state = runtime.state.lock().unwrap();
+            let handle = state.panes.get(&busy_pane).unwrap();
+            let chunk = vec![b'x'; 70 * 1024 * 1024];
+            for _ in 0..15 {
+                let _ = handle.send_input(chunk.clone());
+            }
+        }
+
+        // The wedged pane's own capture, on its own thread - never
+        // joined (there is no bound on how long a program that never
+        // reads its own stdin keeps a `write_all` blocked), abandoned
+        // once this test's own process ends.
+        let stuck_runtime = Arc::clone(&runtime);
+        let stuck_description = description.clone();
+        let stuck_context = context;
+        let stuck_request = Request {
+            method: "pane.capture".to_string(),
+            params: serde_json::json!({"target": busy_target})
+                .as_object()
+                .unwrap()
+                .clone(),
+        };
+        thread::spawn(move || {
+            let _ = stuck_runtime.handle(&stuck_description, &stuck_context, &stuck_request);
+        });
+
+        // The real check: an unrelated `pane.capture`, on the healthy
+        // pane, run on its own thread so a real bug (the lock held
+        // across the wait) hangs this thread, not the test's own,
+        // answered through a bounded `recv_timeout`.
+        let capture_request = Request {
+            method: "pane.capture".to_string(),
+            params: serde_json::json!({"target": other_target})
+                .as_object()
+                .unwrap()
+                .clone(),
+        };
+        let (capture_tx, capture_rx) = mpsc::channel();
+        let capture_runtime = Arc::clone(&runtime);
+        let capture_description = description.clone();
+        let capture_context = context;
+        thread::spawn(move || {
+            let response =
+                capture_runtime.handle(&capture_description, &capture_context, &capture_request);
+            let _ = capture_tx.send(response);
+        });
+        let response = capture_rx
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap_or_else(|_| {
+                panic!(
+                    "an unrelated pane.capture must answer within a bound even while a \
+                     different pane's own worker is stuck on a real write_all"
+                )
+            });
+        assert!(
+            matches!(response, steg_sdk::Response::Ok(_)),
+            "{response:?}"
         );
     }
 }

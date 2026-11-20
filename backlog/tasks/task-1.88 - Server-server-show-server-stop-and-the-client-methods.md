@@ -1,18 +1,22 @@
 ---
 id: TASK-1.88
 title: 'Server: server show, server stop, and the client methods'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T22:57:00Z'
+updated_date: '2026-11-18T23:37:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.45
   - TASK-1.77
   - TASK-1.78
+references:
+  - task-1.88-server-server-show-server-stop-and-the
+  - https://github.com/bruk-io/steg/pull/82
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -20,6 +24,10 @@ asdlc_branch: task-1.88-server-server-show-server-stop-and-the
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c42e82b251d6'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -529,6 +537,108 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T23:03:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.88 on task-1.88-server-server-show-server-stop-and-the at 285d5adf822b, last 40 of 80 lines:
+
+```text
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... FAILED
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... FAILED
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane has been running for over 60 seconds
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+
+failures:
+
+---- detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size stdout ----
+
+thread 'detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size' (63185864) panicked at crates/server/tests/attach.rs:464:17:
+no update arrived on stream 1 within 5s
+
+---- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream stdout ----
+
+thread 'a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream' (63185851) panicked at crates/server/tests/attach.rs:464:17:
+no update arrived on stream 1 within 5s
+
+
+failures:
+    a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream
+    detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size
+
+test result: FAILED. 29 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 60.27s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/test-steg-server-pty-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T23:14:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.88 on task-1.88-server-server-show-server-stop-and-the at 285d5adf822b, last 40 of 41 lines:
+
+```text
+wait    lint (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+wait    tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (84.3s)
+wait    build (steg-sdk) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+wait    build (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      build (steg-server) (0.1s)
+wait    test (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server) (88.2s)
+wait    test (steg-server, race-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, race-fixture) (59.7s)
+wait    test (steg-server, pty-race-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, pty-race-fixture) (80.7s)
+wait    test (steg-server, accept-backoff-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, accept-backoff-fixture) (59.8s)
+wait    build (steg) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      build (steg) (1.4s)
+wait    test (steg) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg) (4.5s)
+wait    test (steg, fixtures) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg, fixtures) (10.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (1.7s)
+ok      tool tests (45.5s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Built exactly the approved (server-only, rewritten) plan.
+
+Files: crates/kernel/src/moment.rs (Moment::since_origin); crates/sdk/src/record.rs/lib.rs, crates/server/src/dispatch/outcome.rs (ServerRecord + its Outcome variant); new crates/server/src/dispatch/server.rs (server.show/server.start as plain dispatch_raw arms, no interception); crates/server/src/dispatch/mod.rs (HANDLED guard added, server.stop narrowed into INTERCEPTED_BEFORE_DISPATCH with its own refusal arm); crates/server/src/config.rs (ServerConfig.force_grace); crates/server/src/listen.rs (reads config.force_grace; calls runtime.set_stopper unconditionally, unlike idle wiring); crates/server/src/runtime/mod.rs + lifecycle.rs + testing.rs (State.stopper, set_stopper/session_count/stopper()); crates/server/src/outbound.rs (ControlItem, Outbound::enqueue_control_and_wait_until_written); crates/server/src/connection.rs (server.stop's own interception: refuse-check, flush-then-stop, returns false to end the connection).
+
+Tests, each with a recorded failing-then-passing control: crates/server/tests/dispatch/server.rs (pure show/start; failed against the stub arm, passes against the real one); crates/server/src/outbound.rs's new tests including a StepWriter-based deterministic ordering proof (negative control: firing the ack before write_all makes the ordering assertion fail exactly as expected, reverted); crates/server/src/connection.rs's own refusal/success unit tests; crates/server/tests/server_stop.rs (socket-level: refusal while a session exists and the server stays up; the flushed reply then a real stop, socket removed, lock releasable, a second client finds no server; --force ending a real running program); crates/steg/tests/server_show_stop.rs (one real-binary end-to-end case). Also attempted a socket-level negative control for the flush ordering (bare enqueue + immediate stop, 60 trials) - found 0 failures, honestly reported as not reproducing the race reliably on this machine (write() to a local socket resolves the race almost every time); the StepWriter-based test is the one that actually demonstrates the mechanism is load-bearing.
+
+Checks: cargo test -p steg-sdk -p steg-kernel; cargo test -p steg-server --lib (214 tests) and --test dispatch (82) and --test server_stop; cargo test -p steg --test server_show_stop; just check green at the final head (285d5adf), recorded. Two just check runs hit unrelated flakes under this machine's concurrent load - login_env.rs's backgrounded-grandchild test, and attach.rs's pty-race suite - both confirmed via git diff against origin/main to touch no file this branch changes, each recorded failing then green on a single retry, per policy. CI green (SUCCESS, 13m32s) at the exact PR head.
+
+Departures from the plan: none in substance. Two small corrections made during the lint pass, both disclosed in their own commit: a doc-comment in crates/steg/tests/server_show_stop.rs tripped clippy::doc_lazy_continuation (a line starting with "-" read as an unindented list continuation) and was reworded; a comment in connection.rs's own server.stop arm pointed at a non-existent "mod.rs's own full doc" for the ordered shutdown sequence and was corrected to point at listen::run's own doc, which actually documents it.
+
+Not built here, per the plan: client.list/client.show (now a separate draft task carrying that design) and signal handling for criterion #3 (left as a question for the engineer, with the probed/documented default of leaving SIGINT/SIGTERM unhandled for M1, and the sigwait-thread alternative named with its real cost - no new dependency, no unsafe).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -540,6 +650,42 @@ created: 2026-11-18T22:17:00Z
 ---
 
 Plan approved by @bruk (c42e82b251d6, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T23:29:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.88: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T23:37:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+Verdict: clean (0 Important, 2 Nit). Reviewed origin/task-1.88-server-server-show-server-stop-and-the at 285d5adf822b in a detached worktree against origin/main.
+
+Read every changed file in full (18 files, 1494/41 lines). Matches the approved, rewritten (server-noun-only) plan file-by-file and in order of work: Moment::since_origin, ServerRecord/Outcome variant, dispatch/server.rs's plain show/start arms, mod.rs's HANDLED guard and narrowed catch-all for server.stop, config.rs's force_grace, listen.rs's unconditional set_stopper, runtime State/lifecycle's set_stopper/session_count/stopper(), outbound.rs's ControlItem/enqueue_control_and_wait_until_written flush primitive, connection.rs's server.stop interception, and the three test layers (dispatch/server.rs, server_stop.rs socket-level, steg/tests/server_show_stop.rs end-to-end CLI). cross_cutting.rs and dispatch/mod.rs's not-yet lists touch only server rows; client.list/client.show rows (TASK-1.141's parallel task) are untouched, confirmed by grep.
+
+Repeated one control myself: edited outbound.rs's enqueue_control_and_wait_until_written to stop waiting on the ack (`let _ = sent_rx;` instead of `sent_rx.recv_timeout(bound)`), re-ran `cargo test -p steg-server --lib outbound::tests::enqueue_control_and_wait_until_written_does_not_return_until_write_all_itself_returns`: it failed exactly as the mechanism's claim predicts (assertion "the wait must not return while run_writer is still inside write_all" - got Ok(Ok(())) instead of the expected Timeout). Reverted; file is clean (confirmed via git diff). This is the one test standing behind AC #2's flush-before-stop ordering, and it is genuinely load-bearing.
+
+Checked `just check` green at the final head (285d5adf, 23:14:12 run) and PR CI green at the same head. The one `just check` failure recorded (23:03:51, attach.rs pty-race and a different attach.rs size test) is in a file this branch's diff never touches (`git diff --stat origin/main...HEAD -- crates/server/tests/attach.rs crates/server/tests/login_env.rs` is empty) - an unrelated flake under this machine's concurrent load, as the notes say, confirmed independently.
+
+Findings:
+1. [Evidence, Nit] crates/server/tests/server_stop.rs - the plan's own section J named a specific negative control for AC #2's proof table: a scratch-reverted edit using plain `enqueue_control` + immediate `stopper.stop()` (skipping the wait), expected to show the reply lost/truncated under this file's own load. The notes disclose this was attempted (60 trials) and found 0 failures - honestly reported as not reproducing the race reliably on this machine, substituting the StepWriter-based unit test's own negative control instead. That substitute is real and I reproduced it myself (above), so the flush mechanism itself is controlled - but the specific control the plan named for this file is not delivered, and a reader of the plan's proof table would not otherwise know that.
+2. [Compliance, Nit] doc-2 section 9's prose ("close and server stop refuse while programs are still running") still disagrees with section 8's table and with this task's own criterion 2 ("any session exists"). The code correctly follows the criterion/section 8 (session_count() > 0, not any_pane_running), and the task already raises this discrepancy as a question for Bruk to reword section 9 - not a code defect, just flagging that the spec text itself is still inconsistent until that edit lands.
+
+No Important findings: AC #1-#4 each have a test reaching the clause they claim (uptime pass-through, session/client counts, the refusal-vs-session_count distinction, server.start's always-Ok(null), the completeness test routing all three methods off NOT_YET_NOUNS). Signals (AC #3) are left unhandled for M1 per the approved plan/digest c42e82b251d6 - the plan's own hedge on what a signal leaves behind for a running pane is something the engineer approved as written, not re-litigated here.
+
+--plan-matched no: files and order of work match throughout, but the plan's own section J names a specific negative control that was not delivered as specified (see finding 1) - a real departure from what the plan's proof table promised, even though the notes explain it honestly.
 
 ---
 <!-- COMMENTS:END -->

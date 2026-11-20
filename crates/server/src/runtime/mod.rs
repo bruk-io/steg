@@ -280,6 +280,7 @@ impl Runtime {
             }
             "pane.move" => self.move_and_dispatch(description, context, &resolved),
             "pane.send" => self.send_and_dispatch(description, context, &resolved),
+            "pane.capture" => self.capture_and_dispatch(description, context, &resolved),
             _ => {
                 let mut guard = self.lock();
                 // One explicit deref first: `&mut guard.tree`/`&mut

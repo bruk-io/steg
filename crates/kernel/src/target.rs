@@ -22,8 +22,9 @@
 //! pane the kernel tracks itself — so this module has no dependency on
 //! focus (TASK-1.37).
 
-use steg_sdk::{PaneId, SessionId, TabId};
+use steg_sdk::{ClientId, PaneId, SessionId, TabId};
 
+use crate::client::Client;
 use crate::error::Error;
 use crate::pane::Pane;
 use crate::session::Session;
@@ -185,6 +186,23 @@ impl Tree {
         to_result(
             part,
             resolve(part, self.sessions(), Session::id, Session::label),
+        )
+    }
+
+    /// Resolves a client from its own part of a target (doc-15 R10;
+    /// decision-5: "A client is named like anything else: by identifier,
+    /// label, position or identifier suffix"). Mirrors
+    /// [`Tree::resolve_session`] exactly - the same generic match, over
+    /// [`Tree::clients`] instead of [`Tree::sessions`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::TargetNotFound`] if `part` matches no client, or
+    /// [`Error::TargetAmbiguous`] if it matches more than one.
+    pub fn resolve_client(&self, part: &str) -> Result<ClientId, Error> {
+        to_result(
+            part,
+            resolve(part, self.clients(), Client::id, Client::label),
         )
     }
 
@@ -597,6 +615,95 @@ mod tests {
                     super::Candidate {
                         id: tree.sessions()[1].id().to_string(),
                         label: Some("play".to_string()),
+                    },
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn tree_resolve_client_resolves_by_full_id() {
+        use steg_sdk::ClientKind;
+
+        let mut tree = Tree::new();
+        let first = tree.connect_client(ClientKind::App, None);
+        let _second = tree.connect_client(ClientKind::Cli, None);
+
+        assert_eq!(tree.resolve_client(&first.to_string()).unwrap(), first);
+    }
+
+    #[test]
+    fn tree_resolve_client_resolves_by_label_ignoring_case() {
+        use steg_sdk::ClientKind;
+
+        let mut tree = Tree::new();
+        let labelled = tree.connect_client(ClientKind::App, Some("work".to_string()));
+        let _other = tree.connect_client(ClientKind::Cli, None);
+
+        assert_eq!(tree.resolve_client("WORK").unwrap(), labelled);
+    }
+
+    #[test]
+    fn tree_resolve_client_resolves_by_one_based_position() {
+        use steg_sdk::ClientKind;
+
+        let mut tree = Tree::new();
+        let first = tree.connect_client(ClientKind::App, None);
+        let second = tree.connect_client(ClientKind::Cli, None);
+
+        assert_eq!(tree.resolve_client("1").unwrap(), first);
+        assert_eq!(tree.resolve_client("2").unwrap(), second);
+    }
+
+    #[test]
+    fn tree_resolve_client_resolves_by_identifier_suffix() {
+        use steg_sdk::ClientKind;
+
+        let mut tree = Tree::new();
+        let first = tree.connect_client(ClientKind::App, None);
+        let _second = tree.connect_client(ClientKind::Cli, None);
+        let suffix = &first.to_string()[4..];
+
+        assert_eq!(tree.resolve_client(suffix).unwrap(), first);
+    }
+
+    #[test]
+    fn tree_resolve_client_errors_when_ambiguous_and_when_not_found() {
+        use steg_sdk::ClientKind;
+
+        let mut tree = Tree::new();
+        let first = tree.connect_client(ClientKind::App, Some("work".to_string()));
+        let second = tree.connect_client(ClientKind::Cli, Some("work".to_string()));
+
+        assert_eq!(
+            tree.resolve_client("work"),
+            Err(Error::TargetAmbiguous {
+                part: "work".to_string(),
+                candidates: vec![
+                    super::Candidate {
+                        id: first.to_string(),
+                        label: Some("work".to_string()),
+                    },
+                    super::Candidate {
+                        id: second.to_string(),
+                        label: Some("work".to_string()),
+                    },
+                ],
+            })
+        );
+
+        assert_eq!(
+            tree.resolve_client("nonsense"),
+            Err(Error::TargetNotFound {
+                part: "nonsense".to_string(),
+                candidates: vec![
+                    super::Candidate {
+                        id: first.to_string(),
+                        label: Some("work".to_string()),
+                    },
+                    super::Candidate {
+                        id: second.to_string(),
+                        label: Some("work".to_string()),
                     },
                 ],
             })

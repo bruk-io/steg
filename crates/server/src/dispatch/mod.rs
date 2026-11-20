@@ -11,6 +11,7 @@
 //! unchanged.
 
 mod api;
+mod client;
 mod event;
 mod kernel_error;
 mod lookup;
@@ -93,6 +94,7 @@ fn handled() -> Vec<(&'static str, &'static str)> {
     all.extend(api::HANDLED.iter().copied());
     all.extend(setting::HANDLED.iter().copied());
     all.extend(server::HANDLED.iter().copied());
+    all.extend(client::HANDLED.iter().copied());
     all.extend(NOT_YET_NOUNS.iter().copied());
     all.extend(INTERCEPTED_BEFORE_DISPATCH.iter().copied());
     all
@@ -130,15 +132,14 @@ const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[
     ("server", "stop"),
 ];
 
-/// The nouns/methods with no served arm at all in this task (`event`,
-/// `client`), plus `server.stop` is NOT here (see
-/// [`INTERCEPTED_BEFORE_DISPATCH`] instead) - `server.show`/`server.start`
-/// are not here either (TASK-1.88: both are now plain `HANDLED` arms in
-/// [`server`]). Every pair here answers `ErrorCode::NotImplementedYet`,
+/// The nouns/methods with no served arm at all (`event.watch`) - neither
+/// `server.*` (TASK-1.88: `show`/`start` are plain `HANDLED` arms in
+/// [`server`], `stop` is in [`INTERCEPTED_BEFORE_DISPATCH`] instead) nor
+/// `client.*` (TASK-1.141: both plain `HANDLED` arms in [`client`]) is
+/// here any more. Every pair here answers `ErrorCode::NotImplementedYet`,
 /// naming what it waits on. Test-only, for the same reason as [`handled`].
 #[cfg(test)]
-const NOT_YET_NOUNS: &[(&str, &str)] =
-    &[("event", "watch"), ("client", "list"), ("client", "show")];
+const NOT_YET_NOUNS: &[(&str, &str)] = &[("event", "watch")];
 
 /// Builds the `ApiError` a not-yet-built method or branch answers with
 /// (AC #2's second half): a distinct code naming what it waits on, never
@@ -251,6 +252,9 @@ pub(crate) fn dispatch_raw(
         (noun, verb) if server::HANDLED.contains(&(noun, verb)) => {
             server::dispatch(tree, now, verb)
         }
+        (noun, verb) if client::HANDLED.contains(&(noun, verb)) => {
+            client::dispatch(tree, request, verb)
+        }
         ("server", "stop") => Err(not_implemented_yet(
             "connection.rs's own interception (TASK-1.88) - a described method, fully built, \
              but never reached through dispatch in the real system: answering it needs the \
@@ -271,7 +275,6 @@ pub(crate) fn dispatch_raw(
             "event.watch is answered by Runtime::subscribe, not dispatch::dispatch - this \
              path is unreachable through a real connection",
         )),
-        ("client", _) => Err(not_implemented_yet("a client model (TASK-1.42)")),
         ("pane", "attach" | "detach") => Err(not_implemented_yet(
             "connection.rs's own interception (TASK-1.47) - a described method, fully built, \
              but never reached through dispatch in the real system: answering it needs a \

@@ -49,9 +49,10 @@ pub(super) fn dispatch(
         )),
         "swap" => swap(tree, context, request),
         "send" => send(tree, context, request),
-        "capture" | "wait" => Err(not_implemented_yet(
-            "pane capture and pane wait are not built yet - dispatch has no I/O by design; \
-             each needs a Runtime-level wrapper, not a dispatch arm",
+        "capture" => capture(tree, context, request),
+        "wait" => Err(not_implemented_yet(
+            "TASK-1.140, \"Server: wait for a pane's program to exit, with a timeout\" - needs \
+             a cross-cutting pending-wait mechanism; dispatch has no I/O by design",
         )),
         _ => unreachable!("HANDLED names every verb this match covers"),
     }
@@ -370,5 +371,27 @@ fn send(tree: &Tree, context: &Context, request: &Request) -> Result<Outcome, Ap
     if !super::any_pane_running(tree, &[pane]) {
         return Err(super::program_not_running());
     }
+    Ok(Outcome::Nothing)
+}
+
+/// `pane.capture`'s pure, I/O-free half (TASK-1.139): resolves the
+/// target, nothing else. Deliberately **no** `any_pane_running` check,
+/// unlike `send`'s own refusal above: doc-2 section 6 is explicit that a
+/// pane whose program has already ended still has a screen and
+/// scrollback that can be captured - the method's own description
+/// (`crates/sdk/src/description/methods/pane.rs`) already reflects this,
+/// with no `ProgramNotRunning` in its `errors:` list. The real work -
+/// reading the terminal on the pane's own worker thread and rendering it
+/// to text - is `Runtime::capture_and_dispatch`'s job
+/// (`crates/server/src/runtime/input.rs`), the same structural reason
+/// `send`'s own doc gives: this function's signature has no way to reach
+/// a `PaneHandle` at all. Its own `Outcome::Nothing` is discarded by that
+/// wrapper, exactly as `send`'s is - a caller that reaches `dispatch::
+/// dispatch` directly for `"pane.capture"` (bypassing `Runtime`) answers
+/// `Null`, never the real text, the same "built, but only reachable
+/// through `Runtime` for its real effect" status `pane.attach`/`pane.
+/// detach`/`tab.declare-size` already have.
+fn capture(tree: &Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
+    target_pane(tree, context, request)?;
     Ok(Outcome::Nothing)
 }

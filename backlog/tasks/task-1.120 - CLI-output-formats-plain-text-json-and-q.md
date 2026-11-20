@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
 asdlc_branch: task-1.120-cli-output-formats-plain-text-json-and-q
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'e49be2b088c1'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -173,3 +176,16 @@ None blocking - both items this plan previously flagged as needing the engineer 
 <!-- SECTION:NOTES:BEGIN -->
 Revised plan checked against doc-2 (sections 1, 3, 5, 6) and decision-4 by @bruk.o on 2026-11-20: ok. All six of the engineer's answers of 2026-11-20 are applied: nested results print as JSON in plain text; the pty proof uses the system script command with no new dependency, as one test named for what it is (real binary, real pty, real server); --json on a nothing-returning command prints nothing; -q prints a record's first declared field and nothing where none is declared; -q leaves text unchanged; tabs and newlines in plain-text fields become spaces. It builds only the output module and its tests.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-20T17:25:00Z
+
+---
+
+Plan approved by @bruk (e49be2b088c1, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

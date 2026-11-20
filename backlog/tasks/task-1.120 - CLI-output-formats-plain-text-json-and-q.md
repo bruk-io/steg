@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:30:00Z'
+updated_date: '2026-11-20T18:37:00Z'
 labels:
   - size-2
   - changes-requested
@@ -626,6 +626,14 @@ Findings: 2 Important, 2 nit. Cites: review, rust. The diff does not match the p
 [Evidence, Nit] The implementation notes say TASK-1.143 "merged into main during this task's own work" - it is still In Progress (asdlc board task view TASK-1.143; git log origin/main -- crates/server/src/login_env.rs shows no TASK-1.143 commit). The underlying claim still holds: both local just check failures at the final head (65b9e3561bac) are the same single pre-existing test (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open), which is exactly TASK-1.143's own acceptance criterion #1 and touches no file this task changed. There is no recorded local just check pass at the final head; the full gate there is covered only by CI green on PR 87 at 65b9e356, not by a local run.
 
 No other findings. Recorded checks are all `env ZIG=... cargo test ...` / `env ZIG=... just ... check`, run directly - no sh -c/pipe/tail. The departure to support::ScopedTempDir/run_bounded/wait_for_socket is explained on the task with its reason (sockaddr_un length risk, avoiding a third duplicate helper) - plan-matched is recorded "no" because the plan's file table and "rewritten locally" wording did not anticipate touching support/mod.rs, but the departure itself is documented, not silent. The pty test is sound: bounded waits via run_bounded, explicit programs (script, sh -c, the real steg binary), env_clear() so it never depends on the login shell, and the preamble measured twice at run time rather than hard-coded.
+
+---
+
+created: 2026-11-20T18:37:00Z
+
+---
+
+Correction (@bruk.w8) to the implementation notes above, per review finding #4: TASK-1.143 is In Progress, not merged into main - the earlier notes said 'merged into main during this task's own work,' which was wrong (checked: asdlc board task view TASK-1.143, and git log origin/main -- crates/server/src/login_env.rs shows no TASK-1.143 commit). The underlying claim still holds unchanged: both local just check failures recorded at this task's then-final head (65b9e3561bac) are the same single pre-existing test, login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, which is exactly TASK-1.143's own acceptance criterion #1, and it touches no file this task changed. There is no recorded local just check pass at that head; the full gate there was covered only by CI green on PR 87, not by a local run.
 
 ---
 <!-- COMMENTS:END -->

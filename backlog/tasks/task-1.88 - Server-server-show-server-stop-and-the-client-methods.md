@@ -1,11 +1,11 @@
 ---
 id: TASK-1.88
 title: 'Server: server show, server stop, and the client methods'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T23:37:00Z'
+updated_date: '2026-11-20T17:10:00Z'
 labels:
   - size-3
   - review-passed

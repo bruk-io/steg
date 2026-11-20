@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-20T17:21:00Z'
-updated_date: '2026-11-20T17:33:00Z'
+updated_date: '2026-11-20T17:34:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.143-server-tests-the-login-env-grandchild
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '880746049d3b'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -309,3 +312,16 @@ comment, or `record-check` invocation).
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against the task's criteria and .claude/rules/testing-rust.md by @bruk.o on 2026-11-20: ok. It touches only login_env.rs's tests and attach.rs, stays out of TASK-1.140's files, raises a test-only timeout (the product default is separate and unchanged), keeps every liveness bound, and its login_env control is a committed delayed-write test recorded failing at the old bound and passing at the new, at the final head. The attach.rs part is an experiment with a stated decision rule and a stated fallback; if nothing reproduces the task says so. Two corrections to TASK-1.137's diagnosis are accepted: 23 attach tests with 5 guarded, and the four feature-variant runs are sequential within one worktree. The planner's two questions take its recommended defaults unless the engineer says otherwise.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-20T17:34:00Z
+
+---
+
+Plan approved by @bruk (880746049d3b, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

@@ -440,6 +440,32 @@ test login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_wr
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 221 filtered out; finished in 5.02s
 ```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --lib login_env::` exited 0 at 2026-11-20T17:43:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 2be3c4430749:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 13 tests
+test login_env::tests::parse_env_dump_splits_a_value_containing_its_own_equals_sign_on_the_first_one_only ... ok
+test login_env::tests::fallback_env_omits_user_and_logname_when_the_identity_itself_has_none ... ok
+test login_env::tests::parse_env_dump_skips_a_malformed_entry_with_no_equals_sign ... ok
+test login_env::tests::fallback_env_is_exactly_the_named_constant_set ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_does_not_exist ... ok
+test login_env::tests::resolve_login_identity_never_panics_and_returns_a_home_a_shell_and_a_user_that_exist ... ok
+test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... ok
+test login_env::tests::capture_login_environment_sources_the_login_profile_not_the_interactive_one ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 46545: No such process
+kill: 46546: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+test login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 209 filtered out; finished in 5.02s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

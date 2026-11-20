@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
-updated_date: '2026-11-20T04:54:00Z'
+updated_date: '2026-11-20T04:57:00Z'
 labels:
   - size-1
+  - review-passed
 milestone: m-4
 dependencies: []
 references:
@@ -18,10 +19,8 @@ project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.142-just-run-builds-the-steg-binary-the-app
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -269,6 +268,25 @@ created: 2026-11-20T04:54:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.142: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-20T04:57:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Round 3 (narrow): round 2's Important (Evidence - the re-recorded `just check` at head dddad4c3 was masked by `sh -c '... | tail -1'`, which always reports tail's own exit 0 and cannot show `just check`'s real status) is cured.
+
+The implementation notes now carry an unpiped recording: `just --justfile <worktree>/justfile --working-directory <worktree> check` exited 0 at 2026-11-20T04:54:20Z at commit dddad4c31c34, with no "with uncommitted changes" suffix (unlike the earlier df3e4355 recordings), so it ran on the committed head. Its timestamp is after the commit time (03:58:20Z per `git log`), and CI's `check` job completed SUCCESS at the same headRefOid (dddad4c31c3435c479d7fd4ec2e222626b785cdd) at 04:11:00Z, corroborating it independently. The recorded output lists all 30 steps `ok`, no `error`, matching the step count round 2's reviewer independently reported running at this same head. Comment #5 explicitly supersedes the earlier invalid recordings ("the earlier recorded 'just check' was invalid... wrapped with pipes and sh -c, capturing tail's exit code"), so the notes no longer rest a claim on a recording that can't show failure.
+
+Confirmed via `gh pr view 85`: PR #85 head is still dddad4c31c3435c479d7fd4ec2e222626b785cdd, unchanged since rounds 1 and 2, CI check SUCCESS.
+
+No findings. Not re-litigated (already settled in rounds 1-2 and unchanged since): the diff matches the plan, the size-1 attestation, resolve_binary()/target-dir trace for AC #2, AC #1/#3 evidence via CI.
 
 ---
 <!-- COMMENTS:END -->

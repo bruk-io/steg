@@ -1,13 +1,14 @@
 ---
 id: TASK-1.120
 title: 'CLI: output formats: plain text, --json and -q'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:22:00Z'
+updated_date: '2026-11-20T18:30:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.49
@@ -22,8 +23,10 @@ asdlc_branch: task-1.120-cli-output-formats-plain-text-json-and-q
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e49be2b088c1'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=2'
+asdlc_review_policies: ["review", "rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -602,6 +605,27 @@ created: 2026-11-20T18:22:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.120: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-20T18:30:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review, rust. The diff does not match the plan.
+
+[Evidence, Important] output.rs:49-64 (render_nothing). The plan's own proof section names three negative controls: the dummy seventh Returns variant, output::render's Nothing arm passing the raw value through with --json (decision 3), and the pty's stty raw -echo removal. Only two are recorded as failing-then-passing pairs on the task (the ScratchControl build failure, and the pty raw-mode removal). The third is never recorded. I reproduced it myself in a scratch edit (render_nothing changed to emit json_line(value) when json is true, reverted after): cargo test -p steg --lib nothing fails exactly as expected (nothing_prints_nothing_in_every_combination, case json=true quiet=false). The mechanism is real and load-bearing, but nothing on the task shows this control was ever run.
+
+[Compliance, Important] output.rs:264 (sanitize_for_plain_text), decision 6: tabs/newlines/CR in a plain-text field become a single space; --json keeps the exact value. No test anywhere - not output.rs's unit tests, not cli_output_formats.rs, not the extended cli_exit_statuses.rs test - puts a literal \t/\n/\r inside a scalar field value and checks the substitution happens in plain text and not under --json. The plan's proof section promises "every cell of the table above as a passing test, including each of the six decisions as its own named test case"; decision 6 has none, so the function that actually guarantees doc-2 section 6's "the same piped or not" against a label containing a tab or newline is unverified.
+
+[Rust, Nit] output.rs:26, RenderError(String) collapses every shape mismatch (non-object, non-array, missing id, wrong Returns::Text type) into one opaque String, and connect.rs turns it into a string again (err.to_string()) crossing into ConnectError::Io. .claude/rules/rust.md: "add context where the error crosses a boundary, never by turning it into a string."
+
+[Evidence, Nit] The implementation notes say TASK-1.143 "merged into main during this task's own work" - it is still In Progress (asdlc board task view TASK-1.143; git log origin/main -- crates/server/src/login_env.rs shows no TASK-1.143 commit). The underlying claim still holds: both local just check failures at the final head (65b9e3561bac) are the same single pre-existing test (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open), which is exactly TASK-1.143's own acceptance criterion #1 and touches no file this task changed. There is no recorded local just check pass at the final head; the full gate there is covered only by CI green on PR 87 at 65b9e356, not by a local run.
+
+No other findings. Recorded checks are all `env ZIG=... cargo test ...` / `env ZIG=... just ... check`, run directly - no sh -c/pipe/tail. The departure to support::ScopedTempDir/run_bounded/wait_for_socket is explained on the task with its reason (sockaddr_un length risk, avoiding a third duplicate helper) - plan-matched is recorded "no" because the plan's file table and "rewritten locally" wording did not anticipate touching support/mod.rs, but the departure itself is documented, not silent. The pty test is sound: bounded waits via run_bounded, explicit programs (script, sh -c, the real steg binary), env_clear() so it never depends on the login shell, and the preamble measured twice at run time rather than hard-coded.
 
 ---
 <!-- COMMENTS:END -->

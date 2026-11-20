@@ -744,6 +744,21 @@ error: test failed, to rerun pass `-p steg --test cli_output_formats`
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_output_formats a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe` exited 0 at 2026-11-20T18:40:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.41s
+     Running tests/cli_output_formats.rs (target/debug/deps/cli_output_formats-b7f07949c8f37e3f)
+
+running 1 test
+test a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.41s
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

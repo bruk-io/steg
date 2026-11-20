@@ -488,6 +488,23 @@ ok      test (steg-ui) (1.2s)
 ok      build (steg-app) (2.6s)
 ok      test (steg-app) (2.1s)
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-20T18:07:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 2be3c4430749 with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.3s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143/crates/server/src/login_env.rs:729:
+     /// sufficient (passes at 5s) by construction, not by chance.
+     #[test]
+     fn capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild()
+[31m-     {
+(B[m[32m+    {
+(B[m         let grandchild_pid_file = std::env::temp_dir().join(format!(
+             "steg-grandchild-pid-{}-{}",
+             std::process::id(),
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 163 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T17:24:00Z'
+updated_date: '2026-11-20T17:25:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -167,3 +167,9 @@ Every step's own check is recorded with `asdlc record-check <task> --in <worktre
 
 None blocking - both items this plan previously flagged as needing the engineer (the `Nested` plain-text form, and the pty dependency) are now settled by the six decisions above. The one residual risk worth naming: the `script`-based test depends on the exact macOS `script(1)` build's own pty-setup behaviour (confirmed deterministic on this machine, four bytes, for any child); its own calibration step measures this at run time rather than assuming it, so a future `script` build that behaves differently fails the test loudly (a wrong comparison) rather than silently passing a wrong one.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Revised plan checked against doc-2 (sections 1, 3, 5, 6) and decision-4 by @bruk.o on 2026-11-20: ok. All six of the engineer's answers of 2026-11-20 are applied: nested results print as JSON in plain text; the pty proof uses the system script command with no new dependency, as one test named for what it is (real binary, real pty, real server); --json on a nothing-returning command prints nothing; -q prints a record's first declared field and nothing where none is declared; -q leaves text unchanged; tabs and newlines in plain-text fields become spaces. It builds only the output module and its tests.
+<!-- SECTION:NOTES:END -->

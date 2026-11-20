@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-20T17:21:00Z'
-updated_date: '2026-11-20T18:48:00Z'
+updated_date: '2026-11-20T18:55:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -425,6 +425,41 @@ ok      build (steg-ui) (0.4s)
 ok      test (steg-ui) (0.4s)
 ok      build (steg-app) (0.3s)
 ok      test (steg-app) (0.8s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-20T18:55:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 97005f3c4faf:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (94.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (87.8s)
+ok      test (steg-server, race-fixture) (56.5s)
+ok      test (steg-server, pty-race-fixture) (63.6s)
+ok      test (steg-server, accept-backoff-fixture) (58.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.9s)
+ok      test (steg, fixtures) (5.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

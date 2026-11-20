@@ -1,9 +1,11 @@
 ---
 id: TASK-1.142
 title: just run builds the steg binary the app starts its server with
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
+updated_date: '2026-11-20T03:40:00Z'
 labels:
   - size-1
 milestone: m-4
@@ -11,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.142-just-run-builds-the-steg-binary-the-app
 ---
 
 ## Description

@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-20T17:21:00Z'
-updated_date: '2026-11-20T18:55:00Z'
+updated_date: '2026-11-20T18:56:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -482,6 +482,8 @@ No test weakened or skipped; no liveness bound removed (the 15s/30s login_env bo
 No experiment-generated process or throwaway clone left running or on disk (ps checked, clones removed) - only raw captured output scratch logs remain, kept under the session scratchpad, not the board.
 
 Files touched: crates/server/src/login_env.rs, crates/server/tests/attach.rs - no overlap with TASK-1.140.
+
+Restored by @bruk.o on 2026-11-20 after the worker's --notes edit replaced this section: the plan (hash 880746049d3b) was checked against the task's criteria and .claude/rules/testing-rust.md by @bruk.o on 2026-11-20 before the engineer approved it: ok; the planner's two open questions took its recommended defaults. The earlier recorded checks that the edit removed are still in the board's git history.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

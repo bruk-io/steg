@@ -474,4 +474,18 @@ created: 2026-11-20T17:34:00Z
 Plan approved by @bruk (880746049d3b, size-2): its worker may build it.
 
 ---
+
+created: 2026-11-20T18:55:00Z
+
+---
+
+Build summary (worker's own account; see the record-check blocks above for the raw evidence).
+
+**login_env (AC #1).** Raised the grandchild test's own inline timeout 1s -> 5s (crates/server/src/login_env.rs); the product's own default (DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT, 3s) is untouched. This task's own baseline `just check`, recorded before any fix, failed this exact way twice in a row with no forcing at all - organic confirmation. Added a permanent, committed control test (capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild) using a fixture's own deliberate 2s write delay; recorded it failing at the old 1s bound and passing at the new 5s bound, both at this exact final head (97005f3c), each confirmed clean of anything from the environment before recording.
+
+**attach.rs (AC #2, #3).** Bounded experiment (at most two sibling cargo build --workspace processes in throwaway clones as load, well inside the ~10-minute cap; pre-built the four steg-server feature-variant attach binaries with --no-run and ran them directly to avoid Cargo's own build-lock confound): Condition A (self-contention only) - 4/4 passed, 0 failures. Condition B (plus genuine sibling load, 2 repetitions) - 3 of 8 runs failed, every one of them the identical already-guarded test (a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach), every one at the identical message ("timed out after 60s waiting for the cross-process flood-test lock... another worktree's own flood test held it for longer than this bound allows"). No other test in the file failed in either condition, so none of the 18 unguarded tests are implicated. This named a targeted fix rather than the stated fallback: raised cross_process_flood_guard's own lock-acquire bound 60s -> 180s, reasoned from the measured queue depth (5 guarded tests x 4 feature-variant processes = up to 20 acquisitions of one machine-wide lock, worse under sibling CPU load) and the observed worst-case total suite time (~150s) under the same load. Verified: re-ran the identical load condition once more with the fix in place - all four variants passed, three of them crossing 60s on the same lock wait and still succeeding at 180s.
+
+PR #88: https://github.com/bruk-io/steg/pull/88, head 97005f3c4faf8cc3dd5ca530a3d7ec89ce7ae29e, CI green.
+
+---
 <!-- COMMENTS:END -->

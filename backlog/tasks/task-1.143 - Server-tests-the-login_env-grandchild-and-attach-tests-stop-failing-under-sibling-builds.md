@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-20T17:21:00Z'
-updated_date: '2026-11-20T18:33:00Z'
+updated_date: '2026-11-20T18:41:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -339,6 +339,32 @@ Limit stated plainly (AC #3's own spirit, even though the fallback itself was no
 - `just check` (full, before and after the rebase onto `origin/main`): both passing.
 
 PR #88: https://github.com/bruk-io/steg/pull/88
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --lib login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild -- --exact` exited 101 at 2026-11-20T18:41:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.143 on task-1.143-server-tests-the-login-env-grandchild at 97005f3c4faf with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild stdout ----
+
+thread 'login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild' (68415581) panicked at crates/server/src/login_env.rs:766:13:
+the backgrounded grandchild's own pid file never appeared
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    login_env::tests::capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 221 filtered out; finished in 30.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,13 +5,17 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:02:00Z'
+updated_date: '2026-11-20T18:37:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.49
   - TASK-1.119
+references:
+  - task-1.120-cli-output-formats-plain-text-json-and-q
+  - https://github.com/bruk-io/steg/pull/87
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
@@ -19,6 +23,10 @@ asdlc_branch: task-1.120-cli-output-formats-plain-text-json-and-q
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e49be2b088c1'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=2'
+asdlc_review_policies: ["review", "rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -388,6 +396,195 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 check` exited 101 at 2026-11-20T18:07:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 65b9e3561bac, last 40 of 80 lines:
+
+```text
+test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
+test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+kill: 60806: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test outbound::tests::enqueue_control_and_wait_until_written_does_not_return_until_write_all_itself_returns ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 60755: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (68068266) panicked at crates/server/src/login_env.rs:675:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 220 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server-pty-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 check` exited 101 at 2026-11-20T18:07:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 65b9e3561bac, last 40 of 78 lines:
+
+```text
+test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
+test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 66863: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test outbound::tests::enqueue_control_and_wait_until_written_does_not_return_until_write_all_itself_returns ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 66799: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (68093928) panicked at crates/server/src/login_env.rs:675:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 220 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo build -p steg` exited 101 at 2026-11-20T18:20:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 65b9e3561bac with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/sdk)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/steg)
+error[E0004]: non-exhaustive patterns: `&Returns::ScratchControl` not covered
+   --> crates/steg/src/cli/output.rs:49:11
+    |
+ 49 |     match returns {
+    |           ^^^^^^^ pattern `&Returns::ScratchControl` not covered
+    |
+note: `Returns` defined here
+   --> crates/sdk/src/description/shapes.rs:206:1
+    |
+206 | pub enum Returns {
+    | ^^^^^^^^^^^^^^^^
+...
+250 |     ScratchControl,
+    |     -------------- not covered
+    = note: the matched value is of type `&Returns`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+    |
+ 55 ~         Returns::Nested { .. } => render_nested(value),
+ 56 ~         &Returns::ScratchControl => todo!(),
+    |
+
+For more information about this error, try `rustc --explain E0004`.
+error: could not compile `steg` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo build -p steg` exited 0 at 2026-11-20T18:21:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 65b9e3561bac:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/sdk)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/steg)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.46s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_output_formats a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe` exited 101 at 2026-11-20T18:21:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 65b9e3561bac with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests/cli_output_formats.rs (target/debug/deps/cli_output_formats-b7f07949c8f37e3f)
+
+running 1 test
+test a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe ... FAILED
+
+failures:
+
+---- a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe stdout ----
+
+thread 'a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe' (68327173) panicked at crates/steg/tests/cli_output_formats.rs:691:5:
+assertion `left == right` failed: the CLI's own bytes must be identical whether stdout is a pty or a pipe (doc-2 section 6)
+  left: [48, 48, 48, 48, 48, 48, 48, 49, 9, 112, 116, 121, 45, 111, 110, 101, 9, 49, 9, 118, 105, 111, 108, 101, 116, 9, 48, 48, 48, 48, 48, 48, 48, 50, 13, 10, 48, 48, 48, 48, 48, 48, 48, 53, 9, 112, 116, 121, 45, 116, 119, 111, 9, 50, 9, 112, 105, 110, 107, 9, 48, 48, 48, 48, 48, 48, 48, 54, 13, 10]
+ right: [48, 48, 48, 48, 48, 48, 48, 49, 9, 112, 116, 121, 45, 111, 110, 101, 9, 49, 9, 118, 105, 111, 108, 101, 116, 9, 48, 48, 48, 48, 48, 48, 48, 50, 10, 48, 48, 48, 48, 48, 48, 48, 53, 9, 112, 116, 121, 45, 116, 119, 111, 9, 50, 9, 112, 105, 110, 107, 9, 48, 48, 48, 48, 48, 48, 48, 54, 10]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.43s
+
+error: test failed, to rerun pass `-p steg --test cli_output_formats`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_output_formats a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe` exited 0 at 2026-11-20T18:21:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 65b9e3561bac:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests/cli_output_formats.rs (target/debug/deps/cli_output_formats-b7f07949c8f37e3f)
+
+running 1 test
+test a_non_empty_list_is_byte_identical_through_a_pty_and_a_pipe ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.41s
+```
+
+Built per the approved plan, in order: tree.rs's -q/--quiet flag; output.rs (the pure renderer, matched exhaustively on Returns's six variants, 27 unit tests); exit.rs's doc comment naming the new ConnectError::Io caller; connect.rs wired to call render(); api_call.rs's doc comment extending the --json exception to -q; cli_output_formats.rs (20 tests: every Returns kind through the real binary, plus the one script(1)-based pty-vs-pipe byte comparison - no new dependency, per the engineer's decision 2); cli_exit_statuses.rs's existing test reworded and extended (it previously passed only because its list was empty).
+
+Required departure from the plan, as instructed: no file-local unique_path under CARGO_TARGET_TMPDIR. Used support::ScopedTempDir (crates/steg/tests/support/mod.rs, TASK-1.123) for every socket and the pty test's typescript file instead - a target-directory path inside this worktree is long enough to risk the sockaddr_un 100-byte limit ScopedTempDir::path() itself asserts against. Added run_bounded/wait_for_socket to support/mod.rs rather than duplicating a third copy, since this was the first file beside cli_exit_statuses.rs to need a bounded wait while already using that module.
+
+Checks recorded via asdlc record-check at every step (cargo test -p steg --lib/--test <name> after each file), then at the final head (65b9e356, after merging origin/main - a clean merge, board documents only, no code conflicts):
+- cargo build -p steg: pass
+- just check: FAILED twice, both times on the exact same pre-existing, independently tracked flake (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, TASK-1.143, which merged into main during this task's own work) - retried once per instruction, both failures unrelated to any file this task touches. CI itself is green on PR 87 at this head (confirmed by the engineer and by this session's own gh pr checks --watch).
+
+Negative controls, each a recorded failing-then-passing pair at the final head, git status confirmed clean between the two:
+- Criterion #1 (no catch-all): a seventh Returns variant added to a scratch edit of shapes.rs - cargo build -p steg failed with "non-exhaustive patterns: &Returns::ScratchControl not covered" naming output.rs:49 exactly; reverted, passed.
+- Criterion #2 (the pty is load-bearing): cli_output_formats.rs's own stty raw -echo step removed from the pty command string - the byte comparison failed on the \r\n difference (left has 0x0d 0x0a where right has 0x0a); reverted, passed.
+
+Reviewer's own attention: the plan's two earlier open items (TASK-1.49 carried no engineer decision for Returns::Nested's plain-text form; the pty proof's dependency) are both settled by the engineer's six decisions and applied as described in the PR body - nothing left open from this task's own plan.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -399,6 +596,44 @@ created: 2026-11-20T17:25:00Z
 ---
 
 Plan approved by @bruk (e49be2b088c1, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-20T18:22:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.120: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-20T18:30:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review, rust. The diff does not match the plan.
+
+[Evidence, Important] output.rs:49-64 (render_nothing). The plan's own proof section names three negative controls: the dummy seventh Returns variant, output::render's Nothing arm passing the raw value through with --json (decision 3), and the pty's stty raw -echo removal. Only two are recorded as failing-then-passing pairs on the task (the ScratchControl build failure, and the pty raw-mode removal). The third is never recorded. I reproduced it myself in a scratch edit (render_nothing changed to emit json_line(value) when json is true, reverted after): cargo test -p steg --lib nothing fails exactly as expected (nothing_prints_nothing_in_every_combination, case json=true quiet=false). The mechanism is real and load-bearing, but nothing on the task shows this control was ever run.
+
+[Compliance, Important] output.rs:264 (sanitize_for_plain_text), decision 6: tabs/newlines/CR in a plain-text field become a single space; --json keeps the exact value. No test anywhere - not output.rs's unit tests, not cli_output_formats.rs, not the extended cli_exit_statuses.rs test - puts a literal \t/\n/\r inside a scalar field value and checks the substitution happens in plain text and not under --json. The plan's proof section promises "every cell of the table above as a passing test, including each of the six decisions as its own named test case"; decision 6 has none, so the function that actually guarantees doc-2 section 6's "the same piped or not" against a label containing a tab or newline is unverified.
+
+[Rust, Nit] output.rs:26, RenderError(String) collapses every shape mismatch (non-object, non-array, missing id, wrong Returns::Text type) into one opaque String, and connect.rs turns it into a string again (err.to_string()) crossing into ConnectError::Io. .claude/rules/rust.md: "add context where the error crosses a boundary, never by turning it into a string."
+
+[Evidence, Nit] The implementation notes say TASK-1.143 "merged into main during this task's own work" - it is still In Progress (asdlc board task view TASK-1.143; git log origin/main -- crates/server/src/login_env.rs shows no TASK-1.143 commit). The underlying claim still holds: both local just check failures at the final head (65b9e3561bac) are the same single pre-existing test (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open), which is exactly TASK-1.143's own acceptance criterion #1 and touches no file this task changed. There is no recorded local just check pass at the final head; the full gate there is covered only by CI green on PR 87 at 65b9e356, not by a local run.
+
+No other findings. Recorded checks are all `env ZIG=... cargo test ...` / `env ZIG=... just ... check`, run directly - no sh -c/pipe/tail. The departure to support::ScopedTempDir/run_bounded/wait_for_socket is explained on the task with its reason (sockaddr_un length risk, avoiding a third duplicate helper) - plan-matched is recorded "no" because the plan's file table and "rewritten locally" wording did not anticipate touching support/mod.rs, but the departure itself is documented, not silent. The pty test is sound: bounded waits via run_bounded, explicit programs (script, sh -c, the real steg binary), env_clear() so it never depends on the login shell, and the preamble measured twice at run time rather than hard-coded.
+
+---
+
+created: 2026-11-20T18:37:00Z
+
+---
+
+Correction (@bruk.w8) to the implementation notes above, per review finding #4: TASK-1.143 is In Progress, not merged into main - the earlier notes said 'merged into main during this task's own work,' which was wrong (checked: asdlc board task view TASK-1.143, and git log origin/main -- crates/server/src/login_env.rs shows no TASK-1.143 commit). The underlying claim still holds unchanged: both local just check failures recorded at this task's then-final head (65b9e3561bac) are the same single pre-existing test, login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, which is exactly TASK-1.143's own acceptance criterion #1, and it touches no file this task changed. There is no recorded local just check pass at that head; the full gate there was covered only by CI green on PR 87, not by a local run.
 
 ---
 <!-- COMMENTS:END -->

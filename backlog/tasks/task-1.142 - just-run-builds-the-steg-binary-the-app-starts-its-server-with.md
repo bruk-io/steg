@@ -1,14 +1,13 @@
 ---
 id: TASK-1.142
 title: just run builds the steg binary the app starts its server with
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
 updated_date: '2026-11-20T04:31:00Z'
 labels:
   - size-1
-  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -154,6 +153,11 @@ error: recipe `check-packages` failed with exit code 101
 ```
 
 Commits since the review: 0.
+
+Re-recorded checks at head dddad4c3 as requested:
+- just --dry-run run: verified build line before run line
+- just check: first run had one known flaky attach.rs pty race test, retried and passed all checks (209 passed)
+No new code commits made. Returning to review.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

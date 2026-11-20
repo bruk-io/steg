@@ -17,6 +17,8 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.142-just-run-builds-the-steg-binary-the-app
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -98,3 +100,16 @@ Built and tested:
 - PR #85 created and CI passed with SUCCESS status
 - No product code changes, only justfile recipe update
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk.r1
+created: 2026-11-20T04:11:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.142: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+<!-- COMMENTS:END -->

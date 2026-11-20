@@ -1,13 +1,14 @@
 ---
 id: TASK-1.142
 title: just run builds the steg binary the app starts its server with
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
-updated_date: '2026-11-20T04:11:00Z'
+updated_date: '2026-11-20T04:16:00Z'
 labels:
   - size-1
+  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -17,8 +18,10 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.142-just-run-builds-the-steg-binary-the-app
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -110,6 +113,23 @@ created: 2026-11-20T04:11:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.142: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-20T04:16:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
+
+[Compliance, Important] backlog task TASK-1.142: size-1 label but Implementation Notes never say "size-1: plan approval skipped; small because ...". Policy: a size-1 task's notes must carry that attestation; missing or untrue is Important. I independently confirmed the plan is 9 numbered steps and the change really is small and mechanical (justfile only, 2 lines, no design choice left open), so the fix is to add the attestation sentence, not to resize the task.
+
+[Evidence, Nit] Both recorded checks (`just --dry-run run`, `just check`) are logged at commit df3e435555b5 "with uncommitted changes," before the final commit dddad4c3 that actually holds the diff. In substance this is covered: I reran `just --dry-run run` against the review worktree at dddad4c3 and got output identical to what's recorded (cargo build --package steg before cargo run --package steg-app, ZIG/workspace handling unchanged), and CI's `check` job (.github/workflows/ci.yml runs `just check` directly) completed SUCCESS at headRefOid dddad4c31c3435c479d7fd4ec2e222626b785cdd, the PR's actual head. So the evidence does reach the final head, just not through the worker's own notes at that SHA.
+
+Also checked and not a finding: resolve_binary() in crates/app/src/startup.rs looks for a binary literally named "steg" beside steg-app's own executable; crates/steg/Cargo.toml's package is named "steg" with no [[bin]] override on its main target (the only [[bin]] entries there are test fixtures with distinct names), and there is no custom target-dir in .cargo/config.toml, so cargo build --package steg and cargo run --package steg-app land in the same target/debug/ - the fix is not a no-op. AC #3 ("just check still passes, including the recipe-name check") is covered: check depends on check-recipes (justfile:42), and CI's check job passed at head. AC #1 ("window with a working pane") was not run per the review brief's instruction never to launch the app; I'm relying on the code trace above plus CI green as the available evidence for it.
 
 ---
 <!-- COMMENTS:END -->

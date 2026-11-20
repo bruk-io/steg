@@ -1,9 +1,11 @@
 ---
 id: TASK-1.140
 title: 'Server: wait for a pane''s program to exit, with a timeout'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
+updated_date: '2026-11-20T17:12:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -12,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.140-server-wait-for-a-pane-s-program-to-exit
 ---
 
 ## Description

@@ -63,9 +63,9 @@ fn minimal_value(kind: &steg_sdk::ValueKind) -> Value {
 }
 
 /// doc-2's table against every arm (not the sdk's own method-set test,
-/// re-run here for good measure): for each of this task's 19
-/// `NotImplementedYet` scenarios, dispatch answers that code, names what
-/// it waits on, and creates nothing.
+/// re-run here for good measure): for each `NotImplementedYet` scenario
+/// below, dispatch answers that code, names what it waits on, and
+/// creates nothing.
 /// One `NotImplementedYet` scenario: the method called, its extra
 /// parameters beyond a bare target, and a substring its error message
 /// must name.
@@ -90,12 +90,6 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
         ("server.start", vec![], "socket and lifecycle"),
         ("server.stop", vec![], "socket and lifecycle"),
         ("event.watch", vec![], "Runtime::subscribe"),
-        ("client.list", vec![], "client model"),
-        (
-            "client.show",
-            vec![("target", json!("placeholder"))],
-            "client model",
-        ),
     ];
 
     for (method, extra, expected_substring) in cases {

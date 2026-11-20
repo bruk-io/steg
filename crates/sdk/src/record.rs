@@ -13,11 +13,19 @@
 //! exactly `description::methods::tab_fields`'s seven fields - the shape
 //! TASK-1.46's own nested-tree snapshot depends on this crate for and
 //! embeds as-is, rather than defining one of its own.
+//!
+//! `ClientRecord` (TASK-1.141) is the fourth: `client.list`/`client.show`'s
+//! own record, exactly `description::methods::client_fields`'s five
+//! fields. `last_active` is always `None` for M1 - no part of the kernel's
+//! `Client` tracks it yet, and this record never polls for one to appear
+//! (the same reasoning [`PaneRecord::title`]/[`TabRecord::title`] already
+//! give for the same shape).
 
 use serde::{Deserialize, Serialize};
 
+use crate::client_kind::ClientKind;
 use crate::colour::Colour;
-use crate::ids::{PaneId, SessionId, TabId};
+use crate::ids::{ClientId, PaneId, SessionId, TabId};
 use crate::layout::{Layout, Size};
 use crate::pane_kind::PaneKind;
 use crate::status::Status;
@@ -38,6 +46,25 @@ pub struct SessionRecord {
     pub colour: Colour,
     /// The id of its current tab (doc-15 R85).
     pub current_tab: TabId,
+}
+
+/// One client, as `client.show`/`client.list` return it (TASK-1.141),
+/// with the same fields `description::methods::client_fields` declares.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClientRecord {
+    /// The client's full identifier.
+    pub id: ClientId,
+    /// What kind of connection it is: the app, a CLI invocation, or a
+    /// plugin.
+    pub kind: ClientKind,
+    /// Its label, if it has one.
+    pub label: Option<String>,
+    /// The sessions it views (decision-5; `Tree::sessions_viewed`).
+    pub sessions: Vec<SessionId>,
+    /// When it was last active, as ISO 8601 in UTC - always `None` until
+    /// a later task wires tracking through (this module's own doc
+    /// comment names the cost).
+    pub last_active: Option<String>,
 }
 
 /// One pane, as `pane.show`/`pane.list` return it (TASK-1.76 AC #2;
@@ -260,6 +287,81 @@ mod tests {
             assert_eq!(
                 declared, record_keys,
                 "{dotted}'s declared fields and SessionRecord's own keys must match"
+            );
+        }
+    }
+
+    use super::ClientRecord;
+    use crate::client_kind::ClientKind;
+    use crate::ids::ClientId;
+
+    fn client_example() -> ClientRecord {
+        ClientRecord {
+            id: ClientId::from_raw(1),
+            kind: ClientKind::App,
+            label: Some("work".to_string()),
+            sessions: vec![SessionId::from_raw(1)],
+            last_active: None,
+        }
+    }
+
+    #[test]
+    fn client_record_serde_round_trips() {
+        let record = client_example();
+        let json = serde_json::to_string(&record).unwrap();
+        assert_eq!(serde_json::from_str::<ClientRecord>(&json).unwrap(), record);
+    }
+
+    /// `last_active` is always `None` for M1 (this module's own doc), and
+    /// a client with no label has none either - both serialise as `null`,
+    /// not a missing field, the same contract `SessionRecord`'s own
+    /// label test above proves.
+    #[test]
+    fn a_client_with_no_label_or_last_active_serialises_them_as_null_not_missing() {
+        let mut record = client_example();
+        record.label = None;
+        let value = serde_json::to_value(record).unwrap();
+        assert!(value.get("label").is_some_and(serde_json::Value::is_null));
+        assert!(
+            value
+                .get("last_active")
+                .is_some_and(serde_json::Value::is_null)
+        );
+    }
+
+    /// Ties `ClientRecord`'s own shape to the description's, the same way
+    /// `matches_the_fields_session_show_and_session_list_declare` does for
+    /// `SessionRecord` above. `client.show` and `client.list` declare the
+    /// same `fields`, so one comparison covers both.
+    #[test]
+    fn matches_the_fields_client_list_and_client_show_declare() {
+        use std::collections::HashSet;
+
+        let api = crate::description::description();
+        let value = serde_json::to_value(client_example()).unwrap();
+        let record_keys: HashSet<&str> = value
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+
+        for dotted in ["client.list", "client.show"] {
+            let method = api.method(dotted).unwrap();
+            let fields = match &method.returns {
+                crate::description::Returns::Record { fields }
+                | crate::description::Returns::Records { fields } => fields,
+                other @ (crate::description::Returns::Nothing
+                | crate::description::Returns::Identifier { .. }
+                | crate::description::Returns::Text
+                | crate::description::Returns::Nested { .. }) => {
+                    panic!("{dotted}'s returns is not a record: {other:?}")
+                }
+            };
+            let declared: HashSet<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+            assert_eq!(
+                declared, record_keys,
+                "{dotted}'s declared fields and ClientRecord's own keys must match"
             );
         }
     }

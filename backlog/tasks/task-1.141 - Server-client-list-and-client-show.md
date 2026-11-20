@@ -1,11 +1,11 @@
 ---
 id: TASK-1.141
 title: 'Server: client list and client show'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-19T00:01:00Z'
+updated_date: '2026-11-20T03:35:00Z'
 labels:
   - size-2
   - review-passed

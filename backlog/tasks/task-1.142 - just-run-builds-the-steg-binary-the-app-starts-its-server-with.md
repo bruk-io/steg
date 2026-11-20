@@ -1,13 +1,14 @@
 ---
 id: TASK-1.142
 title: just run builds the steg binary the app starts its server with
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
-updated_date: '2026-11-20T04:31:00Z'
+updated_date: '2026-11-20T04:45:00Z'
 labels:
   - size-1
+  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -18,10 +19,9 @@ project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.142-just-run-builds-the-steg-binary-the-app
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -196,6 +196,23 @@ created: 2026-11-20T04:31:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.142: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-20T04:45:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+Round 2 (narrow): round 1's Important (missing size-1 attestation) is cured - the notes now carry "size-1: plan approval skipped; small because the change is two lines in the justfile's run recipe ..., the plan is nine numbered steps, and no product code or design choice is involved. Checked by @bruk.o." The two-line justfile diff (build before run, comment updated) still matches the plan and acceptance criteria; confirmed again against origin/main...HEAD at dddad4c3 in a fresh worktree - no change since round 1's read.
+
+[Evidence, Important] The re-recorded `just check` at the final head (2026-11-20T04:20:18Z and 04:31:10Z, both at dddad4c3) is labeled "Check passed / exited 0" but its own captured output is `error: recipe 'check-packages' failed with exit code 101`. The command was `sh -c 'cd <worktree> && just check 2>&1 | tail -1'` - without pipefail, that always reports tail's exit status (0), never just check's, so this recording cannot ever show a failure; it did not actually show a pass either. The notes' claim "retried and passed all checks (209 passed)" has no recorded run behind it at dddad4c3 - round 1's passing tail (`ok ui colours`) was from the earlier commit df3e4355, not this head. I independently reran `just check` at dddad4c3 in a fresh worktree myself: exit 0, all 30 steps ok including check-packages and recipe names, matching CI's SUCCESS at the same headRefOid (dddad4c31c34). So AC #3 is genuinely met, but the task's own evidence for it at the final head is not; re-record `just check` at dddad4c3 without piping through tail (or with `set -o pipefail`) so the recorded exit status is the check's own. The other re-record, `just --dry-run run` at 04:17:46 (dddad4c3), is clean and correctly shows the build line before the run line - no issue there.
+
+AC #1 and #2: unchanged since round 1's read (code trace + CI green for #1, dry-run diff for #2); not re-litigated here per the narrow-round brief.
 
 ---
 <!-- COMMENTS:END -->

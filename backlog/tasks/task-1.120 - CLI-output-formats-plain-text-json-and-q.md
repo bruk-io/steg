@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:39:00Z'
+updated_date: '2026-11-20T18:40:00Z'
 labels:
   - size-2
   - changes-requested
@@ -681,6 +681,21 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.37s
 
 error: test failed, to rerun pass `-p steg --test cli_output_formats`
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --lib output::tests::nothing_prints_nothing_in_every_combination` exited 0 at 2026-11-20T18:40:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.44s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::output::tests::nothing_prints_nothing_in_every_combination ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.00s
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.

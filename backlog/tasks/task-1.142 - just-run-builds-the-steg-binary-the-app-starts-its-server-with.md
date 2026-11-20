@@ -21,6 +21,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -186,6 +187,15 @@ Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
 [Evidence, Nit] Both recorded checks (`just --dry-run run`, `just check`) are logged at commit df3e435555b5 "with uncommitted changes," before the final commit dddad4c3 that actually holds the diff. In substance this is covered: I reran `just --dry-run run` against the review worktree at dddad4c3 and got output identical to what's recorded (cargo build --package steg before cargo run --package steg-app, ZIG/workspace handling unchanged), and CI's `check` job (.github/workflows/ci.yml runs `just check` directly) completed SUCCESS at headRefOid dddad4c31c3435c479d7fd4ec2e222626b785cdd, the PR's actual head. So the evidence does reach the final head, just not through the worker's own notes at that SHA.
 
 Also checked and not a finding: resolve_binary() in crates/app/src/startup.rs looks for a binary literally named "steg" beside steg-app's own executable; crates/steg/Cargo.toml's package is named "steg" with no [[bin]] override on its main target (the only [[bin]] entries there are test fixtures with distinct names), and there is no custom target-dir in .cargo/config.toml, so cargo build --package steg and cargo run --package steg-app land in the same target/debug/ - the fix is not a no-op. AC #3 ("just check still passes, including the recipe-name check") is covered: check depends on check-recipes (justfile:42), and CI's check job passed at head. AC #1 ("window with a working pane") was not run per the review brief's instruction never to launch the app; I'm relying on the code trace above plus CI green as the available evidence for it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-20T04:31:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.142: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -628,6 +628,34 @@ Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bi
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --lib output::tests::nothing_prints_nothing_in_every_combination` exited 101 at 2026-11-20T18:39:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::output::tests::nothing_prints_nothing_in_every_combination ... FAILED
+
+failures:
+
+---- cli::output::tests::nothing_prints_nothing_in_every_combination stdout ----
+
+thread 'cli::output::tests::nothing_prints_nothing_in_every_combination' (68407886) panicked at crates/steg/src/cli/output.rs:360:17:
+json=true quiet=false: [110, 117, 108, 108, 10]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cli::output::tests::nothing_prints_nothing_in_every_combination
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

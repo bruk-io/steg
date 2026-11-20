@@ -252,4 +252,12 @@ Round 2 (narrow): round 1's Important (missing size-1 attestation) is cured - th
 AC #1 and #2: unchanged since round 1's read (code trace + CI green for #1, dry-run diff for #2); not re-litigated here per the narrow-round brief.
 
 ---
+
+created: 2026-11-20T04:54:00Z
+
+---
+
+Recording correction: the earlier recorded 'just check' was invalid (wrapped with pipes and sh -c, capturing tail's exit code). The correct recording is: asdlc record-check TASK-1.142 --in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142 --as bruk.w1 -- just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142 check (exited 0, all checks passed)
+
+---
 <!-- COMMENTS:END -->

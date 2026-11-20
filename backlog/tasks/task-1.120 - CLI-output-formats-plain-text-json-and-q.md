@@ -1,14 +1,13 @@
 ---
 id: TASK-1.120
 title: 'CLI: output formats: plain text, --json and -q'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:52:00Z'
+updated_date: '2026-11-20T19:05:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.49
@@ -884,6 +883,26 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Fixed all four review findings:
+
+1. (Important) Added decision 6's missing tests: output.rs's own unit test (a tab/newline/carriage-return field value becomes a single space in plain text, exact under --json) plus a real-binary test in cli_output_formats.rs using a session label (kernel's own label.rs bans only a slash and an all-digits label - checked directly, nothing about control characters). Control: sanitize_for_plain_text made a no-op - both tests fail; reverted, both pass.
+
+2. (Important) Recorded the third negative control the plan always named but this task never had on record: output::render's Nothing arm changed to pass the raw value through with --json - fails both the output.rs unit test and cli_output_formats.rs's own real-server test (both print "null\n" instead of nothing); reverted, both pass.
+
+3. (Nit) RenderError is now an enum (MissingStringField, NotAnObject, NotAnArray, NotAString), each carrying the value that actually arrived rather than a pre-built String. connect.rs passes the RenderError itself into io::Error::other (not err.to_string()), so it stays the error's own source across the ConnectError::Io boundary - the exit-status mapping is unchanged.
+
+4. (Nit) Appended a correcting comment on the task (did not rewrite the earlier notes): TASK-1.143 is In Progress, not merged; the underlying claim still holds (both just check failures at the previous final head are exactly TASK-1.143's own acceptance criterion #1, touching no file this task changed) - the full gate there rested on CI, not a local pass.
+
+Committed (31aa5802), merged origin/main (eed259fb - clean, board documents only, no code conflicts), re-ran the full suite and just check at this head.
+
+All four control pairs re-recorded at the final head (eed259fb), each run directly under asdlc record-check (no sh -c/pipe/tail), each failing run run unrecorded first and confirmed to print nothing from the environment before being recorded:
+- Seventh Returns variant (no catch-all): cargo build -p steg - fails naming output.rs's own match exactly; reverted, passes.
+- Nothing + --json passthrough: both the output.rs unit test and cli_output_formats.rs's real-server test - both fail printing "null\n"; reverted, both pass.
+- Pty raw-mode removed: the byte comparison - fails on the \r\n difference; reverted, passes.
+- Decision 6 (sanitize_for_plain_text made a no-op): both the output.rs unit test and cli_output_formats.rs's real-binary label test - both fail; reverted, both pass.
+
+just check: recorded directly under record-check at this final head - passed outright (an earlier, unrecorded preliminary run had hit the known login_env flake, confirmed to print nothing sensitive, but the recorded attempt itself was clean, so no retry was needed). CI green on PR 87 at this head (confirmed by the engineer and this session's own gh pr checks --watch).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

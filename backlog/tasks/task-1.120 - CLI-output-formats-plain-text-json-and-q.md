@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T17:47:00Z'
+updated_date: '2026-11-20T18:02:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -352,6 +352,41 @@ test a_program_still_running_refuses_close_with_status_1 ... ok
 test a_value_outside_a_closed_set_exits_2_with_no_server_contacted ... ok
 
 test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 check` exited 0 at 2026-11-20T18:02:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 22e089e3ff4c with uncommitted changes:
+
+```text
+ok      format check (0.4s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg) (2.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (95.2s)
+ok      test (steg-server, race-fixture) (61.1s)
+ok      test (steg-server, pty-race-fixture) (62.3s)
+ok      test (steg-server, accept-backoff-fixture) (193.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.1s)
+ok      test (steg, fixtures) (9.1s)
+ok      build (steg-ui) (20.4s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (2.6s)
+ok      test (steg-app) (2.1s)
+ok      tool tests (41.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

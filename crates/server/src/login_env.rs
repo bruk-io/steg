@@ -626,24 +626,32 @@ mod tests {
             grandchild_pid_file.display()
         ));
 
-        // A full second, not the 200ms `falls_back_on_a_shell_that_never_
-        // finishes_in_time` uses: that test only needs the shell's own
-        // process to exist at all, but this one needs the shell to
-        // actually finish forking `sleep 100 &` *and* writing its pid to
-        // a file before this capture's own bound fires - found to matter
-        // under real load, not assumed: a tighter bound flaked under a
-        // concurrently busy machine, killing the group before the
-        // grandchild had even been written down to find later.
-        // 15s, not 5s (TASK-1.123): this only has to prove
-        // `capture_login_environment` returns *at all*, close to its own
-        // 1s functional timeout, not race a tight deadline against this
-        // machine's own, unrelated CPU contention - the same "liveness
-        // bound, not a timing-precision one" reasoning `attach.rs`'s own
-        // bounds already settled on for the identical reason.
+        // 5s, not 1s (TASK-1.143): a full second was not enough margin for
+        // the shell to actually finish forking `sleep 100 &` *and* writing
+        // its pid to a file before this capture's own functional timeout
+        // fired - found to matter under real load, not assumed: this
+        // exact test flaked organically, twice in a row, in this task's
+        // own recorded `just check` baseline, always the same way (this
+        // assertion's own fallback check still passed - the kill always
+        // fires - but the pid file below never appeared, because the
+        // kill landed before the shell had written it). 5s gives fork/exec
+        // real margin under contention while staying an order of
+        // magnitude below the 15s/30s liveness bounds below, which this
+        // task does not touch - those were never the problem; see
+        // `capture_login_environment_tolerates_a_delayed_pid_file_write_
+        // from_a_backgrounded_grandchild` below for the deterministic,
+        // forced control proving this specific margin, rather than relying
+        // on load to reproduce it again.
+        // 15s (TASK-1.123): this only has to prove
+        // `capture_login_environment` returns *at all*, not race a tight
+        // deadline against this machine's own, unrelated CPU contention -
+        // the same "liveness bound, not a timing-precision one" reasoning
+        // `attach.rs`'s own bounds already settled on for the identical
+        // reason.
         let started = std::time::Instant::now();
         let capture = capture_login_environment(
             &test_identity(&fake.path, std::path::Path::new("/tmp")),
-            Duration::from_secs(1),
+            Duration::from_secs(5),
         );
         assert!(
             started.elapsed() < Duration::from_secs(15),
@@ -666,6 +674,89 @@ mod tests {
         // then-write sequence is scheduled by the OS, not signalled to
         // this test - so the fix here is a wider margin, not a
         // different wait mechanism.
+        let grandchild_pid = loop {
+            if let Ok(text) = fs::read_to_string(&grandchild_pid_file)
+                && let Ok(pid) = text.trim().parse::<u32>()
+            {
+                break pid;
+            }
+            assert!(
+                started.elapsed() < Duration::from_secs(30),
+                "the backgrounded grandchild's own pid file never appeared"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let alive = std::process::Command::new("kill")
+                .arg("-0")
+                .arg(grandchild_pid.to_string())
+                .status()
+                .expect("kill -0 should run")
+                .success();
+            if !alive {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the backgrounded grandchild (pid {grandchild_pid}) was never killed"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+
+        let _ = fs::remove_file(&grandchild_pid_file);
+    }
+
+    /// TASK-1.143's own deterministic control for the margin raised above:
+    /// forces the exact race a loaded machine triggers only sometimes
+    /// (the shell's own fork-then-write delayed past this capture's
+    /// functional timeout), rather than waiting for load to reproduce it
+    /// again. The `sleep 2` between the fork and the pid-file write is a
+    /// fixture's own deliberate delay standing in for that fork/exec
+    /// scheduling delay - the one sleep in this module's tests that is
+    /// not a poll for an event, but the independent variable this control
+    /// is built to force.
+    ///
+    /// At this test's own committed timeout (5s), the 2s delay finishes
+    /// comfortably before the kill fires, so this passes at the head this
+    /// test is committed at. Built, and once, temporarily, read back with
+    /// this test's own timeout argument lowered to the old `1s` bound
+    /// (reverted immediately after, never committed that way) to force and
+    /// record the identical failure the test above flaked on organically -
+    /// same panic, same message, same ~30s shape (the kill lands before
+    /// the write, so the pid-file poll below exhausts its own 30s bound) -
+    /// proving the margin raised above is both necessary (fails at 1s) and
+    /// sufficient (passes at 5s) by construction, not by chance.
+    #[test]
+    fn capture_login_environment_tolerates_a_delayed_pid_file_write_from_a_backgrounded_grandchild()
+     {
+        let grandchild_pid_file = std::env::temp_dir().join(format!(
+            "steg-grandchild-pid-{}-{}",
+            std::process::id(),
+            unique_suffix()
+        ));
+        let _ = fs::remove_file(&grandchild_pid_file);
+        let fake = FakeShell::script(&format!(
+            "sleep 100 & sleep 2; echo $! > {}; exit 0",
+            grandchild_pid_file.display()
+        ));
+
+        let started = std::time::Instant::now();
+        let capture = capture_login_environment(
+            &test_identity(&fake.path, std::path::Path::new("/tmp")),
+            Duration::from_secs(5),
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(15),
+            "capture_login_environment must still return within a bound close to its own \
+             timeout, not hang on the grandchild: took {:?}",
+            started.elapsed()
+        );
+        assert!(
+            matches!(capture, Capture::Fallback(FallbackReason::TimedOut, _)),
+            "expected a timeout fallback, got {capture:?}"
+        );
+
         let grandchild_pid = loop {
             if let Ok(text) = fs::read_to_string(&grandchild_pid_file)
                 && let Ok(pid) = text.trim().parse::<u32>()

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
-updated_date: '2026-11-20T04:45:00Z'
+updated_date: '2026-11-20T04:54:00Z'
 labels:
   - size-1
   - changes-requested
@@ -159,6 +159,43 @@ Re-recorded checks at head dddad4c3 as requested:
 - just --dry-run run: verified build line before run line
 - just check: first run had one known flaky attach.rs pty race test, retried and passed all checks (209 passed)
 No new code commits made. Returning to review.
+
+Check passed: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142 check` exited 0 at 2026-11-20T04:54:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142 on task-1.142-just-run-builds-the-steg-binary-the-app at dddad4c31c34:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (60.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (0.7s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (54.8s)
+ok      test (steg-server, race-fixture) (68.7s)
+ok      test (steg-server, pty-race-fixture) (62.1s)
+ok      test (steg-server, accept-backoff-fixture) (54.7s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.9s)
+ok      test (steg, fixtures) (5.3s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (40.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

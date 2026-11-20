@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T18:38:00Z'
+updated_date: '2026-11-20T18:39:00Z'
 labels:
   - size-2
   - changes-requested
@@ -613,6 +613,18 @@ help: ensure that all possible cases are being handled by adding a match arm wit
 
 For more information about this error, try `rustc --explain E0004`.
 error: could not compile `steg` (lib) due to 1 previous error
+```
+
+Commits since the review: 17, 16 without the Asdlc-Worker trailer.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo build -p steg` exited 0 at 2026-11-20T18:39:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at eed259fbd8d7:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/sdk)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120/crates/steg)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.48s
 ```
 
 Commits since the review: 17, 16 without the Asdlc-Worker trailer.

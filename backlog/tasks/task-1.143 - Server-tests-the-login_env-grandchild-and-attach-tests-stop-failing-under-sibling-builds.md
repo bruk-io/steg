@@ -22,6 +22,8 @@ asdlc_branch: task-1.143-server-tests-the-login-env-grandchild
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '880746049d3b'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -509,6 +511,15 @@ Build summary (worker's own account; see the record-check blocks above for the r
 **attach.rs (AC #2, #3).** Bounded experiment (at most two sibling cargo build --workspace processes in throwaway clones as load, well inside the ~10-minute cap; pre-built the four steg-server feature-variant attach binaries with --no-run and ran them directly to avoid Cargo's own build-lock confound): Condition A (self-contention only) - 4/4 passed, 0 failures. Condition B (plus genuine sibling load, 2 repetitions) - 3 of 8 runs failed, every one of them the identical already-guarded test (a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach), every one at the identical message ("timed out after 60s waiting for the cross-process flood-test lock... another worktree's own flood test held it for longer than this bound allows"). No other test in the file failed in either condition, so none of the 18 unguarded tests are implicated. This named a targeted fix rather than the stated fallback: raised cross_process_flood_guard's own lock-acquire bound 60s -> 180s, reasoned from the measured queue depth (5 guarded tests x 4 feature-variant processes = up to 20 acquisitions of one machine-wide lock, worse under sibling CPU load) and the observed worst-case total suite time (~150s) under the same load. Verified: re-ran the identical load condition once more with the fix in place - all four variants passed, three of them crossing 60s on the same lock wait and still succeeding at 180s.
 
 PR #88: https://github.com/bruk-io/steg/pull/88, head 97005f3c4faf8cc3dd5ca530a3d7ec89ce7ae29e, CI green.
+
+---
+
+author: @bruk.r2
+created: 2026-11-20T18:56:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.143: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

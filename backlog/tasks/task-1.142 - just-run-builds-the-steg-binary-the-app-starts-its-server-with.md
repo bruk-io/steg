@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
-updated_date: '2026-11-20T03:41:00Z'
+updated_date: '2026-11-20T03:57:00Z'
 labels:
   - size-1
 milestone: m-4
@@ -76,5 +76,11 @@ if [ "yes" = no ]; then echo "skip    run: no Rust workspace yet"; exit 0; fi
 if [ -n "`mise which zig 2>/dev/null || true`" ]; then export ZIG="`mise which zig 2>/dev/null || true`"; fi
 cargo build --package steg
 cargo run --package steg-app
+```
+
+Check passed: `sh -c 'just check 2>&1 | tail -1'` exited 0 at 2026-11-20T03:57:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142 on task-1.142-just-run-builds-the-steg-binary-the-app at df3e435555b5 with uncommitted changes:
+
+```text
+ok      ui colours (0.0s)
 ```
 <!-- SECTION:NOTES:END -->

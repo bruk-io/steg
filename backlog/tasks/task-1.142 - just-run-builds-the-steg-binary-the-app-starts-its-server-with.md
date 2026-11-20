@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-20T03:39:00Z'
-updated_date: '2026-11-20T04:20:00Z'
+updated_date: '2026-11-20T04:31:00Z'
 labels:
   - size-1
   - changes-requested
@@ -140,6 +140,14 @@ cargo run --package steg-app
 Commits since the review: 0.
 
 Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142 && just check 2>&1 | tail -1'` exited 0 at 2026-11-20T04:20:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142 on task-1.142-just-run-builds-the-steg-binary-the-app at dddad4c31c34:
+
+```text
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142 && just check 2>&1 | tail -1'` exited 0 at 2026-11-20T04:31:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.142 on task-1.142-just-run-builds-the-steg-binary-the-app at dddad4c31c34:
 
 ```text
 error: recipe `check-packages` failed with exit code 101

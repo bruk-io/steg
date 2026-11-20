@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-20T17:20:00Z'
+updated_date: '2026-11-20T17:21:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -395,4 +395,6 @@ different compilation unit from the integration tests and do not block on them; 
 Sighting after TASK-1.123 merged, noted by @bruk.o on 2026-11-18: TASK-1.88's worker, on a branch that already contained TASK-1.123's fixes, had two local just check runs fail under three concurrent builds - one in login_env.rs's backgrounded-grandchild test, one in attach.rs's pty-race tests - each green on a single retry; CI was green. So TASK-1.123 narrowed these clashes but did not end them under heavy load. Which attach.rs tests failed was not recorded; whoever takes this task should try to reproduce with three worktrees building at once.
 
 More sightings on 2026-11-18, noted by @bruk.o: with three builds running, login_env's backgrounded-grandchild test failed two consecutive local just check runs for TASK-1.141's worker and two for TASK-1.139's, all on branches that already contain TASK-1.123's widened bounds; CI stayed green each time. Under that load it now fails more often than it passes locally, so start here.
+
+Split by @bruk.o on 2026-11-20, on the planner's recommendation: the flake (login_env grandchild test, attach.rs under sibling builds) moves to its own task (drafted as DRAFT-2, awaiting acceptance). What stays here is the bounding sweep only. Released until TASK-1.140 (pane wait) merges, because the sweep collides with it in the dispatch tests; the next planner trims this plan to the sweep and drops AC 4's stale reference to TASK-1.88/1.90 in favour of TASK-1.140.
 <!-- SECTION:NOTES:END -->

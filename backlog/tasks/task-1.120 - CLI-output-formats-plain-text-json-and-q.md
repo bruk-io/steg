@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T17:25:00Z'
+updated_date: '2026-11-20T17:29:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -175,6 +175,25 @@ None blocking - both items this plan previously flagged as needing the engineer 
 
 <!-- SECTION:NOTES:BEGIN -->
 Revised plan checked against doc-2 (sections 1, 3, 5, 6) and decision-4 by @bruk.o on 2026-11-20: ok. All six of the engineer's answers of 2026-11-20 are applied: nested results print as JSON in plain text; the pty proof uses the system script command with no new dependency, as one test named for what it is (real binary, real pty, real server); --json on a nothing-returning command prints nothing; -q prints a record's first declared field and nothing where none is declared; -q leaves text unchanged; tabs and newlines in plain-text fields become spaces. It builds only the output module and its tests.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --lib` exited 0 at 2026-11-20T17:29:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.120 on task-1.120-cli-output-formats-plain-text-json-and-q at 22e089e3ff4c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 8 tests
+test cli::exit::tests::every_connect_error_maps_to_4 ... ok
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... ok
+test cli::exit::tests::api_error_status_follows_the_table_not_a_parallel_match ... ok
+test cli::tree::tests::autostart_given_after_no_autostart_wins ... ok
+test cli::tree::tests::autostart_defaults_to_true_with_neither_flag_given ... ok
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
+test cli::tree::tests::json_is_read_from_the_leaf_subcommand ... ok
+test cli::tree::tests::quiet_is_read_from_the_leaf_subcommand_either_spelling ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

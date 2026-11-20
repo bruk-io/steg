@@ -76,7 +76,14 @@ pub fn run(api: &Description, method: &Method, matches: &ArgMatches) -> i32 {
             }
             Err(err) => {
                 eprintln!("steg: {err}");
-                connect_error_status(&ConnectError::Io(std::io::Error::other(err.to_string())))
+                // `err` (a `RenderError`) is the `io::Error`'s own
+                // source, not flattened into a `String` first (.claude/
+                // rules/rust.md: "add context... never by turning it
+                // into a string") - `io::Error::other` takes anything
+                // `Into<Box<dyn Error + Send + Sync>>`, which `RenderError`
+                // already satisfies through its own `std::error::Error`
+                // impl.
+                connect_error_status(&ConnectError::Io(std::io::Error::other(err)))
             }
         },
         Ok(Response::Error(err)) => {

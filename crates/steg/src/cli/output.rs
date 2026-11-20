@@ -21,16 +21,40 @@ use steg_sdk::{Field, Returns};
 /// (one [`steg_sdk::Description`] compiled into both the server and this
 /// binary); proved defensively in this module's own tests with a
 /// hand-built mismatched [`Value`], never reachable through a real
-/// server.
+/// server. One variant per shape a caller could tell apart (`.claude/
+/// rules/rust.md`: "one variant per thing a caller can tell apart"),
+/// each carrying the value that actually arrived as data, not folded
+/// into a pre-built `String` - what actually declared each shape is
+/// named by which [`render`] call site constructs the variant (the
+/// doc comment on each), not repeated as a field here.
 #[derive(Debug, PartialEq, Eq)]
-pub struct RenderError(String);
+pub enum RenderError {
+    /// `Returns::Identifier`'s own reply did not carry a string field
+    /// named `field` (always `"id"`, today).
+    MissingStringField { field: &'static str, value: Value },
+    /// `Returns::Record`'s own reply, or one element of
+    /// `Returns::Records`'s own reply, was not a JSON object.
+    NotAnObject { value: Value },
+    /// `Returns::Records`'s own reply was not a JSON array.
+    NotAnArray { value: Value },
+    /// `Returns::Text`'s own reply was not a JSON string.
+    NotAString { value: Value },
+}
 
 impl std::fmt::Display for RenderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (expected, value) = match self {
+            Self::MissingStringField { field, value } => {
+                (format!("a string field {field:?}"), value)
+            }
+            Self::NotAnObject { value } => ("a JSON object".to_owned(), value),
+            Self::NotAnArray { value } => ("a JSON array".to_owned(), value),
+            Self::NotAString { value } => ("a JSON string".to_owned(), value),
+        };
         write!(
             f,
-            "the server's reply did not match its own declared shape: {}",
-            self.0
+            "the server's reply did not match its own declared shape: expected {expected}, got \
+             {value}"
         )
     }
 }
@@ -166,9 +190,9 @@ fn render_text(value: &Value, json: bool, _quiet: bool) -> Result<Vec<u8>, Rende
         return Ok(json_line(value));
     }
     let Value::String(text) = value else {
-        return Err(RenderError(format!(
-            "Returns::Text expects a JSON string, got {value}"
-        )));
+        return Err(RenderError::NotAString {
+            value: value.clone(),
+        });
     };
     Ok(text.clone().into_bytes())
 }
@@ -273,28 +297,27 @@ fn sanitize_for_plain_text(raw: &str) -> String {
 /// `value.get(name)`'s own string, or a shape error naming both why
 /// (`Returns::Identifier`'s own reply is declared as `{"id": "..."}"`,
 /// checked here rather than assumed).
-fn string_field(value: &Value, name: &str) -> Result<String, RenderError> {
+fn string_field(value: &Value, name: &'static str) -> Result<String, RenderError> {
     value
         .get(name)
         .and_then(Value::as_str)
         .map(str::to_owned)
-        .ok_or_else(|| {
-            RenderError(format!(
-                "Returns::Identifier expects {{\"{name}\": \"...\"}}, got {value}"
-            ))
+        .ok_or_else(|| RenderError::MissingStringField {
+            field: name,
+            value: value.clone(),
         })
 }
 
 fn expect_object(value: &Value) -> Result<&Map<String, Value>, RenderError> {
-    value
-        .as_object()
-        .ok_or_else(|| RenderError(format!("expected a JSON object, got {value}")))
+    value.as_object().ok_or_else(|| RenderError::NotAnObject {
+        value: value.clone(),
+    })
 }
 
 fn expect_array(value: &Value) -> Result<&Vec<Value>, RenderError> {
-    value
-        .as_array()
-        .ok_or_else(|| RenderError(format!("expected a JSON array, got {value}")))
+    value.as_array().ok_or_else(|| RenderError::NotAnArray {
+        value: value.clone(),
+    })
 }
 
 #[cfg(test)]
@@ -587,6 +610,52 @@ mod tests {
         let value = json!({"id": "p1"});
         let bytes = render(&returns, &value, false, false).unwrap();
         assert_eq!(as_text(bytes), "p1\t\n");
+    }
+
+    /// Decision 6: a literal tab, newline and carriage return inside a
+    /// field's own value each become a single space in plain text, so
+    /// "tab-separated" and "one record per line" hold unconditionally -
+    /// `pane_fields.title`, for instance, comes from the program and is
+    /// not otherwise bounded. A record (not `Records`) is enough to
+    /// prove the substitution itself; `scalar_text` is shared by both.
+    ///
+    /// Negative control, performed by hand and reverted before
+    /// committing (not left as a second `#[test]`): with
+    /// `sanitize_for_plain_text` changed to return `raw.to_owned()`
+    /// unconditionally (a no-op), this test fails - `label`'s own
+    /// column keeps its literal `\t`/`\n`/`\r` instead of spaces, so the
+    /// row has more than four tab-separated fields and the assertion
+    /// below does not match.
+    #[test]
+    fn a_tab_newline_and_carriage_return_inside_a_field_become_single_spaces_in_plain_text() {
+        let returns = Returns::Record {
+            fields: vec![
+                field("id", ValueKind::Text),
+                field("label", ValueKind::Text),
+            ],
+        };
+        let value = json!({"id": "p1", "label": "a\tb\nc\rd"});
+        let bytes = render(&returns, &value, false, false).unwrap();
+        assert_eq!(as_text(bytes), "p1\ta b c d\n");
+    }
+
+    /// Decision 6's other half: `--json` keeps the exact value, every
+    /// control character included - `serde_json`'s own escaping is that
+    /// format's business, not this module's to touch.
+    #[test]
+    fn a_tab_newline_and_carriage_return_inside_a_field_are_exact_under_json() {
+        let returns = Returns::Record {
+            fields: vec![
+                field("id", ValueKind::Text),
+                field("label", ValueKind::Text),
+            ],
+        };
+        let value = json!({"id": "p1", "label": "a\tb\nc\rd"});
+        let bytes = render(&returns, &value, true, false).unwrap();
+        assert_eq!(
+            as_text(bytes),
+            "{\"id\":\"p1\",\"label\":\"a\\tb\\nc\\rd\"}\n"
+        );
     }
 
     // --- Text ------------------------------------------------------------------

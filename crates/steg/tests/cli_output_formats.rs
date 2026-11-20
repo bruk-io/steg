@@ -330,6 +330,64 @@ fn record_renders_plain_json_and_quiet_through_a_real_server() {
     assert_eq!(stdout_of(&quiet), format!("{session_id}\n"));
 }
 
+/// Decision 6, through the real binary: a session's own `label`
+/// (`crates/kernel/src/label.rs` bans only `/` and an all-digits label -
+/// nothing about a tab, newline or carriage return) carries a literal
+/// `\t`/`\n`/`\r` all the way from `session new --label` to `session
+/// show`'s own plain-text row, where each becomes a single space;
+/// `--json` keeps the exact value, found by hand first (`xxd` on the
+/// real binary's own output) before writing this down as a test rather
+/// than assumed from `output.rs`'s own unit tests alone.
+#[test]
+fn a_label_containing_a_tab_newline_and_carriage_return_is_sanitised_in_plain_text_only() {
+    let dir = ScopedTempDir::new();
+    let socket = dir.path("sock");
+    let _guard = ServerAtSocket(socket.clone());
+
+    let label = "a\tb\nc\rd";
+    let created = run_steg(&["session", "new", "--label", label, "--json"], &socket);
+    assert_success(&created);
+    let session_id = json_of(&created)
+        .get("id")
+        .and_then(serde_json::Value::as_str)
+        .expect("an id")
+        .to_owned();
+    wait_for_socket(&socket, Duration::from_secs(5));
+
+    let shown_json = run_steg(&["session", "show", &session_id, "--json"], &socket);
+    assert_success(&shown_json);
+    assert_eq!(
+        json_of(&shown_json)
+            .get("label")
+            .and_then(serde_json::Value::as_str),
+        Some(label),
+        "--json must keep the label's exact value, every control character included"
+    );
+
+    let plain = run_steg(&["session", "show", &session_id], &socket);
+    assert_success(&plain);
+    // Computed independently of `output.rs`'s own `sanitize_for_plain_text`
+    // (never calling it), the same way `expected_plain_row` above never
+    // calls the renderer's own `scalar_text`: this is what a column
+    // *should* read, not a restatement of what the code under test does.
+    let sanitised_label: String = label
+        .chars()
+        .map(|character| {
+            if character == '\t' || character == '\n' || character == '\r' {
+                ' '
+            } else {
+                character
+            }
+        })
+        .collect();
+    let expected_row = format!("{session_id}\t{sanitised_label}\t1\tviolet\t");
+    let plain_text = stdout_of(&plain);
+    assert!(
+        plain_text.starts_with(&expected_row),
+        "expected a row starting with {expected_row:?}, got {plain_text:?}"
+    );
+}
+
 // --- Nothing -------------------------------------------------------------------
 
 /// Decision 3, as a regression guard through the real binary (not only

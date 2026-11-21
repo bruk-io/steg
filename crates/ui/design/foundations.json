@@ -1,5 +1,5 @@
 {
-  "artifact_version": "1794796789-1b13",
+  "artifact_version": "1795195942-6a0a",
   "artifact_url": "https://claude.ai/artifact/Ex9HHnDNY8C8fxV6BR4WVZ",
   "session_colour": "session",
   "colours": [
@@ -224,6 +224,19 @@
       "duration": 200,
       "unit": "ms",
       "use": "A change of status fades in on both the ring and the bar, so it reads as a change and not a jump"
+    },
+    {
+      "name": "motion.cursor-fade.shaded-dissolve",
+      "use": "The cursor's six pieces dissolve away and reform while the window has focus, each piece passing briefly through a flat medium shade on its way out and back; stops whole the instant focus is lost. Design's exploration option 2B, 'Scattered dissolve, through medium shade' (Atoms, Cursor atom card 07; Foundations page section 12, 'Rules: accessibility') - distinct from option 1A, 'Scattered dissolve' (same piece order, no shade step), not exported here",
+      "unit": "ms",
+      "cycle": 1400,
+      "order": [3, 0, 4, 2, 1, 5],
+      "step_fraction": 0.03,
+      "medium_shade_strength": 0.5,
+      "phase_whole": 0.43,
+      "phase_going": 0.18,
+      "phase_empty": 0.21,
+      "phase_returning": 0.18
     }
   ],
   "themes": [

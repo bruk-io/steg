@@ -525,8 +525,48 @@ _RAMP_ENTRY = Fields(
     },
     optional=frozenset({"caption_opacity"}),
 )
+# motion.status-fade's own "duration" is drawn only in Rules prose, no name column
+# (below). motion.cursor-fade.shaded-dissolve's eight fields share the same reason: the
+# Cursor atom's own keyframes (Atoms, card 07) and the design's Foundations page
+# section 12, "Rules: accessibility" - never a Name/Dark/Light/Used-for or Name/Value
+# row on Tokens.dc.html/Details.dc.html, the only two saved pages this tool reads, and
+# those pages predate this export. "duration" and the eight cursor-fade fields are each
+# optional because the two motion entries don't share a shape - one `Fields` position
+# still describes both, since `NamedEntries` applies the same entry schema to every
+# item in the list.
+_MOTION_CURSOR_FADE_REASON = (
+    "the Cursor atom's own keyframes (Atoms, card 07) and the design's Foundations page section 12, "
+    "'Rules: accessibility' - not a Name/Dark/Light/Used-for or Name/Value row on Tokens.dc.html/"
+    "Details.dc.html, the only two saved pages this tool reads; those pages predate this export"
+)
 _MOTION_ENTRY = Fields(
-    {"name": _NAME_FIELD, "duration": DeclaredUnseen("200ms is in Rules prose with no name column", expected=(int, float)), "unit": _UNIT_FIELD, "use": _USE_FIELD}
+    {
+        "name": _NAME_FIELD,
+        "duration": DeclaredUnseen("200ms is in Rules prose with no name column", expected=(int, float)),
+        "unit": _UNIT_FIELD,
+        "use": _USE_FIELD,
+        "cycle": DeclaredUnseen(_MOTION_CURSOR_FADE_REASON, expected=(int, float)),
+        "order": DeclaredUnseen(_MOTION_CURSOR_FADE_REASON, expected=list),
+        "step_fraction": DeclaredUnseen(_MOTION_CURSOR_FADE_REASON, expected=(int, float)),
+        "medium_shade_strength": DeclaredUnseen(_MOTION_CURSOR_FADE_REASON, expected=(int, float)),
+        "phase_whole": DeclaredUnseen(_MOTION_CURSOR_FADE_REASON, expected=(int, float)),
+        "phase_going": DeclaredUnseen(_MOTION_CURSOR_FADE_REASON, expected=(int, float)),
+        "phase_empty": DeclaredUnseen(_MOTION_CURSOR_FADE_REASON, expected=(int, float)),
+        "phase_returning": DeclaredUnseen(_MOTION_CURSOR_FADE_REASON, expected=(int, float)),
+    },
+    optional=frozenset(
+        {
+            "duration",
+            "cycle",
+            "order",
+            "step_fraction",
+            "medium_shade_strength",
+            "phase_whole",
+            "phase_going",
+            "phase_empty",
+            "phase_returning",
+        }
+    ),
 )
 _THEME_ENTRY = Fields(
     {

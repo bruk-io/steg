@@ -322,6 +322,42 @@ def test_a_whole_number_description_has_no_trailing_zero() -> None:
 
 
 # ---------------------------------------------------------------------------
+# TASK-1.136: a list of whole numbers with no effective unit (a group-level unit
+# the field is exempted from via _DIMENSIONLESS_FIELDS, the same mechanism that
+# already exempts a scalar field such as weight/weight_selected/letter_spacing) is
+# rendered as integers, not floats - and carries no stray unit suffix in its own
+# description, which the group's unit would otherwise wrongly attach to it.
+# ---------------------------------------------------------------------------
+
+
+def test_a_whole_number_list_flagged_dimensionless_renders_as_integers_not_floats() -> None:
+    rust = render_plain_group(
+        "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+    )
+    assert "pub order: [i32; 6]," in rust
+    assert "order: [3, 0, 4, 2, 1, 5]," in rust
+    assert "3.0" not in rust
+    assert "0.0" not in rust
+
+
+def test_the_lists_description_carries_no_stray_unit_suffix() -> None:
+    rust = render_plain_group(
+        "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+    )
+    description = rust.split("_DESCRIPTION")[1]
+    assert 'cycle 1400ms, order 3, 0, 4, 2, 1, 5";' in description
+
+
+def test_a_pixel_list_is_still_rendered_as_pixels_not_integers() -> None:
+    # The regression guard: SPACE's own unit ("px") is not in _DIMENSIONLESS_FIELDS,
+    # so it must take exactly the path it always has - unaffected by the new branch.
+    rust = render_plain_group("space", {"steps": [2, 4, 6, 8, 10, 12, 16], "unit": "px"}, {})
+    assert "[Pixels; 7]" in rust
+    assert "px(2.0)" in rust
+    assert "[i32; 7]" not in rust
+
+
+# ---------------------------------------------------------------------------
 # the regenerate-and-diff logic check-foundations uses
 # ---------------------------------------------------------------------------
 

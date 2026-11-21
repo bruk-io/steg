@@ -37,10 +37,26 @@ REPO_ROOT_RELATIVE_GENERATED_FILE = "crates/ui/src/foundations/generated.rs"
 # exported from", not a value).
 _METADATA_KEYS = frozenset({"artifact_version", "artifact_url", "session_colour"})
 
-# Numeric fields that keep a group's "unit": "px" sibling but aren't themselves a
-# pixel measurement - a font weight, an em-relative letter-spacing ratio. Named here
-# once, rather than guessed per group, so a wrong guess is one line to fix.
-_DIMENSIONLESS_FIELDS = frozenset({"weight", "weight_selected", "letter_spacing"})
+# Fields that keep a group's "unit" sibling (such as "ms" or "px") but aren't
+# themselves measured in it - a font weight, an em-relative letter-spacing ratio, or
+# (TASK-1.136) the going-out order and the dimensionless fractions/strength beside
+# motion.cursor-fade.shaded-dissolve's own "cycle". `_plain_field` consults this set
+# for both a scalar field (below) and a list field (`order`'s own [i32; 6]) - named
+# here once, rather than guessed per group, so a wrong guess is one line to fix.
+_DIMENSIONLESS_FIELDS = frozenset(
+    {
+        "weight",
+        "weight_selected",
+        "letter_spacing",
+        "order",
+        "step_fraction",
+        "medium_shade_strength",
+        "phase_whole",
+        "phase_going",
+        "phase_empty",
+        "phase_returning",
+    }
+)
 
 # Within an otherwise-generic group, the one field that carries a colour and is
 # rendered as an extra `Theme` method (by `render_sizes`/`render_focus_ring`) instead
@@ -421,9 +437,19 @@ def _plain_field(
             return "&'static [&'static str]", "&[" + ", ".join(f'"{item}"' for item in items) + "]", display
         case list() as items:
             resolved = [resolve_size_ref(item, index) for item in items]
-            display = ", ".join(f"{_format_number(n)}{unit or ''}" for n in resolved)
-            if unit == "px":
+            # A field in _DIMENSIONLESS_FIELDS (TASK-1.136: motion.cursor-fade.
+            # shaded-dissolve's "order" beside its own group's "ms"-measured "cycle")
+            # keeps the group's unit sibling without being measured in it - the same
+            # exemption the scalar branch below already makes, reused here rather
+            # than invented twice.
+            effective_unit = None if key in _DIMENSIONLESS_FIELDS else unit
+            if effective_unit == "px":
+                display = ", ".join(f"{_format_number(n)}px" for n in resolved)
                 return f"[Pixels; {len(items)}]", "[" + ", ".join(f"px({float(n)})" for n in resolved) + "]", display
+            if all(n == int(n) for n in resolved):
+                display = ", ".join(_format_number(n) for n in resolved)
+                return f"[i32; {len(items)}]", "[" + ", ".join(str(int(n)) for n in resolved) + "]", display
+            display = ", ".join(f"{_format_number(n)}{effective_unit or ''}" for n in resolved)
             return f"[f32; {len(items)}]", "[" + ", ".join(str(float(n)) for n in resolved) + "]", display
         case str() as text:
             return "&'static str", f'"{text}"', text

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:27:00Z'
+updated_date: '2026-11-21T20:33:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -174,6 +174,47 @@ warning: `steg-server` (lib test) generated 1 warning (1 duplicate)
 error: could not compile `steg-server` (lib test) due to 1 previous error; 1 warning emitted
 full output: .quiet/test-steg-server-accept-backoff-fixture.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --lib connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds` exited 101 at 2026-11-21T20:33:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `cancel_waits` is never used
+   --> crates/server/src/runtime/wait.rs:331:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+331 |     pub(crate) fn cancel_waits(&self, client_id: ClientId) {
+    |                   ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds ... FAILED
+
+failures:
+
+---- connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds stdout ----
+
+thread 'connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds' (71648184) panicked at crates/server/src/connection.rs:1666:9:
+assertion `left == right` failed: ConnectionCleanup::drop must cancel every pending wait it still holds
+  left: 1
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 222 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

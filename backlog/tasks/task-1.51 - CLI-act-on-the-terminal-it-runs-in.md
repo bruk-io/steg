@@ -5,14 +5,12 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-21T20:18:00Z'
+updated_date: '2026-11-21T20:21:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies:
-  - TASK-1.49
-  - TASK-1.40
-  - TASK-1.119
+  - TASK-1.146
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -317,3 +315,9 @@ whether the hello-to-`Context` half is the broken half or not.
   `label` fields also don't carry). Low-risk naming choice, named here so it is
   not decided silently.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split by @bruk.o on 2026-11-21: the server half of the plan (real STEG_SESSION, STEG_TAB, STEG_PANE and STEG_SERVER in a pane's environment) is TASK-1.146; this task keeps the hello's context, the server's use of it, the CLI's reading of the environment and the end-to-end tests, and builds once TASK-1.146 is merged.
+<!-- SECTION:NOTES:END -->

@@ -322,15 +322,23 @@ def test_a_whole_number_description_has_no_trailing_zero() -> None:
 
 
 # ---------------------------------------------------------------------------
-# TASK-1.136: a list of whole numbers with no effective unit (a group-level unit
-# the field is exempted from via _DIMENSIONLESS_FIELDS, the same mechanism that
-# already exempts a scalar field such as weight/weight_selected/letter_spacing) is
-# rendered as integers, not floats - and carries no stray unit suffix in its own
-# description, which the group's unit would otherwise wrongly attach to it.
+# TASK-1.136: two independent fixes living in the same _plain_field, each with its
+# own mechanism - the list branch's whole-number check is unconditional (it does
+# not consult _DIMENSIONLESS_FIELDS at all; a review of this task's first head
+# found an earlier draft's claim that "order" being in that set was load-bearing
+# was wrong - removing it changed nothing, because the int/float decision below
+# never looks at it), while the scalar branch's exemption (reused unchanged from
+# weight/weight_selected/letter_spacing) *is* load-bearing: without it, a fraction
+# such as 0.03 under a "unit": "ms" group would silently become
+# `Duration::from_millis(0)`.
 # ---------------------------------------------------------------------------
 
 
-def test_a_whole_number_list_flagged_dimensionless_renders_as_integers_not_floats() -> None:
+def test_a_whole_number_list_under_a_non_px_unit_renders_as_integers_not_floats() -> None:
+    # A list field's own int/float choice is unconditional on every resolved value
+    # being whole - it never consults _DIMENSIONLESS_FIELDS (the control pair at the
+    # final head removes the whole-number check itself, not a set membership, and
+    # shows this test fail).
     rust = render_plain_group(
         "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
     )
@@ -349,12 +357,41 @@ def test_the_lists_description_carries_no_stray_unit_suffix() -> None:
 
 
 def test_a_pixel_list_is_still_rendered_as_pixels_not_integers() -> None:
-    # The regression guard: SPACE's own unit ("px") is not in _DIMENSIONLESS_FIELDS,
-    # so it must take exactly the path it always has - unaffected by the new branch.
+    # The regression guard: SPACE's own unit ("px") takes the Pixels branch
+    # unconditionally, exactly as it always has - unaffected by the whole-number check.
     rust = render_plain_group("space", {"steps": [2, 4, 6, 8, 10, 12, 16], "unit": "px"}, {})
     assert "[Pixels; 7]" in rust
     assert "px(2.0)" in rust
     assert "[i32; 7]" not in rust
+
+
+def test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration() -> None:
+    # The real load-bearing mechanism for the scalar fields beside "cycle": without
+    # _DIMENSIONLESS_FIELDS exempting them, 0.03/0.5/0.43 would each hit the group's
+    # "unit": "ms" branch and silently become `Duration::from_millis(0)` (int(0.03) ==
+    # 0) - one test of the mechanism, covering step_fraction, medium_shade_strength
+    # and one phase_* field; phase_going/empty/returning share the identical branch
+    # and the identical set membership, so this one assertion stands for all four.
+    rust = render_plain_group(
+        "motion.cursor-fade.shaded-dissolve",
+        {
+            "cycle": 1400,
+            "unit": "ms",
+            "step_fraction": 0.03,
+            "medium_shade_strength": 0.5,
+            "phase_whole": 0.43,
+        },
+        {},
+    )
+    assert "pub cycle: std::time::Duration," in rust
+    assert "cycle: std::time::Duration::from_millis(1400)," in rust
+    assert "pub step_fraction: f32," in rust
+    assert "step_fraction: 0.03," in rust
+    assert "pub medium_shade_strength: f32," in rust
+    assert "medium_shade_strength: 0.5," in rust
+    assert "pub phase_whole: f32," in rust
+    assert "phase_whole: 0.43," in rust
+    assert "Duration::from_millis(0)" not in rust
 
 
 # ---------------------------------------------------------------------------

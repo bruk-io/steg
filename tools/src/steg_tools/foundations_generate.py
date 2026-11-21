@@ -37,18 +37,25 @@ REPO_ROOT_RELATIVE_GENERATED_FILE = "crates/ui/src/foundations/generated.rs"
 # exported from", not a value).
 _METADATA_KEYS = frozenset({"artifact_version", "artifact_url", "session_colour"})
 
-# Fields that keep a group's "unit" sibling (such as "ms" or "px") but aren't
+# Scalar fields that keep a group's "unit" sibling (such as "ms" or "px") but aren't
 # themselves measured in it - a font weight, an em-relative letter-spacing ratio, or
-# (TASK-1.136) the going-out order and the dimensionless fractions/strength beside
-# motion.cursor-fade.shaded-dissolve's own "cycle". `_plain_field` consults this set
-# for both a scalar field (below) and a list field (`order`'s own [i32; 6]) - named
+# (TASK-1.136) the dimensionless fractions/strength beside motion.cursor-fade.
+# shaded-dissolve's own ms-measured "cycle": step_fraction, medium_shade_strength,
+# phase_whole/going/empty/returning. Consulted only by the scalar branch of
+# `_plain_field`, below - without it, a fraction such as 0.03 under a "unit": "ms"
+# group would silently render as `Duration::from_millis(0)`, not a plain `f32`. Named
 # here once, rather than guessed per group, so a wrong guess is one line to fix.
+#
+# A *list* field's own int-vs-float choice (the going-out "order", TASK-1.136) does
+# not consult this set at all: that decision is unconditional on whether every
+# resolved number is whole, in `_plain_field`'s list branch below - a list field
+# belongs here only if it is a non-px list genuinely measured in the group's unit
+# (none exists today), never just because it holds whole numbers.
 _DIMENSIONLESS_FIELDS = frozenset(
     {
         "weight",
         "weight_selected",
         "letter_spacing",
-        "order",
         "step_fraction",
         "medium_shade_strength",
         "phase_whole",
@@ -437,19 +444,22 @@ def _plain_field(
             return "&'static [&'static str]", "&[" + ", ".join(f'"{item}"' for item in items) + "]", display
         case list() as items:
             resolved = [resolve_size_ref(item, index) for item in items]
-            # A field in _DIMENSIONLESS_FIELDS (TASK-1.136: motion.cursor-fade.
-            # shaded-dissolve's "order" beside its own group's "ms"-measured "cycle")
-            # keeps the group's unit sibling without being measured in it - the same
-            # exemption the scalar branch below already makes, reused here rather
-            # than invented twice.
-            effective_unit = None if key in _DIMENSIONLESS_FIELDS else unit
-            if effective_unit == "px":
+            # A px-unit list (SPACE) keeps its own Pixels type unconditionally, exactly
+            # as before TASK-1.136 - whether every value happens to be whole never
+            # changes that. Otherwise, a list of whole numbers (TASK-1.136: the going-
+            # out "order" beside its own group's ms-measured "cycle") renders as plain
+            # `i32`, never `f32`, and carries no unit suffix in its own description -
+            # unconditional on `unit`/`_DIMENSIONLESS_FIELDS`, since Rust's `i32` has no
+            # unit-carrying type to put one in (unlike `Pixels`); a future whole-number
+            # list genuinely measured in some other unit would need its own typed
+            # wrapper, not attempted here, since none exists in the data today.
+            if unit == "px":
                 display = ", ".join(f"{_format_number(n)}px" for n in resolved)
                 return f"[Pixels; {len(items)}]", "[" + ", ".join(f"px({float(n)})" for n in resolved) + "]", display
             if all(n == int(n) for n in resolved):
                 display = ", ".join(_format_number(n) for n in resolved)
                 return f"[i32; {len(items)}]", "[" + ", ".join(str(int(n)) for n in resolved) + "]", display
-            display = ", ".join(f"{_format_number(n)}{effective_unit or ''}" for n in resolved)
+            display = ", ".join(f"{_format_number(n)}{unit or ''}" for n in resolved)
             return f"[f32; {len(items)}]", "[" + ", ".join(str(float(n)) for n in resolved) + "]", display
         case str() as text:
             return "&'static str", f'"{text}"', text

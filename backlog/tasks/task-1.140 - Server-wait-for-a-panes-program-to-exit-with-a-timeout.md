@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:50:00Z'
+updated_date: '2026-11-21T20:52:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -665,6 +665,51 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates
  }
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 163 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-21T20:52:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes, last 40 of 71 lines:
+
+```text
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... ok
+test cli::output::tests::nested_plain_and_json_are_identical_bytes ... FAILED
+test cli::output::tests::record_plain_is_one_tab_separated_line_in_fields_order ... ok
+test cli::output::tests::a_null_field_renders_as_an_empty_column_never_a_dropped_one ... ok
+test cli::output::tests::records_plain_is_one_line_per_record_nothing_for_zero ... ok
+test cli::output::tests::a_tab_newline_and_carriage_return_inside_a_field_become_single_spaces_in_plain_text ... ok
+test cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json ... FAILED
+test cli::tree::tests::autostart_defaults_to_true_with_neither_flag_given ... ok
+test cli::tree::tests::autostart_given_after_no_autostart_wins ... ok
+test cli::tree::tests::json_is_read_from_the_leaf_subcommand ... ok
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
+test cli::tree::tests::quiet_is_read_from_the_leaf_subcommand_either_spelling ... ok
+
+failures:
+
+---- cli::output::tests::nested_plain_and_json_are_identical_bytes stdout ----
+
+thread 'cli::output::tests::nested_plain_and_json_are_identical_bytes' (72975788) panicked at crates/steg/src/cli/output.rs:708:9:
+assertion `left == right` failed
+  left: "{\"stream\":\"st1\",\"snapshot\":{\"rows\":[]}}\n"
+ right: "{\"snapshot\":{\"rows\":[]},\"stream\":\"st1\"}\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json stdout ----
+
+thread 'cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json' (72975780) panicked at crates/steg/src/cli/output.rs:593:9:
+assertion `left == right` failed
+  left: "t1\t{\"split\":\"horizontal\",\"panes\":[\"p1\",\"p2\"]}\n"
+ right: "t1\t{\"panes\":[\"p1\",\"p2\"],\"split\":\"horizontal\"}\n"
+
+
+failures:
+    cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json
+    cli::output::tests::nested_plain_and_json_are_identical_bytes
+
+test result: FAILED. 35 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

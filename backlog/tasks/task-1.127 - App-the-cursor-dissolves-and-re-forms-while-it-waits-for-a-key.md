@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-20T17:45:00Z'
+updated_date: '2026-11-21T19:55:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -17,6 +17,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.127-app-the-cursor-dissolves-and-re-forms
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'e3032b0ac5e3'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -228,6 +231,15 @@ created: 2026-11-17T21:24:00Z
 ---
 
 Carry-over from TASK-1.126's second review (nit, not fixed there because the task was locked on passing): the doc comment above shape_and_check_run in crates/app/src/terminal_element.rs still describes a run_start_column parameter the function no longer takes. Correct it when this task touches the file. - @bruk.o
+
+---
+
+author: @bruk
+created: 2026-11-21T19:55:00Z
+
+---
+
+Plan approved by @bruk (e3032b0ac5e3, size-3): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

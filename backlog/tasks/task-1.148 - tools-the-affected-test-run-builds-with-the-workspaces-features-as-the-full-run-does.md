@@ -1,9 +1,9 @@
 ---
-id: DRAFT-4
+id: TASK-1.148
 title: >-
   tools: the affected-test run builds with the workspace's features, as the full
   run does
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-21T20:31:00Z'
 labels:
@@ -12,6 +12,7 @@ milestone: m-3
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-4
 ---
 
 ## Description

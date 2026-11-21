@@ -3,15 +3,18 @@ id: TASK-1.136
 title: >-
   ui: the cursor fade's named values, exported from the design, and whole-number
   lists in the generator
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T21:55:00Z'
+updated_date: '2026-11-21T22:10:00Z'
 labels:
   - size-2
 milestone: m-4
 dependencies: []
+references:
+  - task-1.136-ui-the-cursor-fade-s-named-values
+  - https://github.com/bruk-io/steg/pull/91
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -267,6 +270,16 @@ ok      ui colours (0.1s)
 Merged origin/main (e254fa2b, carrying PR 90's output.rs fix) with no conflicts. The merge touched Cargo.toml, boundaries.toml, the four crates' own Cargo.toml, crates/steg/src/cli/output.rs, and backlog/plugins docs only - nothing under tools/ or crates/ui/ - so the test-tools control pair recorded earlier at the pre-merge head still stands; not re-recorded. Ran and recorded `just check` once at the merged head (b6a744b69b31's descendant after the merge commit): exit 0, every step green including tests (every crate) - the output.rs failure is gone, and the shutdown.rs flake the team lead named did not appear. Proceeding to push and open the PR.
 
 PR 91's first CI run (head 77487328) failed on crates/steg/tests/cli_connection_arbitration.rs's a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding. That test is outside this task's files (crates/ui, tools/) and passed in the local just check recorded at that same head. The team lead re-ran the failed job once and noted the sighting on TASK-1.137. Holding per the team lead's instruction: not pushing anything further, not running asdlc finish, until told the re-run is green.
+
+Built the approved plan. crates/ui/design/foundations.json gains motion.cursor-fade.shaded-dissolve (design option 2B, artifact version 1795195942-6a0a): cycle 1400ms, order [3,0,4,2,1,5] (going-out sequence only, return is the atom's own reverse), step_fraction 0.03, medium_shade_strength 0.5, phase_whole 0.43, phase_going 0.18, phase_empty 0.21, phase_returning 0.18. Per the engineer's 2026-11-20 decision there is no idle rest, so criterion 1's "idle time before the cursor rests" is dropped, not exported - the phase fractions stand in its place, the one departure the plan itself already named, not a new one.
+
+Fixed foundations_generate.py's list branch (a field in _DIMENSIONLESS_FIELDS is now exempted from the group's unit for lists, the same as it already was for scalars): a whole-number list with no effective unit renders [i32; N], not [f32; N], with no stray unit suffix in its _DESCRIPTION. Widened design_pages.py's _MOTION_ENTRY so check-design describes the new entry's shape instead of refusing it.
+
+Control pair recorded at the final head (774873286c86): the generator fix's failing-then-passing `just test-tools` pair was recorded at the pre-merge head (b6a744b69b31) before/after the fix, confirmed still valid post-merge since the merge touched nothing under tools/ or crates/ui/ (checked by diff, stated in the task notes) - not re-recorded. `just check` itself is recorded green at the final head (774873286c86, exit 0).
+
+PR 91's first CI run failed on crates/steg/tests/cli_connection_arbitration.rs, outside this task's files and passing in the local just check at the same head (noted on the task and on TASK-1.137); the team lead re-ran the job once and it is green on this same head.
+
+generated.rs's diff against the prior head is exactly the artifact-version line and the one new struct/const/description block; nothing in any existing entry changed.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

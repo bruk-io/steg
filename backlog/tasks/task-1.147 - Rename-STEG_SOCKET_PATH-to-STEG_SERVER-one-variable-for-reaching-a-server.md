@@ -20,6 +20,8 @@ asdlc_branch: task-1.147-rename-steg-socket-path-to-steg-server
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '042346b24b0f'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -309,6 +311,15 @@ created: 2026-11-21T21:37:00Z
 ---
 
 Plan approved by @bruk (042346b24b0f, size-2): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-21T22:08:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.147: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

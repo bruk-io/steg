@@ -10,6 +10,9 @@ labels:
   - size-2
 milestone: m-3
 dependencies:
+  - TASK-1.40
+  - TASK-1.49
+  - TASK-1.119
   - TASK-1.146
   - TASK-1.147
 parent_task_id: TASK-1

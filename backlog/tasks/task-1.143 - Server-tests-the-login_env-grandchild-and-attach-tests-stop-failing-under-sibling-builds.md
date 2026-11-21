@@ -3,11 +3,11 @@ id: TASK-1.143
 title: >-
   Server tests: the login_env grandchild and attach tests stop failing under
   sibling builds
-status: In Review
+status: Done
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-20T17:21:00Z'
-updated_date: '2026-11-20T19:01:00Z'
+updated_date: '2026-11-21T19:50:00Z'
 labels:
   - size-2
   - review-passed

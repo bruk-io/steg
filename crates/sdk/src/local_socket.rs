@@ -51,10 +51,10 @@ pub struct ConnectOptions {
     /// which this crate does not decide.
     pub binary: PathBuf,
     /// `None` means "compute it from the real environment"
-    /// (`XDG_RUNTIME_DIR`/`TMPDIR`/`STEG_SOCKET_PATH`/`USER`, read here).
+    /// (`XDG_RUNTIME_DIR`/`TMPDIR`/`STEG_SERVER`/`USER`, read here).
     /// `Some(path)` is an explicit override - a test's temp directory, or
     /// later a person's own debugging - used directly, and set as
-    /// `STEG_SOCKET_PATH` on a spawned child's environment so it resolves
+    /// `STEG_SERVER` on a spawned child's environment so it resolves
     /// the identical path through the same `paths::socket_path` call.
     pub socket_path: Option<PathBuf>,
     /// Start a server when none is found. `false` is what doc-2's
@@ -123,7 +123,7 @@ fn resolve_path(options: &ConnectOptions) -> PathBuf {
     if let Some(path) = &options.socket_path {
         return path.clone();
     }
-    let explicit = env::var_os("STEG_SOCKET_PATH").map(PathBuf::from);
+    let explicit = env::var_os("STEG_SERVER").map(PathBuf::from);
     let xdg_runtime_dir = env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from);
     let tmp_dir = env::var_os("TMPDIR").map(PathBuf::from);
     let user = env::var("USER").ok();
@@ -171,7 +171,7 @@ pub fn connect(options: &ConnectOptions) -> Result<UnixStream, ConnectError> {
         .stdout(Stdio::null())
         .stderr(Stdio::null());
     if let Some(socket_path) = &options.socket_path {
-        command.env("STEG_SOCKET_PATH", socket_path);
+        command.env("STEG_SERVER", socket_path);
     }
     // R99's detaching, re-parenting or double-fork, and stopping are the
     // server's own code; this drops the `Child` handle once spawn
@@ -442,7 +442,7 @@ impl HandshakeSocket for UnixStream {
 /// usefully do instead.
 #[doc(hidden)]
 pub fn run_fake_server_for_tests() {
-    let explicit = env::var_os("STEG_SOCKET_PATH").map(PathBuf::from);
+    let explicit = env::var_os("STEG_SERVER").map(PathBuf::from);
     let xdg_runtime_dir = env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from);
     let tmp_dir = env::var_os("TMPDIR").map(PathBuf::from);
     let user = env::var("USER").ok();

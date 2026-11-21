@@ -17,7 +17,7 @@ fn main() {
         std::env::var("STEG_TEST_BINARY").expect("the test should set STEG_TEST_BINARY");
     let options = steg_sdk::ConnectOptions {
         binary: std::path::PathBuf::from(steg_binary),
-        // `None`: resolved from `STEG_SOCKET_PATH`, which the test sets on
+        // `None`: resolved from `STEG_SERVER`, which the test sets on
         // this process's own environment before spawning it - the same
         // channel `steg_sdk::local_socket`'s own resolution already reads.
         socket_path: None,

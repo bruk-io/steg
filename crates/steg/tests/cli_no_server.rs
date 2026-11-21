@@ -2,12 +2,12 @@
 //! <shell>`, and `--help` at every level of the tree work with no server
 //! running, and this task's own engineer decision 1 (`steg`/`steg <noun>`
 //! alone list, status 0, as doc-2 section 2 says) - through the real
-//! binary, never this machine's real server (`STEG_SOCKET_PATH` always
+//! binary, never this machine's real server (`STEG_SERVER` always
 //! points at a throwaway path).
 //!
 //! The one thing worth a real negative control here: that these commands
 //! truly never attempt a connection, not merely that they happen to
-//! succeed anyway. `STEG_SOCKET_PATH` is pointed at a socket this test
+//! succeed anyway. `STEG_SERVER` is pointed at a socket this test
 //! itself is listening on - if any of them tried to connect, `accept()`
 //! would return - and every test below asserts it never does, within a
 //! bounded wait.
@@ -26,13 +26,13 @@ fn steg_binary() -> PathBuf {
 mod support;
 use support::scoped_socket_path;
 
-/// Runs `args` against the real binary with `STEG_SOCKET_PATH` pointed at
+/// Runs `args` against the real binary with `STEG_SERVER` pointed at
 /// `socket` - a path something *is* listening on, so a command that
 /// reached for a connection would succeed, not merely fail quietly.
 fn run_with_a_real_listener_at(args: &[&str], socket: &Path) -> Output {
     Command::new(steg_binary())
         .args(args)
-        .env("STEG_SOCKET_PATH", socket)
+        .env("STEG_SERVER", socket)
         .output()
         .expect("the real steg binary should run to completion")
 }

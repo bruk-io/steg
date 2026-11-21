@@ -77,7 +77,7 @@ pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone)]
 pub struct ServerConfig {
     /// `None` means "resolve it from the real environment", the same way
-    /// `steg_sdk::local_socket`'s provider does (`STEG_SOCKET_PATH`,
+    /// `steg_sdk::local_socket`'s provider does (`STEG_SERVER`,
     /// `XDG_RUNTIME_DIR`, `TMPDIR`, `USER`, read by [`crate::listen::serve`]
     /// itself, not here - this type holds data, not the reading of it).
     /// `Some(path)` is a test's own temporary path, used directly.

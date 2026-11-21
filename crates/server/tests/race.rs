@@ -39,7 +39,7 @@ struct ReapOnDrop(Child);
 impl ReapOnDrop {
     fn spawn(socket_path: &std::path::Path) -> Self {
         let child = Command::new(fixture_binary())
-            .env("STEG_SOCKET_PATH", socket_path)
+            .env("STEG_SERVER", socket_path)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

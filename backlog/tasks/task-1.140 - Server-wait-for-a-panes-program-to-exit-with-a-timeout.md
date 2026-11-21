@@ -1,16 +1,19 @@
 ---
 id: TASK-1.140
 title: 'Server: wait for a pane''s program to exit, with a timeout'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T21:40:00Z'
+updated_date: '2026-11-21T21:58:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.90
+references:
+  - task-1.140-server-wait-for-a-pane-s-program-to-exit
+  - https://github.com/bruk-io/steg/pull/92
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -754,6 +757,14 @@ ok      recipe names (0.2s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Built pane.wait per the approved, revised plan: pending waits in Runtime's own state (new crates/server/src/runtime/wait.rs), resolved from the lock-holding exit (events.rs), close (close.rs) and disconnect (connection.rs) paths, one early-wakeable timer per positive --timeout wait. --timeout 0 checks now; a negative one is BadRequest before anything is touched; TimedOut names the expired seconds; the reply is the typed steg_sdk::WaitResult. pane.wait moved into connection.rs's own interception (dispatch/pane.rs, dispatch/mod.rs, cross_cutting.rs updated to match).
+
+Checks: just check recorded green at the pre-merge head and again at the final merged head (a8edfb54, PR CI also green there). Every production-code negative control (the --timeout 0 branch, the negative-timeout check, the TimedOut message's own seconds, the close-path drain, the exit-path drain, and a scratch lock-held sleep proving the lock is released before a pending wait) recorded as a failing-then-passing pair, plus AC #3's cancel_waits control from a same-crate connection.rs unit test - all at the pre-merge head. None re-recorded after merging origin/main: the merge touched only Cargo.toml/boundaries.toml (workspace feature wiring for TASK-1.145's own fix), crates/steg/src/cli/output.rs (that fix itself, unrelated to pane.wait), and docs - none of wait.rs/close.rs/events.rs/connection.rs or the two test files this task added/touched, so no control's own mechanism or test changed at the final head; just check's own full test run passed cleanly there regardless.
+
+Departures from the plan, each small: runtime/testing.rs's State literal and lib.rs's record re-export both needed one-line additions the plan's own new field/type implied but didn't name; pending_wait_count_for_test ended up #[cfg(test)] rather than plain pub(crate) (matching attachment_count_for_test's real precedent - the plan's own prose calling it 'not #[cfg(test)]' was a misreading, now corrected in the doc comment); crates/steg/src/cli/exit.rs got a one-line doc-comment rename only (a test name it cites, renamed for the error count going 13->14), no logic or test change there.
+
+For a reviewer: start with crates/server/src/runtime/wait.rs (the whole mechanism in one file) and its three call sites in events.rs/close.rs/connection.rs; the six-step decision tree in register_wait is where the three engineer-decided behaviours (TimedOut, --timeout 0/negative, typed WaitResult) actually live.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

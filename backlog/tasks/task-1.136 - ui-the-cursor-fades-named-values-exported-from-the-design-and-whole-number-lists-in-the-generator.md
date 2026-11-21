@@ -3,13 +3,14 @@ id: TASK-1.136
 title: >-
   ui: the cursor fade's named values, exported from the design, and whole-number
   lists in the generator
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T22:10:00Z'
+updated_date: '2026-11-21T22:20:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -22,8 +23,10 @@ asdlc_branch: task-1.136-ui-the-cursor-fade-s-named-values
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7e94152ad20d'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -302,6 +305,31 @@ created: 2026-11-21T22:10:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.136: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-21T22:20:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
+
+[Evidence, Important] tools/src/steg_tools/foundations_generate.py:445-451 (also 46-59, the _DIMENSIONLESS_FIELDS comment at 40-45). The notes and the plan say the list-branch fix "reuses the existing _DIMENSIONLESS_FIELDS mechanism... rather than inventing a second mechanism" and cite the recorded failing-then-passing `just test-tools` pair (the two new tests) as proof. I repeated the control myself in a scratch edit of my review worktree: removed only "order" from _DIMENSIONLESS_FIELDS (step_fraction/medium_shade_strength/phase_* left in) and reran `just test-tools` directly (no pipe/wrapper) - it stayed green, 334/334, including both new tests. The real fix for the list is the unconditional `if all(n == int(n) for n in resolved)` branch at line 449, which ignores `effective_unit` entirely for its branch choice and for its display (no unit suffix regardless of whether the field is dimensionless or carries a real unit); "order"'s presence in _DIMENSIONLESS_FIELDS is inert for the list case; the comment at lines 40-45 claiming the set governs "a list field (order's own [i32; 6])" is not true. Per policy: "a test that still passes with its mechanism removed proves nothing about it, and is Important." For contrast, the scalar additions (step_fraction/medium_shade_strength/phase_whole/going/empty/returning) ARE load-bearing: removing all seven fields from the set and re-running `render()` against the real foundations.json shows step_fraction/medium_shade_strength/phase_* silently rendering as `std::time::Duration::from_millis(0)` (0.03 and 0.5 truncated to 0) - and `just test-tools` still reports ok, since no unit test exercises these specific scalar fields; only `check-foundations`'s byte-diff against the committed generated.rs would catch that regression, not the recorded control. The shipped code itself is correct - I independently regenerated via `just generate-foundations` and got an empty diff against the committed generated.rs - so this is an evidence/attribution problem, not a shipped-value bug: the cited test pair does not discriminate the mechanism it is credited with, and the one new mechanism that is genuinely untested by any unit test (the scalar dimensionless additions for the new fields) has no negative control at all, resting only on an eyeballed diff and the final green `just check`.
+
+[Compliance, Nit] tools/src/steg_tools/design_pages.py:557-570. `_MOTION_ENTRY`'s widened `optional` set now makes both "duration" and "cycle" optional on every motion entry (not paired), so a motion entry with neither field (e.g. motion.status-fade with "duration" deleted) still validates against SCHEMA - the schema can no longer require "some temporal field" per entry. This matches the plan's explicit instruction (section 3) and is a reasonable trade-off for one Fields position describing two shapes, so a Nit, not a blocker.
+
+Other checks, for the record:
+- generated.rs: regenerated myself via `just generate-foundations` in my own scratch worktree, empty diff against the committed file - the committed generated.rs is exactly what the generator produces, and its diff against main is exactly the version line and the one new block, as the plan said.
+- check-design still refuses a malformed motion entry: confirmed by test_an_unrecognised_field_on_the_cursor_fade_entry_is_still_refused (tools/tests/unit/test_design_pages.py), green under test-tools.
+- Values match the engineer's 2026-11-20 decision exactly: name motion.cursor-fade.shaded-dissolve, cycle 1400, order [3,0,4,2,1,5], step_fraction 0.03, medium_shade_strength 0.5, phase_whole/going/empty/returning 0.43/0.18/0.21/0.18 (sums to 1.0), artifact_version 1795195942-6a0a; no idle rest, matching the noted departure.
+- Evidence timeline: diffed the merge commit's own two parents against their merge-base and confirmed the merge from main touched no files under tools/ or crates/ui/ - the claim that the pre-merge test-tools control pair "still stands" after the merge holds.
+- gh pr checks 91 shows one green check at head 774873286c8631106d80c0fc1ab4a6a7d3feeb9d, matching the notes' claim that the re-run is green on the same head.
+- Diff is confined to the plan's named files (foundations.json, generated.rs, design_pages.py, foundations_generate.py, the two test files); no drawing code changed, so no image was needed.
+- Every check recorded directly, no sh -c/pipe/tail, in the task's own implementation notes.
+- Plan approval present: "Plan approved by @bruk (7e94152ad20d, size-2)".
 
 ---
 <!-- COMMENTS:END -->

@@ -1,7 +1,7 @@
 ---
-id: DRAFT-4
+id: TASK-1.145
 title: 'Main is red: JSON key order changes with what steg is built beside'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-21T20:09:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies: []
 parent_task_id: TASK-1
 priority: high
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-4
 ---
 
 ## Description

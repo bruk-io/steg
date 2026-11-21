@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T19:55:00Z'
+updated_date: '2026-11-21T20:00:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -134,6 +134,45 @@ Run `just generate-foundations` (never hand-edit, per R121). Expect the diff aga
 Engineer's decisions of 2026-11-20 (recorded by @bruk.o), design artifact version 143 (id 1795195942-6a0a), Foundations page section 12 and the Cursor atom: (a) the animation is option 2B, as the Cursor atom already draws it: cycle 1400 ms; six pieces row-major 0 to 5; out in the order 3, 0, 4, 2, 1, 5 and back in reverse; each step 3 percent of the cycle; a piece spends one step as medium shade each way, medium shade being the flat colour half way between the cursor colour and the ground (not a dither); whole 43 percent, going 18, empty 21, returning 18. (b) There is NO idle rest: the fade runs for as long as the window has focus and stops, whole, when the window loses focus. Any idle-time value or criterion clause is dropped. (c) Reduce Motion is a stub that always allows motion until TASK-1.63, with the steady cursor built behind it. (d) The animation is meant to become a setting later: build only 2B, but hold the animation as data (order, step, shade) so another variant is an addition, not a rewrite; the setting itself is a separate follow-up task. For this task: criterion 1's 'idle time before the cursor rests' no longer exists and is not exported; export the hold, out, empty and return fractions instead if the plan needs them.
 
 Plan checked against doc-17 (R120 to R123), decision-10 and the design artifact version 143 by @bruk.o on 2026-11-20: ok. The values match the Foundations page section 12; the entry is motion.cursor-fade.shaded-dissolve (option 2B), named so option 1A can sit beside it; the idle time is dropped by the engineer's decision; the generator fix covers both the float rendering and the leaked unit in list descriptions; the closed motion schema in design_pages.py is widened so check-design still passes. The planner's remaining defaults stand: phase_* field names, i32, no README paragraph.
+
+Check FAILED: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 1 at 2026-11-21T20:00:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at b6a744b69b31 with uncommitted changes:
+
+```text
+FAILED  tool tests (exit 1, 39.8s)
+........................................................................ [ 21%]
+........................................................................ [ 43%]
+.......................................................FF............... [ 64%]
+........................................................................ [ 86%]
+..............................................                           [100%]
+=================================== FAILURES ===================================
+_ test_a_whole_number_list_flagged_dimensionless_renders_as_integers_not_floats _
+
+    def test_a_whole_number_list_flagged_dimensionless_renders_as_integers_not_floats() -> None:
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+        )
+>       assert "pub order: [i32; 6]," in rust
+E       assert 'pub order: [i32; 6],' in '#[derive(Debug, Clone, Copy)]\npub struct MotionCursorFadeShadedDissolve {\n    pub cycle: std::time::Duration,\n    ...\npub const MOTION_CURSOR_FADE_SHADED_DISSOLVE_DESCRIPTION: &str = "cycle 1400ms, order 3ms, 0ms, 4ms, 2ms, 1ms, 5ms";'
+
+tools/tests/unit/test_foundations_generate.py:337: AssertionError
+___________ test_the_lists_description_carries_no_stray_unit_suffix ____________
+
+    def test_the_lists_description_carries_no_stray_unit_suffix() -> None:
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+        )
+        description = rust.split("_DESCRIPTION")[1]
+>       assert "order 3, 0, 4, 2, 1, 5" in description
+E       assert 'order 3, 0, 4, 2, 1, 5' in ': &str = "cycle 1400ms, order 3ms, 0ms, 4ms, 2ms, 1ms, 5ms";'
+
+tools/tests/unit/test_foundations_generate.py:348: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_foundations_generate.py::test_a_whole_number_list_flagged_dimensionless_renders_as_integers_not_floats
+FAILED tools/tests/unit/test_foundations_generate.py::test_the_lists_description_carries_no_stray_unit_suffix
+2 failed, 332 passed in 39.63s
+full output: .quiet/tool-tests.log
+error: recipe `test-tools` failed on line 98 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

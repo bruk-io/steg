@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T20:43:00Z'
+updated_date: '2026-11-21T20:49:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -379,6 +379,28 @@ test result: FAILED. 35 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg --lib`
 full output: .quiet/test-steg.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `just check-packages` exited 0 at 2026-11-21T20:49:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.145 on task-1.145-main-is-red-json-key-order-changes-with at aef4b329ef03 with uncommitted changes:
+
+```text
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (55.9s)
+ok      test (steg-server, race-fixture) (65.0s)
+ok      test (steg-server, pty-race-fixture) (68.9s)
+ok      test (steg-server, accept-backoff-fixture) (75.5s)
+ok      build (steg) (0.6s)
+ok      test (steg) (5.3s)
+ok      test (steg, fixtures) (10.0s)
+ok      build (steg-ui) (17.1s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (1.7s)
+ok      test (steg-app) (2.2s)
 ```
 <!-- SECTION:NOTES:END -->
 

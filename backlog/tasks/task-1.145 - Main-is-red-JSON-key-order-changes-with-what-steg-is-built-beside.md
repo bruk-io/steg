@@ -1,9 +1,11 @@
 ---
 id: TASK-1.145
 title: 'Main is red: JSON key order changes with what steg is built beside'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
+updated_date: '2026-11-21T20:18:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -12,6 +14,7 @@ parent_task_id: TASK-1
 priority: high
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.145-main-is-red-json-key-order-changes-with
 ---
 
 ## Description

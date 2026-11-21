@@ -4,7 +4,7 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-20T17:22:00Z'
+updated_date: '2026-11-21T19:50:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -546,6 +546,17 @@ created: 2026-11-20T17:22:00Z
 Accepted by @bruk. Draft ids are reused once promoted, so refer to these by their new ids (asdlc_accepted_from on each keeps the old one):
 
 - DRAFT-2 -> TASK-1.143
+
+---
+
+author: @bruk
+created: 2026-11-21T19:50:00Z
+
+---
+
+Accepted by @bruk. Draft ids are reused once promoted, so refer to these by their new ids (asdlc_accepted_from on each keeps the old one):
+
+- DRAFT-2 -> TASK-1.144
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:13:00Z'
+updated_date: '2026-11-21T20:19:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.140-server-wait-for-a-pane-s-program-to-exit
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '83254935a0f3'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -128,3 +131,16 @@ Plan checked against doc-2 (sections 5, 6, 8) by @bruk.o on 2026-11-20: ok. It b
 
 Revised plan (83254935a0f3) checked against doc-2 (sections 5, 6) and the engineer's answers of 2026-11-21 by @bruk.o: ok. TimedOut is a new error code with exit status 1; --timeout 0 answers at once without registering a wait; a negative --timeout is BadRequest (status 2) before the target is resolved; the reply is the typed record WaitResult. One difference from the wording put to the engineer: the expired seconds are in the error's message, not a separate details field, because errors carry none; told to the engineer with the plan. doc-2 sections 5 and 6 do not yet state the 0 and negative cases; a document change for the engineer to agree.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-21T20:19:00Z
+
+---
+
+Plan approved by @bruk (83254935a0f3, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

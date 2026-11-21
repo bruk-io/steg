@@ -470,6 +470,31 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --test pane_wait`
 ```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait closing_the_pane_while_a_wait_is_pending_answers_no_such_target_bounded_under_the_close_grace` exited 0 at 2026-11-21T20:42:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test closing_the_pane_while_a_wait_is_pending_answers_no_such_target_bounded_under_the_close_grace ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.06s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

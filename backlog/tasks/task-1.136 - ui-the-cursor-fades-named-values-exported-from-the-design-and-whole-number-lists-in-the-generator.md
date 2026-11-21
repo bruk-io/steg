@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T20:00:00Z'
+updated_date: '2026-11-21T20:02:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -172,6 +172,12 @@ FAILED tools/tests/unit/test_foundations_generate.py::test_the_lists_description
 2 failed, 332 passed in 39.63s
 full output: .quiet/tool-tests.log
 error: recipe `test-tools` failed on line 98 with exit code 1
+```
+
+Check passed: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 0 at 2026-11-21T20:02:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at b6a744b69b31 with uncommitted changes:
+
+```text
+ok      tool tests (39.7s)
 ```
 <!-- SECTION:NOTES:END -->
 

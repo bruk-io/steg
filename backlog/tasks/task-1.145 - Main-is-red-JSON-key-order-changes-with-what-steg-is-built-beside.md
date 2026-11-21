@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T20:49:00Z'
+updated_date: '2026-11-21T20:50:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -401,6 +401,12 @@ ok      build (steg-ui) (17.1s)
 ok      test (steg-ui) (1.3s)
 ok      build (steg-app) (1.7s)
 ok      test (steg-app) (2.2s)
+```
+
+Check passed: `just test-all` exited 0 at 2026-11-21T20:50:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.145 on task-1.145-main-is-red-json-key-order-changes-with at aef4b329ef03 with uncommitted changes:
+
+```text
+ok      tests (every crate) (67.6s)
 ```
 <!-- SECTION:NOTES:END -->
 

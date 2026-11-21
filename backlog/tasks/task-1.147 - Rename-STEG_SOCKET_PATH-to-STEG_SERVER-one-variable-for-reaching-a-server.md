@@ -198,6 +198,32 @@ test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out;
 
 error: test failed, to rerun pass `-p steg --test cli_connection_arbitration`
 ```
+
+Check passed: `cargo test -p steg --test cli_connection_arbitration` exited 0 at 2026-11-21T21:43:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.147 on task-1.147-rename-steg-socket-path-to-steg-server at a747ba875cc5 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.147/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.35s
+     Running tests/cli_connection_arbitration.rs (target/debug/deps/cli_connection_arbitration-c87ff0de211c214f)
+
+running 14 tests
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::run_bounded_returns_the_bodys_value_when_it_finishes_in_time ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::one_scoped_temp_dir_can_hand_out_two_different_paths ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::wait_for_socket_returns_once_something_is_listening ... ok
+test the_hostile_listener_itself_accepts_and_closes_with_nothing_written ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::wait_for_socket_panics_when_nothing_ever_answers - should panic ... ok
+test support::tests::run_bounded_panics_when_the_body_does_not_finish_in_time - should panic ... ok
+test a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

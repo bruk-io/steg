@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -496,6 +497,15 @@ Other checks, for the record:
 - Diff is confined to the plan's named files (foundations.json, generated.rs, design_pages.py, foundations_generate.py, the two test files); no drawing code changed, so no image was needed.
 - Every check recorded directly, no sh -c/pipe/tail, in the task's own implementation notes.
 - Plan approval present: "Plan approved by @bruk (7e94152ad20d, size-2)".
+
+---
+
+author: @bruk.r1
+created: 2026-11-21T22:53:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.136: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

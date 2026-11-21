@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:33:00Z'
+updated_date: '2026-11-21T20:37:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -228,6 +228,51 @@ running 1 test
 test connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 222 filtered out; finished in 0.01s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds` exited 101 at 2026-11-21T20:37:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes, last 40 of 41 lines:
+
+```text
+   --> crates/server/src/runtime/wait.rs:128:14
+    |
+128 | fn timed_out(timeout_secs: i64) -> ApiError {
+    |              ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timeout_secs`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 2 warnings (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds ... FAILED
+
+failures:
+
+---- wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds stdout ----
+
+thread 'wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds' (72011549) panicked at crates/server/tests/pane_wait.rs:360:5:
+the message should name the expired timeout (1 second): "the wait's own timeout passed before the condition was met"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 1.02s
+
+error: test failed, to rerun pass `-p steg-server --test pane_wait`
 ```
 <!-- SECTION:NOTES:END -->
 

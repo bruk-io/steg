@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:13:00Z'
+updated_date: '2026-11-21T20:52:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.140-server-wait-for-a-pane-s-program-to-exit
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '83254935a0f3'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -127,4 +130,606 @@ The only genuinely new, cross-cutting state in the server is `pending_waits` its
 Plan checked against doc-2 (sections 5, 6, 8) by @bruk.o on 2026-11-20: ok. It builds only pane.wait; exit 0 with the program's own code in the result and status 1 on timeout match section 6; a pane closed mid-wait answers NoSuchTarget, already in the method's errors; the wait is woken by the exit, the close or the disconnect, with one early-wakeable timer per timed wait and no polling. Three points wait on the engineer: a new ErrorCode::TimedOut (status 1) in the API description; a zero or negative --timeout; inline JSON or a typed result. Orchestrator's recommendations: add TimedOut; zero is an immediate timeout and a negative value is BadRequest (status 2) rather than clamped; typed struct.
 
 Revised plan (83254935a0f3) checked against doc-2 (sections 5, 6) and the engineer's answers of 2026-11-21 by @bruk.o: ok. TimedOut is a new error code with exit status 1; --timeout 0 answers at once without registering a wait; a negative --timeout is BadRequest (status 2) before the target is resolved; the reply is the typed record WaitResult. One difference from the wording put to the engineer: the expired seconds are in the error's message, not a separate details field, because errors carry none; told to the engineer with the plan. doc-2 sections 5 and 6 do not yet state the 0 and negative cases; a document change for the engineer to agree.
+
+Check FAILED: `just check` exited 101 at 2026-11-21T20:27:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9, last 40 of 81 lines:
+
+```text
+   --> crates/server/src/runtime/wait.rs:229:19
+    |
+219 | impl Runtime {
+    | ------------ methods in this implementation
+...
+229 |     pub(crate) fn register_wait(
+    |                   ^^^^^^^^^^^^^
+...
+327 |     pub(crate) fn cancel_waits(&self, client_id: ClientId) {
+    |                   ^^^^^^^^^^^^
+...
+349 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: type `PendingWait` is private
+   --> crates/server/src/runtime/mod.rs:107:5
+    |
+107 |     pending_waits: wait::PendingWaits,
+    |     ^^^^^^^^^^^^^ private type
+
+error: type `PendingWait` is private
+   --> crates/server/src/runtime/mod.rs:209:28
+    |
+209 |             pending_waits: HashMap::new(),
+    |                            ^^^^^^^^^^^^^^ private type
+
+warning: `steg-server` (lib) generated 9 warnings
+error: could not compile `steg-server` (lib) due to 2 previous errors; 9 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+error[E0063]: missing field `pending_waits` in initializer of `State`
+  --> crates/server/src/runtime/testing.rs:66:5
+   |
+66 |     State {
+   |     ^^^^^ missing `pending_waits`
+
+For more information about this error, try `rustc --explain E0063`.
+warning: `steg-server` (lib test) generated 1 warning (1 duplicate)
+error: could not compile `steg-server` (lib test) due to 1 previous error; 1 warning emitted
+full output: .quiet/test-steg-server-accept-backoff-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --lib connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds` exited 101 at 2026-11-21T20:33:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `cancel_waits` is never used
+   --> crates/server/src/runtime/wait.rs:331:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+331 |     pub(crate) fn cancel_waits(&self, client_id: ClientId) {
+    |                   ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds ... FAILED
+
+failures:
+
+---- connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds stdout ----
+
+thread 'connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds' (71648184) panicked at crates/server/src/connection.rs:1666:9:
+assertion `left == right` failed: ConnectionCleanup::drop must cancel every pending wait it still holds
+  left: 1
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 222 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --lib connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds` exited 0 at 2026-11-21T20:33:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.94s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 222 filtered out; finished in 0.01s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds` exited 101 at 2026-11-21T20:37:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes, last 40 of 41 lines:
+
+```text
+   --> crates/server/src/runtime/wait.rs:128:14
+    |
+128 | fn timed_out(timeout_secs: i64) -> ApiError {
+    |              ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timeout_secs`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 2 warnings (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds ... FAILED
+
+failures:
+
+---- wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds stdout ----
+
+thread 'wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds' (72011549) panicked at crates/server/tests/pane_wait.rs:360:5:
+the message should name the expired timeout (1 second): "the wait's own timeout passed before the condition was met"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 1.02s
+
+error: test failed, to rerun pass `-p steg-server --test pane_wait`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds` exited 0 at 2026-11-21T20:38:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test wait_with_a_positive_timeout_on_an_outliving_program_answers_timed_out_naming_the_seconds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 1.02s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait timeout_zero_on_a_running_pane_answers_timed_out_at_once` exited 101 at 2026-11-21T20:39:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:359:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+359 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test timeout_zero_on_a_running_pane_answers_timed_out_at_once ... FAILED
+
+failures:
+
+---- timeout_zero_on_a_running_pane_answers_timed_out_at_once stdout ----
+
+thread 'timeout_zero_on_a_running_pane_answers_timed_out_at_once' (72139961) panicked at crates/server/tests/pane_wait.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    timeout_zero_on_a_running_pane_answers_timed_out_at_once
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 15.01s
+
+error: test failed, to rerun pass `-p steg-server --test pane_wait`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait timeout_zero_on_a_running_pane_answers_timed_out_at_once` exited 0 at 2026-11-21T20:39:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test timeout_zero_on_a_running_pane_answers_timed_out_at_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.02s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait a_negative_timeout_on_a_running_pane_answers_bad_request_and_leaves_the_pane_untouched` exited 101 at 2026-11-21T20:39:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:354:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+354 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test a_negative_timeout_on_a_running_pane_answers_bad_request_and_leaves_the_pane_untouched ... FAILED
+
+failures:
+
+---- a_negative_timeout_on_a_running_pane_answers_bad_request_and_leaves_the_pane_untouched stdout ----
+
+thread 'a_negative_timeout_on_a_running_pane_answers_bad_request_and_leaves_the_pane_untouched' (72222217) panicked at crates/server/tests/pane_wait.rs:462:9:
+expected BadRequest, got Ok(Object {"exit_code": Number(2)})
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_negative_timeout_on_a_running_pane_answers_bad_request_and_leaves_the_pane_untouched
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.33s
+
+error: test failed, to rerun pass `-p steg-server --test pane_wait`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait a_negative_timeout_on_a_running_pane_answers_bad_request_and_leaves_the_pane_untouched` exited 0 at 2026-11-21T20:40:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.85s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test a_negative_timeout_on_a_running_pane_answers_bad_request_and_leaves_the_pane_untouched ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.32s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait closing_the_pane_while_a_wait_is_pending_answers_no_such_target_bounded_under_the_close_grace` exited 101 at 2026-11-21T20:42:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+warning: function `pane_closed_while_waiting` is never used
+   --> crates/server/src/runtime/wait.rs:180:15
+    |
+180 | pub(super) fn pane_closed_while_waiting() -> ApiError {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `steg-server` (lib) generated 2 warnings
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test closing_the_pane_while_a_wait_is_pending_answers_no_such_target_bounded_under_the_close_grace ... FAILED
+
+failures:
+
+---- closing_the_pane_while_a_wait_is_pending_answers_no_such_target_bounded_under_the_close_grace stdout ----
+
+thread 'closing_the_pane_while_a_wait_is_pending_answers_no_such_target_bounded_under_the_close_grace' (72298956) panicked at crates/server/tests/pane_wait.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    closing_the_pane_while_a_wait_is_pending_answers_no_such_target_bounded_under_the_close_grace
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 15.02s
+
+error: test failed, to rerun pass `-p steg-server --test pane_wait`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait closing_the_pane_while_a_wait_is_pending_answers_no_such_target_bounded_under_the_close_grace` exited 0 at 2026-11-21T20:42:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test closing_the_pane_while_a_wait_is_pending_answers_no_such_target_bounded_under_the_close_grace ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.06s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait wait_on_a_running_pane_answers_once_the_program_really_exits_with_its_real_code` exited 101 at 2026-11-21T20:43:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test wait_on_a_running_pane_answers_once_the_program_really_exits_with_its_real_code ... FAILED
+
+failures:
+
+---- wait_on_a_running_pane_answers_once_the_program_really_exits_with_its_real_code stdout ----
+
+thread 'wait_on_a_running_pane_answers_once_the_program_really_exits_with_its_real_code' (72341338) panicked at crates/server/tests/pane_wait.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    wait_on_a_running_pane_answers_once_the_program_really_exits_with_its_real_code
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 15.01s
+
+error: test failed, to rerun pass `-p steg-server --test pane_wait`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait wait_on_a_running_pane_answers_once_the_program_really_exits_with_its_real_code` exited 0 at 2026-11-21T20:43:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.86s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test wait_on_a_running_pane_answers_once_the_program_really_exits_with_its_real_code ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.32s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait an_unrelated_request_behind_a_pending_wait_answers_first_proving_the_reader_was_never_blocked` exited 101 at 2026-11-21T20:44:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:357:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+357 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test an_unrelated_request_behind_a_pending_wait_answers_first_proving_the_reader_was_never_blocked ... FAILED
+
+failures:
+
+---- an_unrelated_request_behind_a_pending_wait_answers_first_proving_the_reader_was_never_blocked stdout ----
+
+thread 'an_unrelated_request_behind_a_pending_wait_answers_first_proving_the_reader_was_never_blocked' (72397384) panicked at crates/server/tests/pane_wait.rs:587:47:
+reading a reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unrelated_request_behind_a_pending_wait_answers_first_proving_the_reader_was_never_blocked
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 15.01s
+
+error: test failed, to rerun pass `-p steg-server --test pane_wait`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait an_unrelated_request_behind_a_pending_wait_answers_first_proving_the_reader_was_never_blocked` exited 0 at 2026-11-21T20:45:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test an_unrelated_request_behind_a_pending_wait_answers_first_proving_the_reader_was_never_blocked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.02s
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-21T20:50:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m 
+     let start = Instant::now();
+[31m-    let response = read_reply_for(&mut wait_stream, &mut wait_connection, wait_id, Duration::from_secs(5));
+(B[m[32m+    let response = read_reply_for(
+(B[m[32m+        &mut wait_stream,
+(B[m[32m+        &mut wait_connection,
+(B[m[32m+        wait_id,
+(B[m[32m+        Duration::from_secs(5),
+(B[m[32m+    );
+(B[m     let elapsed = start.elapsed();
+     assert!(
+         elapsed < Duration::from_secs(1),
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server/tests/pane_wait.rs:565:
+     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+     let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "sleep 100"]);
+ 
+[31m-    let wait_id = call_without_reading(&mut stream, &mut connection, "pane.wait", wait_params(&pane, None));
+(B[m[32m+    let wait_id = call_without_reading(
+(B[m[32m+        &mut stream,
+(B[m[32m+        &mut connection,
+(B[m[32m+        "pane.wait",
+(B[m[32m+        wait_params(&pane, None),
+(B[m[32m+    );
+(B[m     let mut show_params = Map::new();
+     show_params.insert("target".to_string(), json!(pane));
+     let show_id = call_without_reading(&mut stream, &mut connection, "pane.show", show_params);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server/tests/pane_wait.rs:596:
+         "the pending pane.wait must not answer before the unrelated pane.show sent right \
+          behind it"
+     );
+[31m-    assert!(matches!(show_response, Response::Ok(_)), "{show_response:?}");
+(B[m[32m+    assert!(
+(B[m[32m+        matches!(show_response, Response::Ok(_)),
+(B[m[32m+        "{show_response:?}"
+(B[m[32m+    );
+(B[m 
+     stop_server(&stop, handle);
+ }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 163 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-21T20:52:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes, last 40 of 71 lines:
+
+```text
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... ok
+test cli::output::tests::nested_plain_and_json_are_identical_bytes ... FAILED
+test cli::output::tests::record_plain_is_one_tab_separated_line_in_fields_order ... ok
+test cli::output::tests::a_null_field_renders_as_an_empty_column_never_a_dropped_one ... ok
+test cli::output::tests::records_plain_is_one_line_per_record_nothing_for_zero ... ok
+test cli::output::tests::a_tab_newline_and_carriage_return_inside_a_field_become_single_spaces_in_plain_text ... ok
+test cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json ... FAILED
+test cli::tree::tests::autostart_defaults_to_true_with_neither_flag_given ... ok
+test cli::tree::tests::autostart_given_after_no_autostart_wins ... ok
+test cli::tree::tests::json_is_read_from_the_leaf_subcommand ... ok
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
+test cli::tree::tests::quiet_is_read_from_the_leaf_subcommand_either_spelling ... ok
+
+failures:
+
+---- cli::output::tests::nested_plain_and_json_are_identical_bytes stdout ----
+
+thread 'cli::output::tests::nested_plain_and_json_are_identical_bytes' (72975788) panicked at crates/steg/src/cli/output.rs:708:9:
+assertion `left == right` failed
+  left: "{\"stream\":\"st1\",\"snapshot\":{\"rows\":[]}}\n"
+ right: "{\"snapshot\":{\"rows\":[]},\"stream\":\"st1\"}\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json stdout ----
+
+thread 'cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json' (72975780) panicked at crates/steg/src/cli/output.rs:593:9:
+assertion `left == right` failed
+  left: "t1\t{\"split\":\"horizontal\",\"panes\":[\"p1\",\"p2\"]}\n"
+ right: "t1\t{\"panes\":[\"p1\",\"p2\"],\"split\":\"horizontal\"}\n"
+
+
+failures:
+    cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json
+    cli::output::tests::nested_plain_and_json_are_identical_bytes
+
+test result: FAILED. 35 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Built and committed locally (not pushed): sdk ErrorCode::TimedOut + WaitResult (crates/sdk/src/description/{shapes.rs,methods/errors.rs,methods/pane.rs,methods/tests.rs}, crates/sdk/src/record.rs, crates/sdk/src/lib.rs); new crates/server/src/runtime/wait.rs (WaitGate, PendingWait, register_wait, cancel_waits, pending_wait_count_for_test); hooks in runtime/events.rs (exit) and runtime/close.rs (close-while-waiting); connection.rs's pane.wait interception and ConnectionCleanup::drop's cancel_waits call; pane.wait moved out of dispatch/pane.rs's HANDLED into dispatch/mod.rs's own not-yet arm; cross_cutting.rs's row updated; new crates/server/tests/pane_wait.rs (9 tests) plus one same-crate unit test in connection.rs for AC #3.
+
+Departures from the plan, each small: runtime/testing.rs needed pending_waits added to its own State literal (not named in the plan, a necessary consequence of the new field); lib.rs needed WaitResult re-exported alongside the other record types (same reason); pending_wait_count_for_test ended up #[cfg(test)] (matching attachment_count_for_test's real precedent exactly - the plan's own text describing it as 'not #[cfg(test)]' was a misreading of that precedent, corrected in the doc comment); crates/steg/src/cli/exit.rs's own doc comment got a one-line rename (the test name it cites changed from thirteen to fourteen) - no logic or test changed in that file, matching the plan's own claim that it needs no change in substance.
+
+Every production-code negative control recorded as a failing+passing pair at this commit: the Some(0) branch, the negative-timeout check, the TimedOut message's own seconds, the close-path drain, the exit-path drain (events.rs), and a scratch lock-held sleep in register_wait for AC #2 - plus AC #3's cancel_waits control (recorded before this commit, same mechanism).
+
+just check at this commit: every step passes (format, lint, boundaries, foundations, design pages, licences) except the tests step, which fails on exactly the two tests named in my brief (cli::output::tests::nested_plain_and_json_are_identical_bytes, cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json) - the known main-is-red JSON key-order issue (TASK-1.145), reached because this task's own sdk change pulls steg-app into the same test command. Not pushing per instructions; waiting for TASK-1.145's fix to land on main.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-21T20:19:00Z
+
+---
+
+Plan approved by @bruk (83254935a0f3, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

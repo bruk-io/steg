@@ -3,7 +3,7 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-18T23:38:00Z'
+updated_date: '2026-11-21T20:36:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -204,7 +204,7 @@ Outside a steg terminal there is no context, so a command that needs a target an
 | `--key <name>` | `pane send` | A key to send, by name. May be given more than once |
 | `--scrollback` | `pane capture` | Include scrollback, not just the screen |
 | `--for` | `wait`, `event watch` | For `event watch`, which events to keep: the names come from the API description's event records (R38). For `pane wait`, what to wait for: in M1 the only condition is `exit`, the pane's program ending; it is a condition of its own and not an event name. Either way the CLI checks the word before any request, and an unknown one is status 2 |
-| `--timeout <seconds>` | `wait`, `watch` | Give up after this long, with status 1 |
+| `--timeout <seconds>` | `wait`, `watch` | Give up after this long, with status 1. For `pane wait`, `0` and negative values are in section 6 |
 | `--by <cells>` | `pane resize` | How far to move the border, in character cells |
 | `--with <target>` | `pane swap` | The pane to exchange places with |
 | `--all` | `event watch`, `client list` | Every session on the host, not just the target's; or command line clients as well |
@@ -234,6 +234,8 @@ Outside a steg terminal there is no context, so a command that needs a target an
 | 130 | Interrupted |
 
 `steg pane wait --for exit` exits 0 when the program ended, and prints the program's own exit code in its result. It does not adopt that code as its own status, so a script can tell "the wait failed" from "the program failed".
+
+With `--timeout`, a `pane wait` that outlasts it fails with status 1, and the error names the timeout that passed (the API's `TimedOut` error). `--timeout 0` checks once and answers at once: the result if the program has already ended, the timeout error if it is still running. A negative `--timeout` is bad usage, status 2, refused before the target is looked up. Decided on 21 November 2026 (TASK-1.140).
 
 A pane started with a program stays when the program ends: its screen can still be captured, and `pane show` reports the exit code. A pane started as a plain shell closes when the shell exits. Rex closes both unless `--keep-open` is given; steg differs because the app's design keeps the output in front of the person (the design artifact, doc-10) and because a pane that disappears makes `pane wait` a race.
 

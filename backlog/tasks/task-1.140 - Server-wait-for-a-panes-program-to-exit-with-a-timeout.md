@@ -711,6 +711,14 @@ error: test failed, to rerun pass `-p steg --lib`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
 ```
+
+Built and committed locally (not pushed): sdk ErrorCode::TimedOut + WaitResult (crates/sdk/src/description/{shapes.rs,methods/errors.rs,methods/pane.rs,methods/tests.rs}, crates/sdk/src/record.rs, crates/sdk/src/lib.rs); new crates/server/src/runtime/wait.rs (WaitGate, PendingWait, register_wait, cancel_waits, pending_wait_count_for_test); hooks in runtime/events.rs (exit) and runtime/close.rs (close-while-waiting); connection.rs's pane.wait interception and ConnectionCleanup::drop's cancel_waits call; pane.wait moved out of dispatch/pane.rs's HANDLED into dispatch/mod.rs's own not-yet arm; cross_cutting.rs's row updated; new crates/server/tests/pane_wait.rs (9 tests) plus one same-crate unit test in connection.rs for AC #3.
+
+Departures from the plan, each small: runtime/testing.rs needed pending_waits added to its own State literal (not named in the plan, a necessary consequence of the new field); lib.rs needed WaitResult re-exported alongside the other record types (same reason); pending_wait_count_for_test ended up #[cfg(test)] (matching attachment_count_for_test's real precedent exactly - the plan's own text describing it as 'not #[cfg(test)]' was a misreading of that precedent, corrected in the doc comment); crates/steg/src/cli/exit.rs's own doc comment got a one-line rename (the test name it cites changed from thirteen to fourteen) - no logic or test changed in that file, matching the plan's own claim that it needs no change in substance.
+
+Every production-code negative control recorded as a failing+passing pair at this commit: the Some(0) branch, the negative-timeout check, the TimedOut message's own seconds, the close-path drain, the exit-path drain (events.rs), and a scratch lock-held sleep in register_wait for AC #2 - plus AC #3's cancel_waits control (recorded before this commit, same mechanism).
+
+just check at this commit: every step passes (format, lint, boundaries, foundations, design pages, licences) except the tests step, which fails on exactly the two tests named in my brief (cli::output::tests::nested_plain_and_json_are_identical_bytes, cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json) - the known main-is-red JSON key-order issue (TASK-1.145), reached because this task's own sdk change pulls steg-app into the same test command. Not pushing per instructions; waiting for TASK-1.145's fix to land on main.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

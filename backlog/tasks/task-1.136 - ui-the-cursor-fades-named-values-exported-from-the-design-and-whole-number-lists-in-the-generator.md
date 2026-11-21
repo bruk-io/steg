@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T22:30:00Z'
+updated_date: '2026-11-21T22:31:00Z'
 labels:
   - size-2
   - changes-requested
@@ -391,6 +391,14 @@ ok      tool tests (39.9s)
 ```
 
 Commits since the review: 0.
+
+Review correction (Finding 1): the earlier note that the whole-number-list fix "reuses the existing _DIMENSIONLESS_FIELDS mechanism" was wrong. Confirmed by removing "order" from that set alone (control, unrecorded): generated.rs stayed byte-identical and every test stayed green - the set membership does nothing for a list. The real mechanism is the list branch's own unconditional whole-number check (`all(n == int(n) for n in resolved)`), which never consults `_DIMENSIONLESS_FIELDS`; removed "order" from the set for good and simplified the list branch accordingly (no `effective_unit` indirection), confirmed generated.rs is still byte-identical after the simplification. The scalar fields (step_fraction, medium_shade_strength, phase_whole/going/empty/returning) genuinely are load-bearing in `_DIMENSIONLESS_FIELDS`: without them, each fraction would hit the group's "unit": "ms" branch and silently become `Duration::from_millis(0)`, now proven by a new test (`test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration`, covering step_fraction/medium_shade_strength/phase_whole - phase_going/empty/returning share the identical branch and set membership).
+
+Two control pairs recorded at the final head, each failing+passing under `asdlc record-check TASK-1.136 --as bruk.w5 --in <worktree> -- just test-tools` (never sh -c/pipe/tail), each run unrecorded first to confirm the failure's reason:
+(a) list fix: removed the whole-number check itself (not a set entry) - watched test_a_whole_number_list_under_a_non_px_unit_renders_as_integers_not_floats and test_the_lists_description_carries_no_stray_unit_suffix fail with order rendering as floats with a stray "ms" suffix again (2 failed, 333 passed), restored, recorded passing (334... wait see below).
+(b) scalar fields: removed the six cursor-fade names from _DIMENSIONLESS_FIELDS - watched test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration fail; inspected the full rendered output directly and confirmed it actually produces `std::time::Duration::from_millis(0)` for step_fraction/medium_shade_strength/phase_whole, exactly the bug the reviewer named, not just a missing-line assertion (1 failed, 334 passed), restored, recorded passing.
+
+Finding 2 (nit): left as-is. "At least one of duration or cycle required" is not a two-line change under the current Fields/optional schema - optional only expresses "required unless listed", not a cross-field "at least one of" constraint; it would need a new validation rule beyond Position's current shape. Not built, per the reviewer's own stated bar.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

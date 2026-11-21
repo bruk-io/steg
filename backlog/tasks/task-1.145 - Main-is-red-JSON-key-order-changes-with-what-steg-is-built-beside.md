@@ -21,6 +21,8 @@ asdlc_branch: task-1.145-main-is-red-json-key-order-changes-with
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '072fa2486aeb'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -644,6 +646,15 @@ created: 2026-11-21T20:30:00Z
 ---
 
 Plan approved by @bruk (072fa2486aeb, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-21T21:21:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.145: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

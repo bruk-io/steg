@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:45:00Z'
+updated_date: '2026-11-21T20:50:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -620,6 +620,51 @@ running 1 test
 test an_unrelated_request_behind_a_pending_wait_answers_first_proving_the_reader_was_never_blocked ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.02s
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-21T20:50:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m 
+     let start = Instant::now();
+[31m-    let response = read_reply_for(&mut wait_stream, &mut wait_connection, wait_id, Duration::from_secs(5));
+(B[m[32m+    let response = read_reply_for(
+(B[m[32m+        &mut wait_stream,
+(B[m[32m+        &mut wait_connection,
+(B[m[32m+        wait_id,
+(B[m[32m+        Duration::from_secs(5),
+(B[m[32m+    );
+(B[m     let elapsed = start.elapsed();
+     assert!(
+         elapsed < Duration::from_secs(1),
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server/tests/pane_wait.rs:565:
+     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+     let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "sleep 100"]);
+ 
+[31m-    let wait_id = call_without_reading(&mut stream, &mut connection, "pane.wait", wait_params(&pane, None));
+(B[m[32m+    let wait_id = call_without_reading(
+(B[m[32m+        &mut stream,
+(B[m[32m+        &mut connection,
+(B[m[32m+        "pane.wait",
+(B[m[32m+        wait_params(&pane, None),
+(B[m[32m+    );
+(B[m     let mut show_params = Map::new();
+     show_params.insert("target".to_string(), json!(pane));
+     let show_id = call_without_reading(&mut stream, &mut connection, "pane.show", show_params);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server/tests/pane_wait.rs:596:
+         "the pending pane.wait must not answer before the unrelated pane.show sent right \
+          behind it"
+     );
+[31m-    assert!(matches!(show_response, Response::Ok(_)), "{show_response:?}");
+(B[m[32m+    assert!(
+(B[m[32m+        matches!(show_response, Response::Ok(_)),
+(B[m[32m+        "{show_response:?}"
+(B[m[32m+    );
+(B[m 
+     stop_server(&stop, handle);
+ }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 163 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -337,6 +337,31 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --test pane_wait`
 ```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_wait timeout_zero_on_a_running_pane_answers_timed_out_at_once` exited 0 at 2026-11-21T20:39:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+warning: method `pending_wait_count_for_test` is never used
+   --> crates/server/src/runtime/wait.rs:353:19
+    |
+223 | impl Runtime {
+    | ------------ method in this implementation
+...
+353 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+     Running tests/pane_wait.rs (target/debug/deps/pane_wait-0e1fe91e2aa055cd)
+
+running 1 test
+test timeout_zero_on_a_running_pane_answers_timed_out_at_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.02s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

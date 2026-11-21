@@ -5,12 +5,13 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-21T20:24:00Z'
+updated_date: '2026-11-21T20:25:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies:
   - TASK-1.146
+  - TASK-1.147
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -362,4 +363,6 @@ planning created has been removed.
 
 <!-- SECTION:NOTES:BEGIN -->
 Split by @bruk.o on 2026-11-21: the server half of the plan (real STEG_SESSION, STEG_TAB, STEG_PANE and STEG_SERVER in a pane's environment) is TASK-1.146; this task keeps the hello's context, the server's use of it, the CLI's reading of the environment and the end-to-end tests, and builds once TASK-1.146 is merged.
+
+Decided by the engineer on 2026-11-21: one variable. STEG_SOCKET_PATH is renamed to STEG_SERVER by TASK-1.147, which this task now also depends on; no precedence between two names is built here.
 <!-- SECTION:NOTES:END -->

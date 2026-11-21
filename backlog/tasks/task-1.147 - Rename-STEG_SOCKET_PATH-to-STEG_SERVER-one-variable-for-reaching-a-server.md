@@ -224,6 +224,12 @@ test a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding .
 
 test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
 ```
+
+Check FAILED: `grep -rn STEG_SOCKET_PATH crates` exited 1 at 2026-11-21T21:43:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.147 on task-1.147-rename-steg-socket-path-to-steg-server at a747ba875cc5 with uncommitted changes:
+
+```text
+
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

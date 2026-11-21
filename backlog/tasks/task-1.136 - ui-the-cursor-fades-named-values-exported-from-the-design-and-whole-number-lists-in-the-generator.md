@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-20T17:45:00Z'
+updated_date: '2026-11-21T19:55:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.136-ui-the-cursor-fade-s-named-values
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '7e94152ad20d'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -132,3 +135,16 @@ Engineer's decisions of 2026-11-20 (recorded by @bruk.o), design artifact versio
 
 Plan checked against doc-17 (R120 to R123), decision-10 and the design artifact version 143 by @bruk.o on 2026-11-20: ok. The values match the Foundations page section 12; the entry is motion.cursor-fade.shaded-dissolve (option 2B), named so option 1A can sit beside it; the idle time is dropped by the engineer's decision; the generator fix covers both the float rendering and the leaked unit in list descriptions; the closed motion schema in design_pages.py is widened so check-design still passes. The planner's remaining defaults stand: phase_* field names, i32, no README paragraph.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-21T19:55:00Z
+
+---
+
+Plan approved by @bruk (7e94152ad20d, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

@@ -99,6 +99,20 @@ impl Runtime {
 
         let response = Response::Ok(outcome.into_value());
 
+        // TASK-1.140, AC #1's "a pane closed while being waited on answers
+        // at once": every pane this close just removed from the tree
+        // (`scope`, computed once above, regardless of which of the three
+        // methods this is) answers any pending `pane.wait` with
+        // `NoSuchTarget` now, under this same lock - long before
+        // `force_end` (below, unlocked) would ever end the program.
+        for &pane in &scope {
+            super::wait::resolve_pane_waits_locked(
+                &mut state,
+                pane,
+                Err(super::wait::pane_closed_while_waiting()),
+            );
+        }
+
         let to_force: Vec<(PaneId, PaneHandle)> = scope
             .into_iter()
             .filter_map(|pane| state.panes.remove(&pane).map(|handle| (pane, handle)))

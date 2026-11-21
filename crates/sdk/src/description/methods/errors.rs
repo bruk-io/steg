@@ -80,5 +80,14 @@ pub(super) fn errors() -> Vec<ErrorRecord> {
             // status 2 ("bad usage"), which BadRequest already owns.
             exit_status: 1,
         },
+        ErrorRecord {
+            code: ErrorCode::TimedOut,
+            summary: "A wait reached its own timeout before the condition was met".into(),
+            // doc-2 section 6's own exact wording for pane.wait: "a wait
+            // that times out is status 1" - the same bucket as every
+            // other state-based refusal in this table, never status 2
+            // (BadRequest's own "bad usage").
+            exit_status: 1,
+        },
     ]
 }

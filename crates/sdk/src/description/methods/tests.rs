@@ -218,11 +218,11 @@ fn events_has_r38s_fourteen_m1_names_each_once() {
 }
 
 #[test]
-fn errors_has_thirteen_codes_with_their_exit_statuses() {
+fn errors_has_fourteen_codes_with_their_exit_statuses() {
     use crate::description::shapes::ErrorCode;
 
     let api = description();
-    assert_eq!(api.errors.len(), 13);
+    assert_eq!(api.errors.len(), 14);
 
     let status_of = |code: ErrorCode| {
         api.errors
@@ -258,6 +258,9 @@ fn errors_has_thirteen_codes_with_their_exit_statuses() {
     // already use, not status 2 (`BadRequest`'s own bucket for a
     // malformed request).
     assert_eq!(status_of(ErrorCode::ProgramFailed), 1);
+    // `TimedOut` (TASK-1.140): doc-2 section 6's own exact wording for
+    // pane.wait - "a wait that times out is status 1".
+    assert_eq!(status_of(ErrorCode::TimedOut), 1);
 }
 
 /// AC #6: `ProgramNotStarted` and `ShellCannotRestart` (the kernel's

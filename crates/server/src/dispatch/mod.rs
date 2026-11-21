@@ -116,7 +116,9 @@ fn handled() -> Vec<(&'static str, &'static str)> {
 /// reason: it needs the connection's own `Arc<Outbound>` (to flush its
 /// reply before anything closes) and the server's `Stopper` (to actually
 /// end the accept loop), neither reachable from `dispatch`'s plain
-/// `(&mut Tree, ...)` signature. Test-only, for the same reason as
+/// `(&mut Tree, ...)` signature. `pane.wait` (TASK-1.140) joins it for the
+/// same reason, needing the connection's own `Arc<Outbound>` and the
+/// server's pending-wait state instead. Test-only, for the same reason as
 /// [`handled`].
 #[cfg(test)]
 const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[
@@ -130,6 +132,11 @@ const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[
     // the `ClientId` itself).
     ("tab", "declare-size"),
     ("server", "stop"),
+    // `pane.wait` (TASK-1.140) joins this list for the identical reason:
+    // answering it needs a connection's own `Arc<Outbound>` and the
+    // server's pending-wait state, neither reachable from `dispatch`'s
+    // plain `(&mut Tree, ...)` signature.
+    ("pane", "wait"),
 ];
 
 /// The nouns/methods with no served arm at all (`event.watch`) - neither
@@ -207,9 +214,10 @@ pub(crate) fn program_not_running() -> ApiError {
 /// (every described method's name is `{noun}.{verb}`, R101), and every
 /// described method is matched by one of the per-noun `HANDLED` lists, the
 /// remaining not-yet nouns, or `pane.attach`/`pane.detach`/
-/// `tab.declare-size`/`server.stop`'s own arms (TASK-1.47/TASK-1.114/
-/// TASK-1.88, each built but never reached this way in the real system),
-/// which `mod.rs`'s own completeness test checks against `description()`
+/// `tab.declare-size`/`server.stop`/`pane.wait`'s own arms (TASK-1.47/
+/// TASK-1.114/TASK-1.88/TASK-1.140, each built but never reached this way
+/// in the real system), which `mod.rs`'s own completeness test checks
+/// against `description()`
 /// directly. Panics instead, rather than silently misrouting, if ever
 /// called with `"api.call"` itself - the one case the doc above says
 /// never to pass here.
@@ -285,6 +293,12 @@ pub(crate) fn dispatch_raw(
             "connection.rs's own interception (TASK-1.114) - a described method, fully built, \
              but never reached through dispatch in the real system: answering it needs a \
              ClientId, which this function's own signature has no way to carry at all",
+        )),
+        ("pane", "wait") => Err(not_implemented_yet(
+            "connection.rs's own interception (TASK-1.140) - a described method, fully built, \
+             but never reached through dispatch in the real system: answering it needs the \
+             connection's own Arc<Outbound> and the server's pending-wait state, neither \
+             reachable from this function's signature",
         )),
         _ => unreachable!(
             "validate already refused any method not in the description, and every \

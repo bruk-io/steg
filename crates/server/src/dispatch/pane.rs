@@ -24,7 +24,6 @@ pub(super) const HANDLED: &[(&str, &str)] = &[
     ("pane", "swap"),
     ("pane", "send"),
     ("pane", "capture"),
-    ("pane", "wait"),
 ];
 
 pub(super) fn dispatch(
@@ -50,10 +49,6 @@ pub(super) fn dispatch(
         "swap" => swap(tree, context, request),
         "send" => send(tree, context, request),
         "capture" => capture(tree, context, request),
-        "wait" => Err(not_implemented_yet(
-            "TASK-1.140, \"Server: wait for a pane's program to exit, with a timeout\" - needs \
-             a cross-cutting pending-wait mechanism; dispatch has no I/O by design",
-        )),
         _ => unreachable!("HANDLED names every verb this match covers"),
     }
 }

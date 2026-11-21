@@ -71,6 +71,7 @@ pub(super) fn test_state(
         subscribers: HashMap::new(),
         notify_session_count_changed: None,
         stopper: None,
+        pending_waits: HashMap::new(),
         applied_marks: HashMap::new(),
     }
 }

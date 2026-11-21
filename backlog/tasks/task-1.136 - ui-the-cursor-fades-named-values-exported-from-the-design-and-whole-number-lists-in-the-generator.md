@@ -3,14 +3,13 @@ id: TASK-1.136
 title: >-
   ui: the cursor fade's named values, exported from the design, and whole-number
   lists in the generator
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T22:38:00Z'
+updated_date: '2026-11-21T22:53:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -438,6 +437,20 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 31, 30 without the Asdlc-Worker trailer.
+
+Fixed review findings on head c8c4563e.
+
+Finding 1: "order" in _DIMENSIONLESS_FIELDS was inert, confirmed by removing it alone (generated.rs stayed byte-identical, every test stayed green) - a list field's int-vs-float choice is unconditional on every resolved value being whole, never on set membership. Removed "order" from the set for good and simplified the list branch (dropped the now-pointless effective_unit indirection); confirmed generated.rs still regenerates byte-identical after the simplification.
+
+The scalar fields (step_fraction, medium_shade_strength, phase_whole/going/empty/returning) are genuinely load-bearing in _DIMENSIONLESS_FIELDS: removing them makes each fraction hit the group's "unit": "ms" branch and silently become Duration::from_millis(0) - confirmed by inspecting the actual rendered output, not just a missing assertion. Added test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration (covering step_fraction/medium_shade_strength/phase_whole; phase_going/empty/returning share the identical branch and set membership).
+
+Two control pairs recorded at the final head via `asdlc record-check ... -- just test-tools` (each run unrecorded first to confirm the failure's reason):
+(a) list fix - removed the whole-number check itself: watched the two order-related tests fail with order back to floats and a stray "ms" suffix (2 failed, 333 passed); restored, recorded passing (334 passed, 0 failed). This pair proves the list branch's unconditional whole-number check, not _DIMENSIONLESS_FIELDS.
+(b) scalar fields - removed the six cursor-fade names from the set: watched the new scalar test fail, and separately confirmed by eye that the rendered struct actually held three Duration::from_millis(0) fields (1 failed, 334 passed); restored, recorded passing. This pair proves _DIMENSIONLESS_FIELDS is what the scalar branch needs.
+
+Finding 2 (nit): left as-is, stated why - "at least one of duration/cycle required" isn't a two-line change under the current Fields/optional schema (no cross-field "at least one of" position exists), so not built per the reviewer's own bar.
+
+just check recorded green at this same final head (c8c4563e); no new commits landed on main between the merge and this head, so nothing further to re-run.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

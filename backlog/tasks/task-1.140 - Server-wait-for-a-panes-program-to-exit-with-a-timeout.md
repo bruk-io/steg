@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:52:00Z'
+updated_date: '2026-11-21T21:40:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -719,6 +719,41 @@ Departures from the plan, each small: runtime/testing.rs needed pending_waits ad
 Every production-code negative control recorded as a failing+passing pair at this commit: the Some(0) branch, the negative-timeout check, the TimedOut message's own seconds, the close-path drain, the exit-path drain (events.rs), and a scratch lock-held sleep in register_wait for AC #2 - plus AC #3's cancel_waits control (recorded before this commit, same mechanism).
 
 just check at this commit: every step passes (format, lint, boundaries, foundations, design pages, licences) except the tests step, which fails on exactly the two tests named in my brief (cli::output::tests::nested_plain_and_json_are_identical_bytes, cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json) - the known main-is-red JSON key-order issue (TASK-1.145), reached because this task's own sdk change pulls steg-app into the same test command. Not pushing per instructions; waiting for TASK-1.145's fix to land on main.
+
+Check passed: `just check` exited 0 at 2026-11-21T21:40:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at a8edfb54f3de:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (84.9s)
+ok      build (steg-sdk) (2.6s)
+ok      test (steg-sdk) (2.7s)
+ok      test (steg-sdk, local-socket) (3.2s)
+ok      build (steg-kernel) (1.7s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (1.5s)
+ok      test (steg-server) (63.5s)
+ok      test (steg-server, race-fixture) (116.0s)
+ok      test (steg-server, pty-race-fixture) (106.6s)
+ok      test (steg-server, accept-backoff-fixture) (98.3s)
+ok      build (steg) (2.9s)
+ok      test (steg) (8.0s)
+ok      test (steg, fixtures) (13.2s)
+ok      build (steg-ui) (15.8s)
+ok      test (steg-ui) (1.6s)
+ok      build (steg-app) (1.6s)
+ok      test (steg-app) (2.3s)
+ok      tool tests (40.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.2s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

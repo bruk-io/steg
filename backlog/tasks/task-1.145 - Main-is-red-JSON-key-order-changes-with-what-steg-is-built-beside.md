@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T20:58:00Z'
+updated_date: '2026-11-21T20:59:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -449,6 +449,88 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Built per the approved plan, no departures.
+
+Decision: declared serde_json's preserve_order feature in the root Cargo.toml's
+[workspace.dependencies] (gpui's own dependency chain already forces it on in any
+build that includes steg-app, so this was the only answer that satisfies AC #1,
+not a judgement call) and switched crates/sdk, crates/server, crates/steg and
+crates/app to serde_json.workspace = true. The order this produces: record/method
+shapes reach Value through serde_json::to_value in
+crates/server/src/dispatch/outcome.rs::into_value, which builds a Map - without
+the feature that Map is a BTreeMap and sorts keys (so the wire text itself was
+already sorted when the server was built alone, before this fix, not only on the
+CLI's own side); with the feature it's an IndexMap and keeps the struct's own
+declared field order (e.g. SessionRecord's id, label, position, colour,
+current_tab), carried through the wire text and preserved again by the CLI's
+parse-and-reprint. render()'s own unit tests build Values directly with json!,
+where the order is simply the macro literal's own key order.
+
+Limitation worth stating plainly: nothing in the suite pins the product's
+end-to-end key order - crates/steg/tests/cli_output_formats.rs builds its
+expectations from the parsed --json object by field name, order-insensitive by
+construction. AC #1's guarantee rests on the two corrected output.rs unit tests
+plus the manifest declaration, not on any end-to-end assertion; not adding one,
+per the plan.
+
+The two tests (a_field_declared_text_but_really_structured_renders_its_own_compact_json,
+nested_plain_and_json_are_identical_bytes) encoded the accidental sorted order on
+purpose and are corrected to the real preserve_order bytes, copied verbatim from
+the recorded failing runs below, not hand-typed. asdlc's test-edit guard did not
+refuse the edit.
+
+Stale-comment correction found while touching the exact line: crates/steg/Cargo.toml's
+serde_json comment and boundaries.toml's [steg] reason both still claimed
+"crates/steg/src/main.rs itself never imports it", which TASK-1.120 made false via
+crates/steg/src/cli/output.rs (use serde_json::{Map, Value}, reached from main.rs).
+Corrected both; boundaries.toml's checked behaviour is unaffected (no
+deny-features entry for serde_json anywhere).
+
+AC #3's before/after pair: `just test-all` failed on exactly the two named tests
+before any edit (tail was only their assertion diffs, nothing from the
+environment, confirmed unrecorded first), and passed after.
+
+AC #1's direct evidence: after the manifest edits but before correcting the two
+test strings, `just check-packages` (every crate built and tested alone) now
+fails on the *same two tests* with the *same* preserve_order-ordered left-hand
+text that `just test-all` produced - the alone build and the workspace build now
+agree (both wrong, in that intermediate state, which is exactly the point: they
+were disagreeing before). After correcting the two strings, `just check-packages`
+is green and complete (no abort partway through the pipefail'd recipe).
+
+AC #2: `just test-all` passes. On the affected-test selection: this task's own
+diff includes the root Cargo.toml, a GLOBAL_FILES entry in
+tools/src/steg_tools/affected.py, so `just show-affected`/`just test` resolve to
+"all" for this change regardless of which crate a hypothetical touch would
+otherwise point at - recorded `just test` directly as evidence, and it is
+identical to `just test-all` here. Said plainly rather than quietly reinterpreted:
+in general (i.e. for a change that does *not* also touch a global file), a
+crates/ui-only touch selects only -p steg-app -p steg-ui (confirmed via
+`just show-affected` against a scratch touch before any edit) and never builds or
+runs crates/steg's own tests at all, so that half of AC #2's wording would be
+satisfied vacuously by such a touch, not demonstrated by one; a crates/sdk touch
+(-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server, also confirmed) is
+the selection that actually unifies features with the app the way test-all does
+and is the honest demonstration in general. This task's own change does not
+depend on that distinction since it is itself global.
+
+Whether PR CI's selection should have caught this (asked in the description): no,
+and not by bad luck - affected.py's own documented design builds a changed crate
+alone or with its dependents, which is structurally blind to any behaviour that
+depends on workspace-wide feature unification with a crate outside that set
+(here, steg-app/gpui). This fix removes this behaviour's dependence on that gap;
+the gap itself is general and left as a follow-up for the orchestrator to draft,
+not built here (open question #3 in the plan named two candidates and
+recommended one).
+
+Recorded checks (in order): just test-all (before, exit 101, the two named tests
+failing); just check-packages (after manifest edits, before text fix, exit 101,
+same two tests failing alone too); just check-packages (after text fix, exit 0,
+complete); just test-all (after, exit 0); just test (this diff's own affected
+selection, resolves to "all", exit 0); just check (full gate, exit 0, no flakes
+hit on crates/server/tests/shutdown.rs or attach.rs - passed clean on the first
+attempt, no retry needed).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

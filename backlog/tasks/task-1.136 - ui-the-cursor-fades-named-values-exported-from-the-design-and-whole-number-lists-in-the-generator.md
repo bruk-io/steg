@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T20:10:00Z'
+updated_date: '2026-11-21T21:40:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -228,6 +228,41 @@ error: recipe `test` failed with exit code 101
 Build blocked by an unrelated, pre-existing failure in just check's full test step: crates/steg/src/cli/output.rs's cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json and cli::output::tests::nested_plain_and_json_are_identical_bytes fail when the full test suite runs together, asserting on JSON object key order (e.g. expecting {"split":...,"panes":...} but getting {"panes":...,"split":...}), while passing every time when run alone or filtered (cargo test -p steg --lib cli::output, 6/6 clean runs). Confirmed pre-existing and unrelated to this task: stashed every change this task made and reran cargo test -p steg --lib cli::output on the resulting bare-main tree - passes there too (it's the full-suite run specifically, not this task's diff, that triggers it), then restored the stash. Nothing this task touches (crates/ui, tools/) is anywhere near crates/steg/src/cli/output.rs (from the just-merged PR #87). Recorded one failing `just check` run as the official attempt (asdlc record-check, exit 101); retried the full run 3 times beforehand for diagnosis, same two tests, same wrong order, every time - consistent, not a coin-flip hash-seed flake, so a second blind retry would not help. Flagged to the team lead for direction rather than editing code outside this task's approved plan.
 
 The failing just check is main's own failure, confirmed by the team lead: present at d50a5d20 (the PR 87 merge) in crates/steg/src/cli/output.rs, outside this task's files. It is cargo feature unification (gpui turns on serde_json's preserve_order; -p steg alone does not, so its two tests assert sorted-key text that only matches when steg is built without the app). The two failing tests: cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json and cli::output::tests::nested_plain_and_json_are_identical_bytes. Filed as its own task; will be fixed there, not here. This task's own changes are committed locally (a3a08067), not pushed. Holding per the team lead's instruction: no further just check retries, no push, no PR until notified the fix is on main.
+
+Check passed: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 check` exited 0 at 2026-11-21T21:40:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at 774873286c86:
+
+```text
+ok      format check (0.3s)
+ok      lint (3.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (77.0s)
+ok      build (steg-sdk) (3.5s)
+ok      test (steg-sdk) (2.5s)
+ok      test (steg-sdk, local-socket) (2.9s)
+ok      build (steg-kernel) (44.9s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (30.9s)
+ok      test (steg-server) (66.4s)
+ok      test (steg-server, race-fixture) (66.5s)
+ok      test (steg-server, pty-race-fixture) (106.8s)
+ok      test (steg-server, accept-backoff-fixture) (93.0s)
+ok      build (steg) (2.5s)
+ok      test (steg) (5.0s)
+ok      test (steg, fixtures) (11.8s)
+ok      build (steg-ui) (16.5s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.5s)
+ok      test (steg-app) (2.2s)
+ok      tool tests (40.3s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

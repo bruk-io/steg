@@ -1,11 +1,11 @@
 ---
 id: TASK-1.145
 title: 'Main is red: JSON key order changes with what steg is built beside'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T21:25:00Z'
+updated_date: '2026-11-21T21:29:00Z'
 labels:
   - size-2
   - review-passed

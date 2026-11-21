@@ -1,9 +1,11 @@
 ---
 id: TASK-1.147
 title: 'Rename STEG_SOCKET_PATH to STEG_SERVER: one variable for reaching a server'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-21T20:23:00Z'
+updated_date: '2026-11-21T21:26:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -11,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.147-rename-steg-socket-path-to-steg-server
 ---
 
 ## Description

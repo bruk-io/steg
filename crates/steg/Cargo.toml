@@ -23,8 +23,15 @@ steg-sdk = { path = "../sdk", features = ["local-socket"] }
 # by hand: the sdk's own `Connection::call` takes `serde_json::
 # Map<String, Value>` directly, the same shape `crates/server/tests/
 # routing.rs` already builds, and `steg-sdk` does not re-export either
-# type. Not used by `crates/steg/src/main.rs` itself.
-serde_json = "1"
+# type. Also used directly by `crates/steg/src/cli/output.rs` (TASK-1.120,
+# reached from `main.rs`) to render a method's reply - correcting this
+# comment's own earlier claim that nothing in this crate's production code
+# imported it (TASK-1.145 found it stale; `boundaries.toml`'s `[steg]`
+# reason carried the same claim and is corrected too). `.workspace = true`:
+# the root `Cargo.toml`'s own comment on this entry says why (TASK-1.145,
+# deterministic key order in every build) - `output.rs`'s own two tests
+# that assert exact JSON text are exactly what this task fixes.
+serde_json.workspace = true
 # The CLI's whole command tree, built at run time from `steg_sdk::description::
 # description()` (TASK-1.49, decision-1 sections 2, 6 and 7). The builder API
 # only (`Command`/`Arg`/`PossibleValue`), never `#[derive(Parser)]` - a derive

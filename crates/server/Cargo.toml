@@ -17,7 +17,10 @@ steg-sdk = { path = "../sdk" }
 # `spikes/task-1.2-wire-protocol/probe-server/src/pty.rs` (decision-3
 # section 9).
 portable-pty = "0.9"
-serde_json = "1"
+# `.workspace = true`: the root `Cargo.toml`'s own comment on this entry says why
+# (TASK-1.145, deterministic key order in every build) - `dispatch::Outcome::into_value`
+# is exactly the place that builds the `Value` this mattered for.
+serde_json.workspace = true
 # The arbiter's lock (`nix::fcntl::Flock`, R99), the owner checks
 # (`nix::unistd::geteuid`, AC #1) TASK-1.44 (part A) needs, detaching an
 # on-demand server from its controlling terminal and process group

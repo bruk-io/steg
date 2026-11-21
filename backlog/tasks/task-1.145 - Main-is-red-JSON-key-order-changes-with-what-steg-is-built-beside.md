@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T20:52:00Z'
+updated_date: '2026-11-21T20:58:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -413,6 +413,41 @@ Check passed: `just test` exited 0 at 2026-11-21T20:52:00+00:00 in /Users/brukha
 
 ```text
 ok      tests (every crate) (64.6s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-21T20:58:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.145 on task-1.145-main-is-red-json-key-order-changes-with at aef4b329ef03 with uncommitted changes:
+
+```text
+ok      format check (0.4s)
+ok      lint (49.4s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (59.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (57.2s)
+ok      test (steg-server, race-fixture) (61.9s)
+ok      test (steg-server, pty-race-fixture) (66.4s)
+ok      test (steg-server, accept-backoff-fixture) (58.7s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.2s)
+ok      test (steg, fixtures) (5.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (41.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

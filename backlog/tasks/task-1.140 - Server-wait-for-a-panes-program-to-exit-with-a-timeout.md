@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:19:00Z'
+updated_date: '2026-11-21T20:27:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -130,6 +130,51 @@ The only genuinely new, cross-cutting state in the server is `pending_waits` its
 Plan checked against doc-2 (sections 5, 6, 8) by @bruk.o on 2026-11-20: ok. It builds only pane.wait; exit 0 with the program's own code in the result and status 1 on timeout match section 6; a pane closed mid-wait answers NoSuchTarget, already in the method's errors; the wait is woken by the exit, the close or the disconnect, with one early-wakeable timer per timed wait and no polling. Three points wait on the engineer: a new ErrorCode::TimedOut (status 1) in the API description; a zero or negative --timeout; inline JSON or a typed result. Orchestrator's recommendations: add TimedOut; zero is an immediate timeout and a negative value is BadRequest (status 2) rather than clamped; typed struct.
 
 Revised plan (83254935a0f3) checked against doc-2 (sections 5, 6) and the engineer's answers of 2026-11-21 by @bruk.o: ok. TimedOut is a new error code with exit status 1; --timeout 0 answers at once without registering a wait; a negative --timeout is BadRequest (status 2) before the target is resolved; the reply is the typed record WaitResult. One difference from the wording put to the engineer: the expired seconds are in the error's message, not a separate details field, because errors carry none; told to the engineer with the plan. doc-2 sections 5 and 6 do not yet state the 0 and negative cases; a document change for the engineer to agree.
+
+Check FAILED: `just check` exited 101 at 2026-11-21T20:27:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9, last 40 of 81 lines:
+
+```text
+   --> crates/server/src/runtime/wait.rs:229:19
+    |
+219 | impl Runtime {
+    | ------------ methods in this implementation
+...
+229 |     pub(crate) fn register_wait(
+    |                   ^^^^^^^^^^^^^
+...
+327 |     pub(crate) fn cancel_waits(&self, client_id: ClientId) {
+    |                   ^^^^^^^^^^^^
+...
+349 |     pub(crate) fn pending_wait_count_for_test(&self, pane: PaneId) -> usize {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: type `PendingWait` is private
+   --> crates/server/src/runtime/mod.rs:107:5
+    |
+107 |     pending_waits: wait::PendingWaits,
+    |     ^^^^^^^^^^^^^ private type
+
+error: type `PendingWait` is private
+   --> crates/server/src/runtime/mod.rs:209:28
+    |
+209 |             pending_waits: HashMap::new(),
+    |                            ^^^^^^^^^^^^^^ private type
+
+warning: `steg-server` (lib) generated 9 warnings
+error: could not compile `steg-server` (lib) due to 2 previous errors; 9 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+error[E0063]: missing field `pending_waits` in initializer of `State`
+  --> crates/server/src/runtime/testing.rs:66:5
+   |
+66 |     State {
+   |     ^^^^^ missing `pending_waits`
+
+For more information about this error, try `rustc --explain E0063`.
+warning: `steg-server` (lib test) generated 1 warning (1 duplicate)
+error: could not compile `steg-server` (lib test) due to 1 previous error; 1 warning emitted
+full output: .quiet/test-steg-server-accept-backoff-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

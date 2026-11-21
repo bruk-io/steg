@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T20:29:00Z'
+updated_date: '2026-11-21T20:30:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -15,6 +15,9 @@ priority: high
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.145-main-is-red-json-key-order-changes-with
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '072fa2486aeb'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -288,3 +291,16 @@ Plan (bce72f0592e9) checked by @bruk.o on 2026-11-21 against the task and doc-2'
 
 Correction by @bruk.o: the plan changed after the check above; the current plan is 072fa2486aeb. The one addition is a text-only correction to the reason string of boundaries.toml's steg entry and the matching comment in crates/steg/Cargo.toml, which say the steg crate never imports serde_json, untrue since TASK-1.120. Checked: no rule in boundaries.toml changes, only its prose. Ok.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-21T20:30:00Z
+
+---
+
+Plan approved by @bruk (072fa2486aeb, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

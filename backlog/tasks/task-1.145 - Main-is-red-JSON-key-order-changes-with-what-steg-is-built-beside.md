@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T21:21:00Z'
+updated_date: '2026-11-21T21:25:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -21,8 +22,9 @@ asdlc_branch: task-1.145-main-is-red-json-key-order-changes-with
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '072fa2486aeb'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -655,6 +657,33 @@ created: 2026-11-21T21:21:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.145: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-21T21:25:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+No findings.
+
+Checked: diff against main matches the approved plan (072fa2486aeb) file-for-file (root Cargo.toml, crates/{sdk,server,steg,app}/Cargo.toml, boundaries.toml, crates/steg/src/cli/output.rs - no extra files, none missing). serde_json is declared once as a workspace dependency with preserve_order, and every workspace-member crate that used serde_json now uses serde_json.workspace = true (sdk, server, steg, app); the spikes/task-1.2-wire-protocol tree keeps a bare serde_json = "1.0.154" but is its own separate [workspace] root, never a member of the real workspace, so it's irrelevant. Cargo.lock has no diff, consistent with the notes' claim that indexmap was already resolved via gpui/schemars and that modern Cargo.lock does not track per-edge features.
+
+The two corrected output.rs tests match the json! literal's own key order (split,panes and stream,snapshot) and the bytes recorded in the task's logged failing runs; neither assertion was loosened, both still assert exact text.
+
+Repeated one control myself: in a scratch worktree, removed the preserve_order feature from the root Cargo.toml's serde_json entry and ran env ZIG=<pinned zig> cargo test -p steg --lib cli::output. Both corrected tests failed, reverting to the old sorted-key text, even built alone (-p steg) - confirming the mechanism (declaring the feature on the workspace dependency edge, independent of --workspace unification) is what the fix and its tests depend on. Reverted the edit after (git diff clean).
+
+Evidence: all six recorded checks (just test-all before/after, just check-packages before/after the manifest edit, just test, just check) were run directly via asdlc record-check, not through a pipe or sh -c, in the states the notes claim (two named tests failing pre-fix in both test-all and check-packages, green after). The final just check is recorded at bf6fc3784734c7f4f3f4e479dd0c9cfc1aa20e80, the PR's actual head; gh pr checks 90 is green at the same commit.
+
+boundaries.toml's and crates/steg/Cargo.toml's comment edits are text-only (the stale "main.rs never imports serde_json" claim, corrected) - no allow/deny-features list changed, confirmed by diff.
+
+AC #1 is met: the two builds (alone and whole-workspace) now agree, demonstrated directly by the intermediate check-packages run showing both builds fail identically before the text fix, and both pass identically after; the order is stated in the notes and traced to its real source (dispatch::Outcome::into_value building a Map). AC #2's crates/ui-touch half is honestly reported as vacuous (that selection never runs steg's own tests) rather than silently claimed - acceptable since it's a structural property of affected.py named plainly, not a shortcut the worker took, and this task's own diff is itself a GLOBAL_FILES change so just test resolves to "all" regardless. AC #3's before/after pair is recorded. Plan approval (072fa2486aeb, size-2) is present and matches the diff; the one later correction (boundaries.toml/Cargo.toml comment wording) was re-checked by @bruk.o and confirmed rule-free.
+
+The "nothing end-to-end pins the product's key order" limitation is stated plainly in the notes per the plan, and the task's acceptance criteria don't ask for an end-to-end assertion, so this is acceptable as scoped, not an unmet AC.
 
 ---
 <!-- COMMENTS:END -->

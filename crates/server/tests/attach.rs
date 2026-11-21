@@ -1403,8 +1403,28 @@ fn flood_lock_path() -> PathBuf {
 /// this lock already was) rules that out by construction.
 ///
 /// # Panics
-/// If the lock could not be acquired within 60s, or failed for a
+/// If the lock could not be acquired within 180s, or failed for a
 /// reason other than contention.
+///
+/// 180s, not 60s (TASK-1.143): the five tests that take this lock run
+/// four-to-a-worktree (the four `steg-server` feature variants `just
+/// check` builds), so one worktree's own run alone can already queue up
+/// to 20 acquisitions of this one machine-wide lock; a second worktree
+/// building at the same time, slowing down whichever process currently
+/// holds it, adds more queue depth on top. Measured directly, not
+/// guessed: TASK-1.143's own bounded experiment ran these four binaries
+/// together twice with two sibling `cargo build --workspace` processes
+/// genuinely overlapping as load - 3 of those 8 runs (2 repetitions x 4
+/// binaries) failed, every one of them
+/// `a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_
+/// lock_held_attach` and no other test in this file, every one of them at
+/// the old 60s bound - while every one of those same 8 runs' own total
+/// suite time (31 tests each, including the other four already-guarded
+/// tests) still finished within about 150s. 180s is comfortably past that
+/// observed worst case, still a liveness bound rather than removed
+/// (AC #4), and still well inside `steg-quiet`'s own 900s per-step
+/// timeout (`tools/src/steg_tools/quiet.py`), the bound that would
+/// otherwise kill this whole test binary first.
 fn cross_process_flood_guard() -> nix::fcntl::Flock<std::fs::File> {
     let path = flood_lock_path();
     std::fs::create_dir_all(
@@ -1420,7 +1440,7 @@ fn cross_process_flood_guard() -> nix::fcntl::Flock<std::fs::File> {
         let result = nix::fcntl::Flock::lock(file, nix::fcntl::FlockArg::LockExclusive);
         let _ = tx.send(result.map_err(|(_file, errno)| errno));
     });
-    let bound = Duration::from_secs(60);
+    let bound = Duration::from_secs(180);
     match rx.recv_timeout(bound) {
         Ok(Ok(locked)) => locked,
         Ok(Err(errno)) => {

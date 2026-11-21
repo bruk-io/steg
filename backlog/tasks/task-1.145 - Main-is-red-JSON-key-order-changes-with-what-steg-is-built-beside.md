@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T20:26:00Z'
+updated_date: '2026-11-21T20:28:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -244,3 +244,9 @@ criterion.
    weigh, since (a) only works until the next crate the app depends on starts
    forcing some other feature on.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (bce72f0592e9) checked by @bruk.o on 2026-11-21 against the task and doc-2's output section: ok. doc-2 calls --json a contract of identifiers and field names and says nothing on key order, so the order is decided here: serde_json's preserve_order declared once as a workspace dependency and used by sdk, server, steg and app, so a crate built alone orders keys as the whole workspace does; the two output.rs tests change to that order, their text copied from a recorded run. Proof is recorded runs of just test-all before and after, just check-packages after the manifests change and after the tests change, and just check. For the engineer: AC 2's words about a crates/ui change are met only vacuously, since that selection never runs steg's tests; a crates/sdk selection is recorded as the real demonstration. Follow-up to draft: the affected-test selection cannot see behaviour that depends on features unified across the workspace.
+<!-- SECTION:NOTES:END -->

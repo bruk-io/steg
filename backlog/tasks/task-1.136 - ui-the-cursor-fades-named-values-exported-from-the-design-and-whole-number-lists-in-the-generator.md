@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T22:20:00Z'
+updated_date: '2026-11-21T22:27:00Z'
 labels:
   - size-2
   - changes-requested
@@ -285,6 +285,51 @@ Control pair recorded at the final head (774873286c86): the generator fix's fail
 PR 91's first CI run failed on crates/steg/tests/cli_connection_arbitration.rs, outside this task's files and passing in the local just check at the same head (noted on the task and on TASK-1.137); the team lead re-ran the job once and it is green on this same head.
 
 generated.rs's diff against the prior head is exactly the artifact-version line and the one new struct/const/description block; nothing in any existing entry changed.
+
+Check FAILED: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 1 at 2026-11-21T22:27:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at 774873286c86 with uncommitted changes:
+
+```text
+FAILED  tool tests (exit 1, 40.1s)
+........................................................................ [ 21%]
+........................................................................ [ 42%]
+.......................................................FF............... [ 64%]
+........................................................................ [ 85%]
+...............................................                          [100%]
+=================================== FAILURES ===================================
+_ test_a_whole_number_list_under_a_non_px_unit_renders_as_integers_not_floats __
+
+    def test_a_whole_number_list_under_a_non_px_unit_renders_as_integers_not_floats() -> None:
+        # A list field's own int/float choice is unconditional on every resolved value
+        # being whole - it never consults _DIMENSIONLESS_FIELDS (the control pair at the
+        # final head removes the whole-number check itself, not a set membership, and
+        # shows this test fail).
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+        )
+>       assert "pub order: [i32; 6]," in rust
+E       assert 'pub order: [i32; 6],' in '#[derive(Debug, Clone, Copy)]\npub struct MotionCursorFadeShadedDissolve {\n    pub cycle: std::time::Duration,\n    ...\npub const MOTION_CURSOR_FADE_SHADED_DISSOLVE_DESCRIPTION: &str = "cycle 1400ms, order 3ms, 0ms, 4ms, 2ms, 1ms, 5ms";'
+
+tools/tests/unit/test_foundations_generate.py:345: AssertionError
+___________ test_the_lists_description_carries_no_stray_unit_suffix ____________
+
+    def test_the_lists_description_carries_no_stray_unit_suffix() -> None:
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+        )
+        description = rust.split("_DESCRIPTION")[1]
+>       assert 'cycle 1400ms, order 3, 0, 4, 2, 1, 5";' in description
+E       assert 'cycle 1400ms, order 3, 0, 4, 2, 1, 5";' in ': &str = "cycle 1400ms, order 3ms, 0ms, 4ms, 2ms, 1ms, 5ms";'
+
+tools/tests/unit/test_foundations_generate.py:356: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_foundations_generate.py::test_a_whole_number_list_under_a_non_px_unit_renders_as_integers_not_floats
+FAILED tools/tests/unit/test_foundations_generate.py::test_the_lists_description_carries_no_stray_unit_suffix
+2 failed, 333 passed in 39.96s
+full output: .quiet/tool-tests.log
+error: recipe `test-tools` failed on line 98 with exit code 1
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

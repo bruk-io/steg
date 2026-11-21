@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T22:28:00Z'
+updated_date: '2026-11-21T22:29:00Z'
 labels:
   - size-2
   - changes-requested
@@ -335,6 +335,51 @@ Check passed: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.work
 
 ```text
 ok      tool tests (40.0s)
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 1 at 2026-11-21T22:29:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at 774873286c86 with uncommitted changes:
+
+```text
+FAILED  tool tests (exit 1, 39.9s)
+........................................................................ [ 21%]
+........................................................................ [ 42%]
+..........................................................F............. [ 64%]
+........................................................................ [ 85%]
+...............................................                          [100%]
+=================================== FAILURES ===================================
+_ test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration _
+
+    def test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration() -> None:
+        # The real load-bearing mechanism for the scalar fields beside "cycle": without
+        # _DIMENSIONLESS_FIELDS exempting them, 0.03/0.5/0.43 would each hit the group's
+        # "unit": "ms" branch and silently become `Duration::from_millis(0)` (int(0.03) ==
+        # 0) - one test of the mechanism, covering step_fraction, medium_shade_strength
+        # and one phase_* field; phase_going/empty/returning share the identical branch
+        # and the identical set membership, so this one assertion stands for all four.
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve",
+            {
+                "cycle": 1400,
+                "unit": "ms",
+                "step_fraction": 0.03,
+                "medium_shade_strength": 0.5,
+                "phase_whole": 0.43,
+            },
+            {},
+        )
+        assert "pub cycle: std::time::Duration," in rust
+        assert "cycle: std::time::Duration::from_millis(1400)," in rust
+>       assert "pub step_fraction: f32," in rust
+E       assert 'pub step_fraction: f32,' in '#[derive(Debug, Clone, Copy)]\npub struct MotionCursorFadeShadedDissolve {\n    pub cycle: std::time::Duration,\n    ...ED_DISSOLVE_DESCRIPTION: &str = "cycle 1400ms, step_fraction 0.03ms, medium_shade_strength 0.5ms, phase_whole 0.43ms";'
+
+tools/tests/unit/test_foundations_generate.py:388: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_foundations_generate.py::test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration
+1 failed, 334 passed in 39.80s
+full output: .quiet/tool-tests.log
+error: recipe `test-tools` failed on line 98 with exit code 1
 ```
 
 Commits since the review: 0.

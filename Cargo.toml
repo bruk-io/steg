@@ -10,6 +10,18 @@ version = "0.1.0"
 [workspace.dependencies]
 gpui = { version = "=0.2.2" }
 
+# TASK-1.145: gpui's own dependency chain (schemars's `indexmap2` feature) already turns
+# this feature on unconditionally in any build that includes the app - cargo's workspace
+# feature unification means nothing in steg's own crates can turn it back off. Declaring
+# it here too, instead of leaving it to arrive by accident, makes every steg crate's own
+# build - alone (`cargo build -p steg`) or with the whole workspace - produce the same
+# JSON key order (the order serde_json's `Map`, used by `serde_json::to_value` and by
+# parsing text back into a `Value`, keeps or sorts): without it, a crate built alone
+# sorts keys; with it, insertion/declaration order survives, matching what any build
+# that also compiles `steg-app` already does. `crates/sdk`, `crates/server`, `crates/steg`
+# and `crates/app` reference this through `serde_json.workspace = true`.
+serde_json = { version = "1", features = ["preserve_order"] }
+
 # TASK-1.79: carries a small patch to the safe `ghostty-vt` crate (wiring
 # `GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT`, which the unpatched 0.8.0 does
 # not surface) until upstream does the same. `third_party/ghostty-vt-

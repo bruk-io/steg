@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T19:55:00Z'
+updated_date: '2026-11-21T20:10:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -134,6 +134,100 @@ Run `just generate-foundations` (never hand-edit, per R121). Expect the diff aga
 Engineer's decisions of 2026-11-20 (recorded by @bruk.o), design artifact version 143 (id 1795195942-6a0a), Foundations page section 12 and the Cursor atom: (a) the animation is option 2B, as the Cursor atom already draws it: cycle 1400 ms; six pieces row-major 0 to 5; out in the order 3, 0, 4, 2, 1, 5 and back in reverse; each step 3 percent of the cycle; a piece spends one step as medium shade each way, medium shade being the flat colour half way between the cursor colour and the ground (not a dither); whole 43 percent, going 18, empty 21, returning 18. (b) There is NO idle rest: the fade runs for as long as the window has focus and stops, whole, when the window loses focus. Any idle-time value or criterion clause is dropped. (c) Reduce Motion is a stub that always allows motion until TASK-1.63, with the steady cursor built behind it. (d) The animation is meant to become a setting later: build only 2B, but hold the animation as data (order, step, shade) so another variant is an addition, not a rewrite; the setting itself is a separate follow-up task. For this task: criterion 1's 'idle time before the cursor rests' no longer exists and is not exported; export the hold, out, empty and return fractions instead if the plan needs them.
 
 Plan checked against doc-17 (R120 to R123), decision-10 and the design artifact version 143 by @bruk.o on 2026-11-20: ok. The values match the Foundations page section 12; the entry is motion.cursor-fade.shaded-dissolve (option 2B), named so option 1A can sit beside it; the idle time is dropped by the engineer's decision; the generator fix covers both the float rendering and the leaked unit in list descriptions; the closed motion schema in design_pages.py is widened so check-design still passes. The planner's remaining defaults stand: phase_* field names, i32, no README paragraph.
+
+Check FAILED: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 1 at 2026-11-21T20:00:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at b6a744b69b31 with uncommitted changes:
+
+```text
+FAILED  tool tests (exit 1, 39.8s)
+........................................................................ [ 21%]
+........................................................................ [ 43%]
+.......................................................FF............... [ 64%]
+........................................................................ [ 86%]
+..............................................                           [100%]
+=================================== FAILURES ===================================
+_ test_a_whole_number_list_flagged_dimensionless_renders_as_integers_not_floats _
+
+    def test_a_whole_number_list_flagged_dimensionless_renders_as_integers_not_floats() -> None:
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+        )
+>       assert "pub order: [i32; 6]," in rust
+E       assert 'pub order: [i32; 6],' in '#[derive(Debug, Clone, Copy)]\npub struct MotionCursorFadeShadedDissolve {\n    pub cycle: std::time::Duration,\n    ...\npub const MOTION_CURSOR_FADE_SHADED_DISSOLVE_DESCRIPTION: &str = "cycle 1400ms, order 3ms, 0ms, 4ms, 2ms, 1ms, 5ms";'
+
+tools/tests/unit/test_foundations_generate.py:337: AssertionError
+___________ test_the_lists_description_carries_no_stray_unit_suffix ____________
+
+    def test_the_lists_description_carries_no_stray_unit_suffix() -> None:
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+        )
+        description = rust.split("_DESCRIPTION")[1]
+>       assert "order 3, 0, 4, 2, 1, 5" in description
+E       assert 'order 3, 0, 4, 2, 1, 5' in ': &str = "cycle 1400ms, order 3ms, 0ms, 4ms, 2ms, 1ms, 5ms";'
+
+tools/tests/unit/test_foundations_generate.py:348: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_foundations_generate.py::test_a_whole_number_list_flagged_dimensionless_renders_as_integers_not_floats
+FAILED tools/tests/unit/test_foundations_generate.py::test_the_lists_description_carries_no_stray_unit_suffix
+2 failed, 332 passed in 39.63s
+full output: .quiet/tool-tests.log
+error: recipe `test-tools` failed on line 98 with exit code 1
+```
+
+Check passed: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 0 at 2026-11-21T20:02:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at b6a744b69b31 with uncommitted changes:
+
+```text
+ok      tool tests (39.7s)
+```
+
+Check FAILED: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 check` exited 101 at 2026-11-21T20:08:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at b6a744b69b31 with uncommitted changes, last 40 of 71 lines:
+
+```text
+test cli::output::tests::records_with_a_non_object_element_is_a_shape_error_not_a_panic ... ok
+test cli::output::tests::records_with_no_declared_fields_prints_nothing_in_every_combination ... ok
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... ok
+test cli::output::tests::text_json_prints_the_string_value_unchanged ... ok
+test cli::output::tests::text_plain_is_the_string_unaltered ... ok
+test cli::output::tests::text_quiet_is_the_same_as_without_quiet_either_way ... ok
+test cli::output::tests::text_with_a_non_string_reply_is_a_shape_error_not_a_panic ... ok
+test cli::tree::tests::autostart_defaults_to_true_with_neither_flag_given ... ok
+test cli::tree::tests::autostart_given_after_no_autostart_wins ... ok
+test cli::tree::tests::json_is_read_from_the_leaf_subcommand ... ok
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
+test cli::tree::tests::quiet_is_read_from_the_leaf_subcommand_either_spelling ... ok
+
+failures:
+
+---- cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json stdout ----
+
+thread 'cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json' (70899554) panicked at crates/steg/src/cli/output.rs:593:9:
+assertion `left == right` failed
+  left: "t1\t{\"split\":\"horizontal\",\"panes\":[\"p1\",\"p2\"]}\n"
+ right: "t1\t{\"panes\":[\"p1\",\"p2\"],\"split\":\"horizontal\"}\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- cli::output::tests::nested_plain_and_json_are_identical_bytes stdout ----
+
+thread 'cli::output::tests::nested_plain_and_json_are_identical_bytes' (70899562) panicked at crates/steg/src/cli/output.rs:708:9:
+assertion `left == right` failed
+  left: "{\"stream\":\"st1\",\"snapshot\":{\"rows\":[]}}\n"
+ right: "{\"snapshot\":{\"rows\":[]},\"stream\":\"st1\"}\n"
+
+
+failures:
+    cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json
+    cli::output::tests::nested_plain_and_json_are_identical_bytes
+
+test result: FAILED. 35 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Build blocked by an unrelated, pre-existing failure in just check's full test step: crates/steg/src/cli/output.rs's cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json and cli::output::tests::nested_plain_and_json_are_identical_bytes fail when the full test suite runs together, asserting on JSON object key order (e.g. expecting {"split":...,"panes":...} but getting {"panes":...,"split":...}), while passing every time when run alone or filtered (cargo test -p steg --lib cli::output, 6/6 clean runs). Confirmed pre-existing and unrelated to this task: stashed every change this task made and reran cargo test -p steg --lib cli::output on the resulting bare-main tree - passes there too (it's the full-suite run specifically, not this task's diff, that triggers it), then restored the stash. Nothing this task touches (crates/ui, tools/) is anywhere near crates/steg/src/cli/output.rs (from the just-merged PR #87). Recorded one failing `just check` run as the official attempt (asdlc record-check, exit 101); retried the full run 3 times beforehand for diagnosis, same two tests, same wrong order, every time - consistent, not a coin-flip hash-seed flake, so a second blind retry would not help. Flagged to the team lead for direction rather than editing code outside this task's approved plan.
+
+The failing just check is main's own failure, confirmed by the team lead: present at d50a5d20 (the PR 87 merge) in crates/steg/src/cli/output.rs, outside this task's files. It is cargo feature unification (gpui turns on serde_json's preserve_order; -p steg alone does not, so its two tests assert sorted-key text that only matches when steg is built without the app). The two failing tests: cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json and cli::output::tests::nested_plain_and_json_are_identical_bytes. Filed as its own task; will be fixed there, not here. This task's own changes are committed locally (a3a08067), not pushed. Holding per the team lead's instruction: no further just check retries, no push, no PR until notified the fix is on main.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

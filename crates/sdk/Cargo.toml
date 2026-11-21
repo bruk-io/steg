@@ -11,9 +11,11 @@ workspace = true
 # R106: for data and serialisation only - the description, its methods, events and
 # errors, and the wire form of the sdk's existing shapes (identifiers, colour, pane
 # kind, orientation, ratio, layout) and the new session record. boundaries.toml's
-# `[steg-sdk]` names the same reason.
+# `[steg-sdk]` names the same reason. `.workspace = true` for `serde_json`: the root
+# `Cargo.toml`'s own comment on that entry says why (TASK-1.145, deterministic key
+# order in every build).
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json.workspace = true
 
 [features]
 # R103: the local-socket provider, finding or starting a local server. Off

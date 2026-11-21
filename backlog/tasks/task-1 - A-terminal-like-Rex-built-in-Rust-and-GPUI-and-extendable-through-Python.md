@@ -4,7 +4,7 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-21T19:50:00Z'
+updated_date: '2026-11-21T20:33:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -557,6 +557,50 @@ created: 2026-11-21T19:50:00Z
 Accepted by @bruk. Draft ids are reused once promoted, so refer to these by their new ids (asdlc_accepted_from on each keeps the old one):
 
 - DRAFT-2 -> TASK-1.144
+
+---
+
+author: @bruk
+created: 2026-11-21T20:18:00Z
+
+---
+
+Accepted by @bruk. Draft ids are reused once promoted, so refer to these by their new ids (asdlc_accepted_from on each keeps the old one):
+
+- DRAFT-4 -> TASK-1.145
+
+---
+
+author: @bruk
+created: 2026-11-21T20:21:00Z
+
+---
+
+Accepted by @bruk. Draft ids are reused once promoted, so refer to these by their new ids (asdlc_accepted_from on each keeps the old one):
+
+- DRAFT-4 -> TASK-1.146
+
+---
+
+author: @bruk
+created: 2026-11-21T20:24:00Z
+
+---
+
+Accepted by @bruk. Draft ids are reused once promoted, so refer to these by their new ids (asdlc_accepted_from on each keeps the old one):
+
+- DRAFT-4 -> TASK-1.147
+
+---
+
+author: @bruk
+created: 2026-11-21T20:33:00Z
+
+---
+
+Accepted by @bruk. Draft ids are reused once promoted, so refer to these by their new ids (asdlc_accepted_from on each keeps the old one):
+
+- DRAFT-4 -> TASK-1.148
 
 ---
 <!-- COMMENTS:END -->

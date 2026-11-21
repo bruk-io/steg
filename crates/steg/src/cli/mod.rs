@@ -10,6 +10,7 @@
 pub mod api_call;
 pub mod connect;
 pub mod exit;
+mod output;
 mod params;
 mod tree;
 mod values;

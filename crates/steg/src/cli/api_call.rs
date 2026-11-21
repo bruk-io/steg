@@ -4,7 +4,13 @@
 //! its parameters are read from standard input as one JSON object, not
 //! from flags, and its own output is JSON by its nature - never gated on
 //! `--json` the way every other generated command's success output is
-//! (TASK-1.119 AC #3's own exception).
+//! (TASK-1.119 AC #3's own exception). `-q`/`--quiet` gets the same
+//! exception, read and silently ignored (TASK-1.120): the called
+//! method's own `Returns` may not even be known to this binary - `api
+//! call` exists precisely for "a method a plugin adds before the CLI
+//! knows it" (`crates/sdk/src/description/methods/api.rs`'s own doc
+//! comment) - so there is nothing for `output::render`'s own `fields[0]`
+//! rule to read a reduction from.
 
 use std::io::Read;
 use std::io::Write as _;

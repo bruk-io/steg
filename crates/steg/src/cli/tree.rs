@@ -15,7 +15,7 @@ use super::values::value_parser_for;
 /// hand-added command - or one of these two going missing - fails it.
 pub const NON_METHOD_COMMANDS: &[&str] = &["version", "completion"];
 
-/// The two global flags this task adds (TASK-1.119): not API parameters
+/// The global flags this task and TASK-1.119 add: not API parameters
 /// (confirmed: `description::methods`'s own
 /// `no_method_declares_a_cli_only_flag_as_a_parameter` test already lists
 /// `json`/`autostart`/`no_autostart` as CLI-only, so no generated command
@@ -27,6 +27,9 @@ pub const NON_METHOD_COMMANDS: &[&str] = &["version", "completion"];
 const AUTOSTART_ID: &str = "autostart";
 const NO_AUTOSTART_ID: &str = "autostart__no";
 const JSON_ID: &str = "json";
+/// TASK-1.120's own flag: doc-2 section 5 restricts short flags to
+/// `-h`/`-q`/`-v`, so `-q` is the one short form this task introduces.
+const QUIET_ID: &str = "quiet";
 
 /// Builds the whole tree. Neither `steg` alone nor `steg <noun>` alone
 /// requires a subcommand (decision 1 in this task's own plan: doc-2
@@ -63,6 +66,14 @@ pub fn build(api: &Description) -> Command {
                 .action(ArgAction::SetTrue)
                 .global(true)
                 .help("Print the server's reply unchanged, as JSON"),
+        )
+        .arg(
+            Arg::new(QUIET_ID)
+                .short('q')
+                .long("quiet")
+                .action(ArgAction::SetTrue)
+                .global(true)
+                .help("Print less: identifiers only (doc-2 section 5)"),
         );
 
     for noun in api.nouns() {
@@ -85,6 +96,12 @@ pub fn autostart_flag(matches: &clap::ArgMatches) -> bool {
 #[must_use]
 pub fn json_flag(matches: &clap::ArgMatches) -> bool {
     matches.get_flag(JSON_ID)
+}
+
+/// Reads `-q`/`--quiet` back off a leaf `ArgMatches` (TASK-1.120).
+#[must_use]
+pub fn quiet_flag(matches: &clap::ArgMatches) -> bool {
+    matches.get_flag(QUIET_ID)
 }
 
 fn noun_command(api: &Description, noun: &str) -> Command {
@@ -185,7 +202,7 @@ fn completion_command() -> Command {
 
 #[cfg(test)]
 mod tests {
-    use super::{autostart_flag, build, json_flag};
+    use super::{autostart_flag, build, json_flag, quiet_flag};
 
     /// `--no-autostart`'s own `global(true)` is the one part clap's docs
     /// don't spell out as working from *any* level - checked here rather
@@ -255,5 +272,34 @@ mod tests {
         let (_, leaf) = without.subcommand().expect("session");
         let (_, leaf) = leaf.subcommand().expect("list");
         assert!(!json_flag(leaf));
+    }
+
+    /// Mirrors `json_is_read_from_the_leaf_subcommand`, for `-q`/`--quiet`
+    /// (TASK-1.120): both spellings parse, and the flag is absent by
+    /// default.
+    #[test]
+    fn quiet_is_read_from_the_leaf_subcommand_either_spelling() {
+        let api = steg_sdk::description();
+
+        let long = build(&api)
+            .try_get_matches_from(["steg", "session", "list", "--quiet"])
+            .expect("--quiet should parse");
+        let (_, leaf) = long.subcommand().expect("session");
+        let (_, leaf) = leaf.subcommand().expect("list");
+        assert!(quiet_flag(leaf));
+
+        let short = build(&api)
+            .try_get_matches_from(["steg", "session", "list", "-q"])
+            .expect("-q should parse");
+        let (_, leaf) = short.subcommand().expect("session");
+        let (_, leaf) = leaf.subcommand().expect("list");
+        assert!(quiet_flag(leaf));
+
+        let without = build(&api)
+            .try_get_matches_from(["steg", "session", "list"])
+            .expect("no -q/--quiet should still parse");
+        let (_, leaf) = without.subcommand().expect("session");
+        let (_, leaf) = leaf.subcommand().expect("list");
+        assert!(!quiet_flag(leaf));
     }
 }

@@ -20,8 +20,9 @@ use steg_sdk::{
 };
 
 use super::exit::{api_error_status, connect_error_status, protocol_refused_status};
+use super::output::render;
 use super::params::extract_params;
-use super::tree::{autostart_flag, json_flag};
+use super::tree::{autostart_flag, json_flag, quiet_flag};
 
 /// How long [`steg_sdk::connect_handshaken`] may spend finding or
 /// starting a server, and waiting for its hello reply, per attempt - the
@@ -34,13 +35,17 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 /// takes. `api` is the same compiled-in [`Description`] `main.rs` already
 /// built the command tree from; `method` is the one this invocation
 /// resolved to; `matches` is that method's own leaf `ArgMatches` (also
-/// where the global `--autostart`/`--no-autostart`/`--json` flags are
-/// read from, since they are `global(true)` on the root command).
+/// where the global `--autostart`/`--no-autostart`/`--json`/`-q` flags
+/// are read from, since they are `global(true)` on the root command). A
+/// successful reply's own bytes are [`super::output::render`]'s job
+/// (TASK-1.120), not this function's - it only writes whatever that
+/// returns (or nothing, for `Returns::Nothing`'s own empty `Vec`).
 #[must_use]
 pub fn run(api: &Description, method: &Method, matches: &ArgMatches) -> i32 {
     let params = extract_params(method, matches);
     let autostart = autostart_flag(matches);
     let json = json_flag(matches);
+    let quiet = quiet_flag(matches);
 
     let (mut stream, mut connection) = match connect_and_handshake(autostart) {
         Ok(pair) => pair,
@@ -61,12 +66,26 @@ pub fn run(api: &Description, method: &Method, matches: &ArgMatches) -> i32 {
     }
 
     match block_until_reply(&mut stream, &mut connection, id) {
-        Ok(Response::Ok(value)) => {
-            if json {
-                println!("{value}");
+        Ok(Response::Ok(value)) => match render(&method.returns, &value, json, quiet) {
+            Ok(bytes) => {
+                if let Err(err) = std::io::stdout().write_all(&bytes) {
+                    eprintln!("steg: writing to stdout: {err}");
+                    return connect_error_status(&ConnectError::Io(err));
+                }
+                0
             }
-            0
-        }
+            Err(err) => {
+                eprintln!("steg: {err}");
+                // `err` (a `RenderError`) is the `io::Error`'s own
+                // source, not flattened into a `String` first (.claude/
+                // rules/rust.md: "add context... never by turning it
+                // into a string") - `io::Error::other` takes anything
+                // `Into<Box<dyn Error + Send + Sync>>`, which `RenderError`
+                // already satisfies through its own `std::error::Error`
+                // impl.
+                connect_error_status(&ConnectError::Io(std::io::Error::other(err)))
+            }
+        },
         Ok(Response::Error(err)) => {
             eprintln!("steg: {}", err.message);
             api_error_status(api, err.code)

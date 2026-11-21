@@ -3,9 +3,20 @@
 //! support/mod.rs` - each file under `tests/` is its own compilation
 //! unit, in its own crate, and cannot import a module from a sibling
 //! crate's own test tree, so this duplicates the identical shape rather
-//! than hiding the gap (the same reasoning that module's own doc comment
-//! already states for `run_bounded`/`wait_child_bounded`). This crate's
-//! own tests do not need those two - just the temporary-path helper.
+//! than hiding the gap. `run_bounded` below is the one bounded-wait
+//! helper this crate's own tests need (TASK-1.120) - a smaller,
+//! generic version of `crates/server/tests/support/mod.rs`'s own
+//! `run_bounded`/`wait_child_bounded` pair (that module's own needs a
+//! watchdog thread that can `SIGKILL` a child by pid, since the server
+//! crate's own fixtures can hang past any ordinary timeout; this
+//! crate's own tests only ever block on a `Command` that itself has
+//! nothing left to wait on once it returns, so a plain
+//! `mpsc::Receiver::recv_timeout` around the blocking call is enough).
+//! Files that already have their own local `wait_bounded`/
+//! `wait_for_socket` (`cli_exit_statuses.rs`, `server_start.rs`,
+//! `idle_stop.rs`) are left as they are - this is for the first file
+//! that needs one *and* uses this module, so there is nothing yet to
+//! consolidate.
 
 /// Budget `path`'s length must stay under: `sockaddr_un`'s 104-byte
 /// `sun_path` on macOS, minus 4 bytes of slack - `crates/server/src/
@@ -179,6 +190,52 @@ pub fn scoped_socket_path(name: &str) -> (ScopedTempDir, std::path::PathBuf) {
     (dir, path)
 }
 
+/// Runs `body` on its own thread and waits at most `bound` for it to
+/// finish, panicking by name (`what`) rather than hanging the test suite
+/// if it does not - the same shape `crates/server/tests/support/mod.rs`'s
+/// own `run_bounded` already uses, generic over any blocking call
+/// (`Command::status`/`output`, here) rather than only a `Child`'s own
+/// exit. The spawned thread itself is never joined or cancelled on a
+/// timeout - nothing in this crate's own tests needs that, since the
+/// blocking call this wraps (a `script`/`steg` process) is killed by the
+/// OS reaping its own children once the test binary itself exits, not by
+/// this function.
+///
+/// # Panics
+/// If `body` does not finish within `bound`.
+pub fn run_bounded<T, F>(what: &str, bound: std::time::Duration, body: F) -> T
+where
+    T: Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
+{
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(body());
+    });
+    rx.recv_timeout(bound)
+        .unwrap_or_else(|_| panic!("timed out after {bound:?} waiting for: {what}"))
+}
+
+/// Blocks, bounded, until something accepts a connection at `path` -
+/// `cli_exit_statuses.rs`'s own local `wait_for_socket`, generalised here
+/// (TASK-1.120) for the first file beside it that also uses this module.
+///
+/// # Panics
+/// If nothing answers at `path` within `timeout`.
+pub fn wait_for_socket(path: &std::path::Path, timeout: std::time::Duration) {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        if std::os::unix::net::UnixStream::connect(path).is_ok() {
+            return;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "nothing ever answered at {path:?}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{ScopedTempDir, candidate_name, create_unique_dir};
@@ -341,5 +398,43 @@ mod tests {
     fn path_panics_rather_than_hand_back_something_over_the_sun_path_budget() {
         let dir = ScopedTempDir::new();
         let _ = dir.path(&"x".repeat(200));
+    }
+
+    #[test]
+    fn run_bounded_returns_the_bodys_value_when_it_finishes_in_time() {
+        let value = super::run_bounded("a quick body", std::time::Duration::from_secs(5), || 42);
+        assert_eq!(value, 42);
+    }
+
+    /// `run_bounded`'s own bound is load-bearing, not decorative: a body
+    /// that never returns panics by name rather than hanging the test
+    /// suite, proved directly rather than assumed.
+    #[test]
+    #[should_panic(expected = "timed out after")]
+    fn run_bounded_panics_when_the_body_does_not_finish_in_time() {
+        let _: () = super::run_bounded(
+            "a body that never returns",
+            std::time::Duration::from_millis(50),
+            || loop {
+                std::thread::sleep(std::time::Duration::from_secs(60));
+            },
+        );
+    }
+
+    #[test]
+    fn wait_for_socket_returns_once_something_is_listening() {
+        let dir = ScopedTempDir::new();
+        let path = dir.path("s.sock");
+        let _listener = std::os::unix::net::UnixListener::bind(&path)
+            .expect("binding a throwaway listener should succeed");
+        super::wait_for_socket(&path, std::time::Duration::from_secs(2));
+    }
+
+    #[test]
+    #[should_panic(expected = "nothing ever answered at")]
+    fn wait_for_socket_panics_when_nothing_ever_answers() {
+        let dir = ScopedTempDir::new();
+        let path = dir.path("never-bound.sock");
+        super::wait_for_socket(&path, std::time::Duration::from_millis(50));
     }
 }

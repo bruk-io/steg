@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:12:00Z'
+updated_date: '2026-11-21T20:13:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -125,4 +125,6 @@ The only genuinely new, cross-cutting state in the server is `pending_waits` its
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-2 (sections 5, 6, 8) by @bruk.o on 2026-11-20: ok. It builds only pane.wait; exit 0 with the program's own code in the result and status 1 on timeout match section 6; a pane closed mid-wait answers NoSuchTarget, already in the method's errors; the wait is woken by the exit, the close or the disconnect, with one early-wakeable timer per timed wait and no polling. Three points wait on the engineer: a new ErrorCode::TimedOut (status 1) in the API description; a zero or negative --timeout; inline JSON or a typed result. Orchestrator's recommendations: add TimedOut; zero is an immediate timeout and a negative value is BadRequest (status 2) rather than clamped; typed struct.
+
+Revised plan (83254935a0f3) checked against doc-2 (sections 5, 6) and the engineer's answers of 2026-11-21 by @bruk.o: ok. TimedOut is a new error code with exit status 1; --timeout 0 answers at once without registering a wait; a negative --timeout is BadRequest (status 2) before the target is resolved; the reply is the typed record WaitResult. One difference from the wording put to the engineer: the expired seconds are in the error's message, not a separate details field, because errors carry none; told to the engineer with the plan. doc-2 sections 5 and 6 do not yet state the 0 and negative cases; a document change for the engineer to agree.
 <!-- SECTION:NOTES:END -->

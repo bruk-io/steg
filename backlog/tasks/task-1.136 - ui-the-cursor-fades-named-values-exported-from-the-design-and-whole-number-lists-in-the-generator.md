@@ -263,6 +263,8 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Merged origin/main (e254fa2b, carrying PR 90's output.rs fix) with no conflicts. The merge touched Cargo.toml, boundaries.toml, the four crates' own Cargo.toml, crates/steg/src/cli/output.rs, and backlog/plugins docs only - nothing under tools/ or crates/ui/ - so the test-tools control pair recorded earlier at the pre-merge head still stands; not re-recorded. Ran and recorded `just check` once at the merged head (b6a744b69b31's descendant after the merge commit): exit 0, every step green including tests (every crate) - the output.rs failure is gone, and the shutdown.rs flake the team lead named did not appear. Proceeding to push and open the PR.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

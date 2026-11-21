@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-21T20:23:00Z'
-updated_date: '2026-11-21T21:36:00Z'
+updated_date: '2026-11-21T21:37:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -145,3 +145,9 @@ This is the one behaviour change in this otherwise-pure rename, flagged here for
 7. `just check`; record it.
 8. Commit, with notes listing the files touched, the command, the hand edit, and the behaviour fix, each labelled separately.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (042346b24b0f) checked by @bruk.o on 2026-11-21 against the task and doc-2 section 4: ok. The rename is one command over crates/, with one hand edit: crates/steg/tests/login_environment.rs lists the old name among variables a pane must not carry, and STEG_SERVER is one a pane does carry by design, so that entry is removed rather than renamed; a reviewer should confirm no other assertion is loosened. One behaviour change, for the engineer: an explicit path that is set but empty is treated as absent, in paths::socket_path, because a pane's STEG_SERVER is an empty placeholder until TASK-1.146 and would otherwise be read as a path. Orchestrator's recommendation: the single-function fix. The zero-occurrence proof is a recorded grep whose exit status 1 means nothing found, and the notes must say so. backlog/ keeps the old name in historical records, untouched.
+<!-- SECTION:NOTES:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T20:08:00Z'
+updated_date: '2026-11-21T20:09:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -224,6 +224,8 @@ error: test failed, to rerun pass `-p steg --lib`
 full output: .quiet/tests-every-crate.log
 error: recipe `test` failed with exit code 101
 ```
+
+Build blocked by an unrelated, pre-existing failure in just check's full test step: crates/steg/src/cli/output.rs's cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json and cli::output::tests::nested_plain_and_json_are_identical_bytes fail when the full test suite runs together, asserting on JSON object key order (e.g. expecting {"split":...,"panes":...} but getting {"panes":...,"split":...}), while passing every time when run alone or filtered (cargo test -p steg --lib cli::output, 6/6 clean runs). Confirmed pre-existing and unrelated to this task: stashed every change this task made and reran cargo test -p steg --lib cli::output on the resulting bare-main tree - passes there too (it's the full-suite run specifically, not this task's diff, that triggers it), then restored the stash. Nothing this task touches (crates/ui, tools/) is anywhere near crates/steg/src/cli/output.rs (from the just-merged PR #87). Recorded one failing `just check` run as the official attempt (asdlc record-check, exit 101); retried the full run 3 times beforehand for diagnosis, same two tests, same wrong order, every time - consistent, not a coin-flip hash-seed flake, so a second blind retry would not help. Flagged to the team lead for direction rather than editing code outside this task's approved plan.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

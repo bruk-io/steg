@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T21:40:00Z'
+updated_date: '2026-11-21T21:55:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -265,6 +265,8 @@ ok      ui colours (0.1s)
 ```
 
 Merged origin/main (e254fa2b, carrying PR 90's output.rs fix) with no conflicts. The merge touched Cargo.toml, boundaries.toml, the four crates' own Cargo.toml, crates/steg/src/cli/output.rs, and backlog/plugins docs only - nothing under tools/ or crates/ui/ - so the test-tools control pair recorded earlier at the pre-merge head still stands; not re-recorded. Ran and recorded `just check` once at the merged head (b6a744b69b31's descendant after the merge commit): exit 0, every step green including tests (every crate) - the output.rs failure is gone, and the shutdown.rs flake the team lead named did not appear. Proceeding to push and open the PR.
+
+PR 91's first CI run (head 77487328) failed on crates/steg/tests/cli_connection_arbitration.rs's a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding. That test is outside this task's files (crates/ui, tools/) and passed in the local just check recorded at that same head. The team lead re-ran the failed job once and noted the sighting on TASK-1.137. Holding per the team lead's instruction: not pushing anything further, not running asdlc finish, until told the re-run is green.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

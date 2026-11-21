@@ -399,6 +399,8 @@ Two control pairs recorded at the final head, each failing+passing under `asdlc 
 (b) scalar fields: removed the six cursor-fade names from _DIMENSIONLESS_FIELDS - watched test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration fail; inspected the full rendered output directly and confirmed it actually produces `std::time::Duration::from_millis(0)` for step_fraction/medium_shade_strength/phase_whole, exactly the bug the reviewer named, not just a missing-line assertion (1 failed, 334 passed), restored, recorded passing.
 
 Finding 2 (nit): left as-is. "At least one of duration or cycle required" is not a two-line change under the current Fields/optional schema - optional only expresses "required unless listed", not a cross-field "at least one of" constraint; it would need a new validation rule beyond Position's current shape. Not built, per the reviewer's own stated bar.
+
+Correction to the note just above: the parenthetical '(334... wait see below)' after control (a)'s passing run was a drafting leftover, not content - ignore it. Both control pairs passed cleanly after restoring the real fix (334 passed, 0 failed, each recorded 'ok tool tests' via asdlc record-check).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

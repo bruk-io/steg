@@ -14,7 +14,11 @@ steg-ui = { path = "../ui" }
 # Request/response params and ScreenUpdate decoding (doc-16 R102: the sdk does no
 # serialisation of its own for the shapes a consumer builds calls from; boundaries.toml's
 # `[steg-app]` names the same reason `[steg]`'s own serde_json entry already states).
-serde_json = "1"
+# `.workspace = true`: the root `Cargo.toml`'s own comment on this entry says why
+# (TASK-1.145, deterministic key order in every build) - this crate is also the one
+# whose own gpui dependency is what forces `preserve_order` on for the whole
+# workspace in the first place.
+serde_json.workspace = true
 # The channel between the reader thread that blocks on the socket and the task on the
 # window's own executor that applies an update and calls notify - awaited, not polled
 # (TASK-1.117's plan). Not reachable through gpui's own public surface (gpui.rs re-exports

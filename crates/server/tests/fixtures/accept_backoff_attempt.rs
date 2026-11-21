@@ -55,8 +55,7 @@ fn main() {
         .expect("accept-backoff-attempt: setrlimit should succeed on this platform");
 
     let socket_path = PathBuf::from(
-        std::env::var_os("STEG_SERVER")
-            .expect("accept-backoff-attempt: STEG_SERVER must be set"),
+        std::env::var_os("STEG_SERVER").expect("accept-backoff-attempt: STEG_SERVER must be set"),
     );
     let accept_error_backoff = env_u64("ACCEPT_BACKOFF_MS")
         .map(Duration::from_millis)

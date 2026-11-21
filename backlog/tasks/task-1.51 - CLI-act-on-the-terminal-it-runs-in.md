@@ -1,10 +1,11 @@
 ---
 id: TASK-1.51
 title: 'CLI: act on the terminal it runs in'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:51:00Z'
+updated_date: '2026-11-21T19:54:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -16,6 +17,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-21
+asdlc_branch: task-1.51-cli-act-on-the-terminal-it-runs-in
 ---
 
 ## Description

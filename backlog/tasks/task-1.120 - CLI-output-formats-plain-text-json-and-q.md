@@ -1,11 +1,11 @@
 ---
 id: TASK-1.120
 title: 'CLI: output formats: plain text, --json and -q'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-20T19:09:00Z'
+updated_date: '2026-11-21T19:54:00Z'
 labels:
   - size-2
   - review-passed

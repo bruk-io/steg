@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-21T20:27:00Z'
+updated_date: '2026-11-21T20:28:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -20,6 +20,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-21
 asdlc_branch: task-1.51-cli-act-on-the-terminal-it-runs-in
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '2220a19df068'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -370,3 +373,16 @@ Decided by the engineer on 2026-11-21: one variable. STEG_SOCKET_PATH is renamed
 
 Plan (2220a19df068) checked against doc-2 R33 and section 4 by @bruk.o on 2026-11-21: ok. It builds only the context path: the hello carries the caller's session, tab and pane identifiers (never labels, as section 4 says), the server makes its dispatch context from them, and the CLI reads STEG_SESSION, STEG_TAB and STEG_PANE; no new flag, variable or exit status. AC 1 has a test per clause (pane by the chain test, tab and session by hand-set environment), with a server-side and a CLI-side control; AC 2 and AC 3 are pinned by end-to-end tests of behaviour that already holds. It adds no reading of the server address (TASK-1.147) and does not write the pane's environment (TASK-1.146). Three points for the engineer: a malformed or stale identifier in the hello drops that one field rather than refusing the connection; the hello's identifiers are not checked against the tree at handshake; the hello's new fields are named session, tab, pane.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-21T20:28:00Z
+
+---
+
+Plan approved by @bruk (2220a19df068, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

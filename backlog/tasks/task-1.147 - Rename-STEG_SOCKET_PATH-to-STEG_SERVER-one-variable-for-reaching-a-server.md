@@ -1,15 +1,18 @@
 ---
 id: TASK-1.147
 title: 'Rename STEG_SOCKET_PATH to STEG_SERVER: one variable for reaching a server'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-21T20:23:00Z'
-updated_date: '2026-11-21T21:54:00Z'
+updated_date: '2026-11-21T22:08:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.147-rename-steg-socket-path-to-steg-server
+  - https://github.com/bruk-io/steg/pull/93
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -283,6 +286,18 @@ ok      recipe names (0.2s)
 ok      ui levels (0.2s)
 ok      ui colours (0.2s)
 ```
+
+Rename done with the deterministic command: grep -rl --null 'STEG_SOCKET_PATH' crates | xargs -0 sed -i '' 's/STEG_SOCKET_PATH/STEG_SERVER/g' - 18 files under crates/, 45 occurrences, matching the plan's inventory exactly. backlog/'s 34 historical occurrences deliberately untouched.
+
+Hand edit (not mechanical): crates/steg/tests/login_environment.rs's pane-leak-absence check used to assert STEG_SOCKET_PATH was absent from a pane's environment, correctly, since it was only ever env_leak_client's own debug override. Once unified under one name that assertion would be false (pane_environment legitimately sets STEG_SERVER on every pane) - traced assert_var_absent's own implementation and confirmed a naive rename would fail this test on every run, deterministically. Dropped the list entry instead of renaming it, with comments explaining why, and caught myself writing the literal old string into the explanatory comments on a first pass - reworded both before it could break the zero-occurrence grep.
+
+Behaviour fix (engineer-approved on the plan): crates/sdk/src/paths.rs's socket_path now treats a present-but-empty explicit override as absent (explicit.filter(|p| !p.as_os_str().is_empty())), with a new test an_empty_explicit_override_is_treated_as_absent. env::var_os returns Some("") for a set-but-empty variable, never None, and pane_environment already sets STEG_SERVER on every pane (empty today, pending TASK-1.146) - without this fix a steg command run inside a pane between this task and TASK-1.146 would read that placeholder as a real override and fail to connect.
+
+Merge of origin/main (TASK-1.145's Cargo.toml/boundaries.toml/cli/output.rs changes) brought zero new occurrences of the old name - re-ran both the rename command and the grep check after merging, confirmed empty. TASK-1.140's pane_wait.rs had not landed yet, so nothing to reconcile there.
+
+Checks recorded: negative control pair on cli_connection_arbitration.rs's a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding (removed its STEG_SERVER override - exit 101, deterministic failure with no environment data in the output; restored it - exit 0); grep -rn STEG_SOCKET_PATH crates (exit 1, zero occurrences); just check clean at the merged head (no flakes hit, including the two named known-flaky tests).
+
+One departure from the plan: the final just check first failed on format check alone (cargo fmt wanted the renamed, now-shorter STEG_SERVER env::var_os call collapsed onto one line in crates/server/tests/fixtures/accept_backoff_attempt.rs) - ran just fmt, touched that one file, re-recorded just check clean. Not a plan change, just a formatting fixup the rename itself caused.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

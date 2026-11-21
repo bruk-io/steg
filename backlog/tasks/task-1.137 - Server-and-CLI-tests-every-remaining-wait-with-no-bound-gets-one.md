@@ -4,7 +4,7 @@ title: 'Server and CLI tests: every remaining wait with no bound gets one'
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-20T17:21:00Z'
+updated_date: '2026-11-21T20:19:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -396,4 +396,6 @@ Sighting after TASK-1.123 merged, noted by @bruk.o on 2026-11-18: TASK-1.88's wo
 More sightings on 2026-11-18, noted by @bruk.o: with three builds running, login_env's backgrounded-grandchild test failed two consecutive local just check runs for TASK-1.141's worker and two for TASK-1.139's, all on branches that already contain TASK-1.123's widened bounds; CI stayed green each time. Under that load it now fails more often than it passes locally, so start here.
 
 Split by @bruk.o on 2026-11-20, on the planner's recommendation: the flake (login_env grandchild test, attach.rs under sibling builds) moves to its own task (drafted as DRAFT-2, awaiting acceptance). What stays here is the bounding sweep only. Released until TASK-1.140 (pane wait) merges, because the sweep collides with it in the dispatch tests; the next planner trims this plan to the sweep and drops AC 4's stale reference to TASK-1.88/1.90 in favour of TASK-1.140.
+
+Sighting 2026-11-21, by @bruk.o: crates/server/tests/shutdown.rs many_short_connections_do_not_grow_the_tracked_set failed once in CI on PR 89 (a change to one markdown file) at its final assertion, the process-wide open-descriptor count after 200 connections being under before+10. The count is for the whole test process, so tests running beside it in the same binary can move it. Add to the sweep.
 <!-- SECTION:NOTES:END -->

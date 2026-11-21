@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T20:32:00Z'
+updated_date: '2026-11-21T20:43:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -334,6 +334,51 @@ test result: FAILED. 35 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg --lib`
 full output: .quiet/tests-every-crate.log
 error: recipe `test-all` failed with exit code 101
+```
+
+Check FAILED: `just check-packages` exited 101 at 2026-11-21T20:43:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.145 on task-1.145-main-is-red-json-key-order-changes-with at aef4b329ef03 with uncommitted changes, last 40 of 75 lines:
+
+```text
+test cli::output::tests::records_with_a_non_array_reply_is_a_shape_error_not_a_panic ... ok
+test cli::output::tests::records_with_a_non_object_element_is_a_shape_error_not_a_panic ... ok
+test cli::output::tests::records_with_no_declared_fields_prints_nothing_in_every_combination ... ok
+test cli::output::tests::text_json_prints_the_string_value_unchanged ... ok
+test cli::output::tests::text_plain_is_the_string_unaltered ... ok
+test cli::output::tests::text_quiet_is_the_same_as_without_quiet_either_way ... ok
+test cli::output::tests::text_with_a_non_string_reply_is_a_shape_error_not_a_panic ... ok
+test cli::tree::tests::autostart_given_after_no_autostart_wins ... ok
+test cli::tree::tests::autostart_defaults_to_true_with_neither_flag_given ... ok
+test cli::tree::tests::json_is_read_from_the_leaf_subcommand ... ok
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
+test cli::tree::tests::quiet_is_read_from_the_leaf_subcommand_either_spelling ... ok
+
+failures:
+
+---- cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json stdout ----
+
+thread 'cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json' (72362964) panicked at crates/steg/src/cli/output.rs:593:9:
+assertion `left == right` failed
+  left: "t1\t{\"split\":\"horizontal\",\"panes\":[\"p1\",\"p2\"]}\n"
+ right: "t1\t{\"panes\":[\"p1\",\"p2\"],\"split\":\"horizontal\"}\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- cli::output::tests::nested_plain_and_json_are_identical_bytes stdout ----
+
+thread 'cli::output::tests::nested_plain_and_json_are_identical_bytes' (72362972) panicked at crates/steg/src/cli/output.rs:708:9:
+assertion `left == right` failed
+  left: "{\"stream\":\"st1\",\"snapshot\":{\"rows\":[]}}\n"
+ right: "{\"snapshot\":{\"rows\":[]},\"stream\":\"st1\"}\n"
+
+
+failures:
+    cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json
+    cli::output::tests::nested_plain_and_json_are_identical_bytes
+
+test result: FAILED. 35 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+full output: .quiet/test-steg.log
+error: recipe `check-packages` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

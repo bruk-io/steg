@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-21T20:23:00Z'
-updated_date: '2026-11-21T21:43:00Z'
+updated_date: '2026-11-21T21:44:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -229,6 +229,24 @@ Check FAILED: `grep -rn STEG_SOCKET_PATH crates` exited 1 at 2026-11-21T21:43:28
 
 ```text
 
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-21T21:44:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.147 on task-1.147-rename-steg-socket-path-to-steg-server at 9117ac885cef:
+
+```text
+FAILED  format check (exit 1, 0.3s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.147/crates/server/tests/fixtures/accept_backoff_attempt.rs:55:
+         .expect("accept-backoff-attempt: setrlimit should succeed on this platform");
+ 
+     let socket_path = PathBuf::from(
+[31m-        std::env::var_os("STEG_SERVER")
+(B[m[31m-            .expect("accept-backoff-attempt: STEG_SERVER must be set"),
+(B[m[32m+        std::env::var_os("STEG_SERVER").expect("accept-backoff-attempt: STEG_SERVER must be set"),
+(B[m     );
+     let accept_error_backoff = env_u64("ACCEPT_BACKOFF_MS")
+         .map(Duration::from_millis)
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 163 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

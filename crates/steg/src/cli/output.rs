@@ -592,7 +592,7 @@ mod tests {
         let bytes = render(&returns, &value, false, false).unwrap();
         assert_eq!(
             as_text(bytes),
-            "t1\t{\"panes\":[\"p1\",\"p2\"],\"split\":\"horizontal\"}\n"
+            "t1\t{\"split\":\"horizontal\",\"panes\":[\"p1\",\"p2\"]}\n"
         );
     }
 
@@ -707,7 +707,7 @@ mod tests {
         assert_eq!(plain, with_json);
         assert_eq!(
             as_text(plain),
-            "{\"snapshot\":{\"rows\":[]},\"stream\":\"st1\"}\n"
+            "{\"stream\":\"st1\",\"snapshot\":{\"rows\":[]}}\n"
         );
     }
 

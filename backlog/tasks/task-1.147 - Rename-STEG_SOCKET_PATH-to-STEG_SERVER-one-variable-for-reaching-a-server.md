@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-21T20:23:00Z'
-updated_date: '2026-11-21T21:37:00Z'
+updated_date: '2026-11-21T21:43:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -153,6 +153,51 @@ This is the one behaviour change in this otherwise-pure rename, flagged here for
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (042346b24b0f) checked by @bruk.o on 2026-11-21 against the task and doc-2 section 4: ok. The rename is one command over crates/, with one hand edit: crates/steg/tests/login_environment.rs lists the old name among variables a pane must not carry, and STEG_SERVER is one a pane does carry by design, so that entry is removed rather than renamed; a reviewer should confirm no other assertion is loosened. One behaviour change, for the engineer: an explicit path that is set but empty is treated as absent, in paths::socket_path, because a pane's STEG_SERVER is an empty placeholder until TASK-1.146 and would otherwise be read as a path. Orchestrator's recommendation: the single-function fix. The zero-occurrence proof is a recorded grep whose exit status 1 means nothing found, and the notes must say so. backlog/ keeps the old name in historical records, untouched.
+
+Check FAILED: `cargo test -p steg --test cli_connection_arbitration` exited 101 at 2026-11-21T21:43:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.147 on task-1.147-rename-steg-socket-path-to-steg-server at a747ba875cc5 with uncommitted changes, last 40 of 45 lines:
+
+```text
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg` (test "cli_connection_arbitration") generated 1 warning (run `cargo fix --test "cli_connection_arbitration" -p steg` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_connection_arbitration.rs (target/debug/deps/cli_connection_arbitration-c87ff0de211c214f)
+
+running 14 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::run_bounded_returns_the_bodys_value_when_it_finishes_in_time ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::wait_for_socket_returns_once_something_is_listening ... ok
+test support::tests::one_scoped_temp_dir_can_hand_out_two_different_paths ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test the_hostile_listener_itself_accepts_and_closes_with_nothing_written ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::run_bounded_panics_when_the_body_does_not_finish_in_time - should panic ... ok
+test support::tests::wait_for_socket_panics_when_nothing_ever_answers - should panic ... ok
+test a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding ... FAILED
+
+failures:
+
+---- a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding stdout ----
+
+thread 'a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding' (73686263) panicked at crates/steg/tests/cli_connection_arbitration.rs:100:5:
+assertion `left == right` failed: stderr: steg: timed out waiting for the steg server's socket
+
+  left: Some(4)
+ right: Some(0)
+
+
+failures:
+    a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding
+
+test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.25s
+
+error: test failed, to rerun pass `-p steg --test cli_connection_arbitration`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

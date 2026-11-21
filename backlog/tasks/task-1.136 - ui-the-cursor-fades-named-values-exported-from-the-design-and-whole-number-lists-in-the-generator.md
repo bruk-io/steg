@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T22:53:00Z'
+updated_date: '2026-11-21T22:59:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies: []
 references:
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7e94152ad20d'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_review_policies: ["review"]
-asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -506,6 +506,27 @@ created: 2026-11-21T22:53:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.136: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-21T22:59:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Re-review of the two prior findings on head c8c4563e (previous reviewed head 774873286c86).
+
+Finding 1 (Evidence, Important) - RESOLVED. The notes now correctly attribute the mechanism: "order" was removed from _DIMENSIONLESS_FIELDS (confirmed inert there - the list branch's own unconditional whole-number check, not set membership, decides int vs float), and the scalar fields (step_fraction, medium_shade_strength, phase_whole/going/empty/returning) are confirmed load-bearing in the set via a new test and a traced control. I repeated the scalar control myself in a scratch worktree at c8c4563e: removed the six scalar names from _DIMENSIONLESS_FIELDS, reran test-tools directly (no pipe/wrapper) and reproduced the same single failure the notes recorded (test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration, 1 failed/334 passed). I then called render_plain_group directly to see the full output and traced why: step_fraction/medium_shade_strength/phase_whole all typed as std::time::Duration and rendered as Duration::from_millis(0) - the exact zero-duration bug claimed, not an unrelated failure. Reverted the edit. Also regenerated generated.rs at c8c4563e on a clean worktree (git status --porcelain empty before and after) - byte-identical, corroborated by the full `just check`'s green "foundations" step at the same head and by grepping _DIMENSIONLESS_FIELDS to confirm only the scalar branch (line 473) still consults it. gh pr checks 91 is green at c8c4563e666fb0b114e8f563eadeafd744427315 (the expected head).
+
+Finding 2 (Compliance, Nit) - left as-is per the worker's stated reasoning (no two-line fix under the current Fields/optional schema); carried forward, not a blocker.
+
+Plan-matched: no. The approved plan's section 2 names the mechanism as adding "order" to _DIMENSIONLESS_FIELDS and computing effective_unit = None if key in _DIMENSIONLESS_FIELDS else unit in the list branch. The shipped fix does the inverse: "order" removed from the set, effective_unit dropped, the list branch now branches on unit == "px" directly and decides int-vs-float unconditionally. This is the right fix (it's what finding 1 required) and the notes explain the departure in full, so it is not a Compliance finding under the policy's "unless the notes say what changed and why" - but it is still a departure from the plan's named mechanism, so plan-matched is recorded as no rather than carried over from the prior round.
+
+No new rule-change draft filed: DRAFT-1 ("Rule: check what makes a negative control pass, not just that it passes") already covers this exact lapse.
 
 ---
 <!-- COMMENTS:END -->

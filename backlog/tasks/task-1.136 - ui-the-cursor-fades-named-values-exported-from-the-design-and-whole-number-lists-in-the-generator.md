@@ -7,11 +7,15 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T20:10:00Z'
+updated_date: '2026-11-21T22:31:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies: []
+references:
+  - task-1.136-ui-the-cursor-fade-s-named-values
+  - https://github.com/bruk-io/steg/pull/91
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -19,6 +23,10 @@ asdlc_branch: task-1.136-ui-the-cursor-fade-s-named-values
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7e94152ad20d'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -228,6 +236,171 @@ error: recipe `test` failed with exit code 101
 Build blocked by an unrelated, pre-existing failure in just check's full test step: crates/steg/src/cli/output.rs's cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json and cli::output::tests::nested_plain_and_json_are_identical_bytes fail when the full test suite runs together, asserting on JSON object key order (e.g. expecting {"split":...,"panes":...} but getting {"panes":...,"split":...}), while passing every time when run alone or filtered (cargo test -p steg --lib cli::output, 6/6 clean runs). Confirmed pre-existing and unrelated to this task: stashed every change this task made and reran cargo test -p steg --lib cli::output on the resulting bare-main tree - passes there too (it's the full-suite run specifically, not this task's diff, that triggers it), then restored the stash. Nothing this task touches (crates/ui, tools/) is anywhere near crates/steg/src/cli/output.rs (from the just-merged PR #87). Recorded one failing `just check` run as the official attempt (asdlc record-check, exit 101); retried the full run 3 times beforehand for diagnosis, same two tests, same wrong order, every time - consistent, not a coin-flip hash-seed flake, so a second blind retry would not help. Flagged to the team lead for direction rather than editing code outside this task's approved plan.
 
 The failing just check is main's own failure, confirmed by the team lead: present at d50a5d20 (the PR 87 merge) in crates/steg/src/cli/output.rs, outside this task's files. It is cargo feature unification (gpui turns on serde_json's preserve_order; -p steg alone does not, so its two tests assert sorted-key text that only matches when steg is built without the app). The two failing tests: cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json and cli::output::tests::nested_plain_and_json_are_identical_bytes. Filed as its own task; will be fixed there, not here. This task's own changes are committed locally (a3a08067), not pushed. Holding per the team lead's instruction: no further just check retries, no push, no PR until notified the fix is on main.
+
+Check passed: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 check` exited 0 at 2026-11-21T21:40:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at 774873286c86:
+
+```text
+ok      format check (0.3s)
+ok      lint (3.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (77.0s)
+ok      build (steg-sdk) (3.5s)
+ok      test (steg-sdk) (2.5s)
+ok      test (steg-sdk, local-socket) (2.9s)
+ok      build (steg-kernel) (44.9s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (30.9s)
+ok      test (steg-server) (66.4s)
+ok      test (steg-server, race-fixture) (66.5s)
+ok      test (steg-server, pty-race-fixture) (106.8s)
+ok      test (steg-server, accept-backoff-fixture) (93.0s)
+ok      build (steg) (2.5s)
+ok      test (steg) (5.0s)
+ok      test (steg, fixtures) (11.8s)
+ok      build (steg-ui) (16.5s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.5s)
+ok      test (steg-app) (2.2s)
+ok      tool tests (40.3s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Merged origin/main (e254fa2b, carrying PR 90's output.rs fix) with no conflicts. The merge touched Cargo.toml, boundaries.toml, the four crates' own Cargo.toml, crates/steg/src/cli/output.rs, and backlog/plugins docs only - nothing under tools/ or crates/ui/ - so the test-tools control pair recorded earlier at the pre-merge head still stands; not re-recorded. Ran and recorded `just check` once at the merged head (b6a744b69b31's descendant after the merge commit): exit 0, every step green including tests (every crate) - the output.rs failure is gone, and the shutdown.rs flake the team lead named did not appear. Proceeding to push and open the PR.
+
+PR 91's first CI run (head 77487328) failed on crates/steg/tests/cli_connection_arbitration.rs's a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding. That test is outside this task's files (crates/ui, tools/) and passed in the local just check recorded at that same head. The team lead re-ran the failed job once and noted the sighting on TASK-1.137. Holding per the team lead's instruction: not pushing anything further, not running asdlc finish, until told the re-run is green.
+
+Built the approved plan. crates/ui/design/foundations.json gains motion.cursor-fade.shaded-dissolve (design option 2B, artifact version 1795195942-6a0a): cycle 1400ms, order [3,0,4,2,1,5] (going-out sequence only, return is the atom's own reverse), step_fraction 0.03, medium_shade_strength 0.5, phase_whole 0.43, phase_going 0.18, phase_empty 0.21, phase_returning 0.18. Per the engineer's 2026-11-20 decision there is no idle rest, so criterion 1's "idle time before the cursor rests" is dropped, not exported - the phase fractions stand in its place, the one departure the plan itself already named, not a new one.
+
+Fixed foundations_generate.py's list branch (a field in _DIMENSIONLESS_FIELDS is now exempted from the group's unit for lists, the same as it already was for scalars): a whole-number list with no effective unit renders [i32; N], not [f32; N], with no stray unit suffix in its _DESCRIPTION. Widened design_pages.py's _MOTION_ENTRY so check-design describes the new entry's shape instead of refusing it.
+
+Control pair recorded at the final head (774873286c86): the generator fix's failing-then-passing `just test-tools` pair was recorded at the pre-merge head (b6a744b69b31) before/after the fix, confirmed still valid post-merge since the merge touched nothing under tools/ or crates/ui/ (checked by diff, stated in the task notes) - not re-recorded. `just check` itself is recorded green at the final head (774873286c86, exit 0).
+
+PR 91's first CI run failed on crates/steg/tests/cli_connection_arbitration.rs, outside this task's files and passing in the local just check at the same head (noted on the task and on TASK-1.137); the team lead re-ran the job once and it is green on this same head.
+
+generated.rs's diff against the prior head is exactly the artifact-version line and the one new struct/const/description block; nothing in any existing entry changed.
+
+Check FAILED: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 1 at 2026-11-21T22:27:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at 774873286c86 with uncommitted changes:
+
+```text
+FAILED  tool tests (exit 1, 40.1s)
+........................................................................ [ 21%]
+........................................................................ [ 42%]
+.......................................................FF............... [ 64%]
+........................................................................ [ 85%]
+...............................................                          [100%]
+=================================== FAILURES ===================================
+_ test_a_whole_number_list_under_a_non_px_unit_renders_as_integers_not_floats __
+
+    def test_a_whole_number_list_under_a_non_px_unit_renders_as_integers_not_floats() -> None:
+        # A list field's own int/float choice is unconditional on every resolved value
+        # being whole - it never consults _DIMENSIONLESS_FIELDS (the control pair at the
+        # final head removes the whole-number check itself, not a set membership, and
+        # shows this test fail).
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+        )
+>       assert "pub order: [i32; 6]," in rust
+E       assert 'pub order: [i32; 6],' in '#[derive(Debug, Clone, Copy)]\npub struct MotionCursorFadeShadedDissolve {\n    pub cycle: std::time::Duration,\n    ...\npub const MOTION_CURSOR_FADE_SHADED_DISSOLVE_DESCRIPTION: &str = "cycle 1400ms, order 3ms, 0ms, 4ms, 2ms, 1ms, 5ms";'
+
+tools/tests/unit/test_foundations_generate.py:345: AssertionError
+___________ test_the_lists_description_carries_no_stray_unit_suffix ____________
+
+    def test_the_lists_description_carries_no_stray_unit_suffix() -> None:
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve", {"cycle": 1400, "unit": "ms", "order": [3, 0, 4, 2, 1, 5]}, {}
+        )
+        description = rust.split("_DESCRIPTION")[1]
+>       assert 'cycle 1400ms, order 3, 0, 4, 2, 1, 5";' in description
+E       assert 'cycle 1400ms, order 3, 0, 4, 2, 1, 5";' in ': &str = "cycle 1400ms, order 3ms, 0ms, 4ms, 2ms, 1ms, 5ms";'
+
+tools/tests/unit/test_foundations_generate.py:356: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_foundations_generate.py::test_a_whole_number_list_under_a_non_px_unit_renders_as_integers_not_floats
+FAILED tools/tests/unit/test_foundations_generate.py::test_the_lists_description_carries_no_stray_unit_suffix
+2 failed, 333 passed in 39.96s
+full output: .quiet/tool-tests.log
+error: recipe `test-tools` failed on line 98 with exit code 1
+```
+
+Commits since the review: 0.
+
+Check passed: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 0 at 2026-11-21T22:28:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at 774873286c86 with uncommitted changes:
+
+```text
+ok      tool tests (40.0s)
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 1 at 2026-11-21T22:29:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at 774873286c86 with uncommitted changes:
+
+```text
+FAILED  tool tests (exit 1, 39.9s)
+........................................................................ [ 21%]
+........................................................................ [ 42%]
+..........................................................F............. [ 64%]
+........................................................................ [ 85%]
+...............................................                          [100%]
+=================================== FAILURES ===================================
+_ test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration _
+
+    def test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration() -> None:
+        # The real load-bearing mechanism for the scalar fields beside "cycle": without
+        # _DIMENSIONLESS_FIELDS exempting them, 0.03/0.5/0.43 would each hit the group's
+        # "unit": "ms" branch and silently become `Duration::from_millis(0)` (int(0.03) ==
+        # 0) - one test of the mechanism, covering step_fraction, medium_shade_strength
+        # and one phase_* field; phase_going/empty/returning share the identical branch
+        # and the identical set membership, so this one assertion stands for all four.
+        rust = render_plain_group(
+            "motion.cursor-fade.shaded-dissolve",
+            {
+                "cycle": 1400,
+                "unit": "ms",
+                "step_fraction": 0.03,
+                "medium_shade_strength": 0.5,
+                "phase_whole": 0.43,
+            },
+            {},
+        )
+        assert "pub cycle: std::time::Duration," in rust
+        assert "cycle: std::time::Duration::from_millis(1400)," in rust
+>       assert "pub step_fraction: f32," in rust
+E       assert 'pub step_fraction: f32,' in '#[derive(Debug, Clone, Copy)]\npub struct MotionCursorFadeShadedDissolve {\n    pub cycle: std::time::Duration,\n    ...ED_DISSOLVE_DESCRIPTION: &str = "cycle 1400ms, step_fraction 0.03ms, medium_shade_strength 0.5ms, phase_whole 0.43ms";'
+
+tools/tests/unit/test_foundations_generate.py:388: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_foundations_generate.py::test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration
+1 failed, 334 passed in 39.80s
+full output: .quiet/tool-tests.log
+error: recipe `test-tools` failed on line 98 with exit code 1
+```
+
+Commits since the review: 0.
+
+Check passed: `just --justfile /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136/justfile --working-directory /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 test-tools` exited 0 at 2026-11-21T22:30:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.136 on task-1.136-ui-the-cursor-fade-s-named-values at 774873286c86 with uncommitted changes:
+
+```text
+ok      tool tests (39.9s)
+```
+
+Commits since the review: 0.
+
+Review correction (Finding 1): the earlier note that the whole-number-list fix "reuses the existing _DIMENSIONLESS_FIELDS mechanism" was wrong. Confirmed by removing "order" from that set alone (control, unrecorded): generated.rs stayed byte-identical and every test stayed green - the set membership does nothing for a list. The real mechanism is the list branch's own unconditional whole-number check (`all(n == int(n) for n in resolved)`), which never consults `_DIMENSIONLESS_FIELDS`; removed "order" from the set for good and simplified the list branch accordingly (no `effective_unit` indirection), confirmed generated.rs is still byte-identical after the simplification. The scalar fields (step_fraction, medium_shade_strength, phase_whole/going/empty/returning) genuinely are load-bearing in `_DIMENSIONLESS_FIELDS`: without them, each fraction would hit the group's "unit": "ms" branch and silently become `Duration::from_millis(0)`, now proven by a new test (`test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration`, covering step_fraction/medium_shade_strength/phase_whole - phase_going/empty/returning share the identical branch and set membership).
+
+Two control pairs recorded at the final head, each failing+passing under `asdlc record-check TASK-1.136 --as bruk.w5 --in <worktree> -- just test-tools` (never sh -c/pipe/tail), each run unrecorded first to confirm the failure's reason:
+(a) list fix: removed the whole-number check itself (not a set entry) - watched test_a_whole_number_list_under_a_non_px_unit_renders_as_integers_not_floats and test_the_lists_description_carries_no_stray_unit_suffix fail with order rendering as floats with a stray "ms" suffix again (2 failed, 333 passed), restored, recorded passing (334... wait see below).
+(b) scalar fields: removed the six cursor-fade names from _DIMENSIONLESS_FIELDS - watched test_dimensionless_scalar_fields_render_as_plain_numbers_not_a_zero_duration fail; inspected the full rendered output directly and confirmed it actually produces `std::time::Duration::from_millis(0)` for step_fraction/medium_shade_strength/phase_whole, exactly the bug the reviewer named, not just a missing-line assertion (1 failed, 334 passed), restored, recorded passing.
+
+Finding 2 (nit): left as-is. "At least one of duration or cycle required" is not a two-line change under the current Fields/optional schema - optional only expresses "required unless listed", not a cross-field "at least one of" constraint; it would need a new validation rule beyond Position's current shape. Not built, per the reviewer's own stated bar.
+
+Correction to the note just above: the parenthetical '(334... wait see below)' after control (a)'s passing run was a drafting leftover, not content - ignore it. Both control pairs passed cleanly after restoring the real fix (334 passed, 0 failed, each recorded 'ok tool tests' via asdlc record-check).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -239,6 +412,40 @@ created: 2026-11-21T19:55:00Z
 ---
 
 Plan approved by @bruk (7e94152ad20d, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-21T22:10:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.136: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-21T22:20:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
+
+[Evidence, Important] tools/src/steg_tools/foundations_generate.py:445-451 (also 46-59, the _DIMENSIONLESS_FIELDS comment at 40-45). The notes and the plan say the list-branch fix "reuses the existing _DIMENSIONLESS_FIELDS mechanism... rather than inventing a second mechanism" and cite the recorded failing-then-passing `just test-tools` pair (the two new tests) as proof. I repeated the control myself in a scratch edit of my review worktree: removed only "order" from _DIMENSIONLESS_FIELDS (step_fraction/medium_shade_strength/phase_* left in) and reran `just test-tools` directly (no pipe/wrapper) - it stayed green, 334/334, including both new tests. The real fix for the list is the unconditional `if all(n == int(n) for n in resolved)` branch at line 449, which ignores `effective_unit` entirely for its branch choice and for its display (no unit suffix regardless of whether the field is dimensionless or carries a real unit); "order"'s presence in _DIMENSIONLESS_FIELDS is inert for the list case; the comment at lines 40-45 claiming the set governs "a list field (order's own [i32; 6])" is not true. Per policy: "a test that still passes with its mechanism removed proves nothing about it, and is Important." For contrast, the scalar additions (step_fraction/medium_shade_strength/phase_whole/going/empty/returning) ARE load-bearing: removing all seven fields from the set and re-running `render()` against the real foundations.json shows step_fraction/medium_shade_strength/phase_* silently rendering as `std::time::Duration::from_millis(0)` (0.03 and 0.5 truncated to 0) - and `just test-tools` still reports ok, since no unit test exercises these specific scalar fields; only `check-foundations`'s byte-diff against the committed generated.rs would catch that regression, not the recorded control. The shipped code itself is correct - I independently regenerated via `just generate-foundations` and got an empty diff against the committed generated.rs - so this is an evidence/attribution problem, not a shipped-value bug: the cited test pair does not discriminate the mechanism it is credited with, and the one new mechanism that is genuinely untested by any unit test (the scalar dimensionless additions for the new fields) has no negative control at all, resting only on an eyeballed diff and the final green `just check`.
+
+[Compliance, Nit] tools/src/steg_tools/design_pages.py:557-570. `_MOTION_ENTRY`'s widened `optional` set now makes both "duration" and "cycle" optional on every motion entry (not paired), so a motion entry with neither field (e.g. motion.status-fade with "duration" deleted) still validates against SCHEMA - the schema can no longer require "some temporal field" per entry. This matches the plan's explicit instruction (section 3) and is a reasonable trade-off for one Fields position describing two shapes, so a Nit, not a blocker.
+
+Other checks, for the record:
+- generated.rs: regenerated myself via `just generate-foundations` in my own scratch worktree, empty diff against the committed file - the committed generated.rs is exactly what the generator produces, and its diff against main is exactly the version line and the one new block, as the plan said.
+- check-design still refuses a malformed motion entry: confirmed by test_an_unrecognised_field_on_the_cursor_fade_entry_is_still_refused (tools/tests/unit/test_design_pages.py), green under test-tools.
+- Values match the engineer's 2026-11-20 decision exactly: name motion.cursor-fade.shaded-dissolve, cycle 1400, order [3,0,4,2,1,5], step_fraction 0.03, medium_shade_strength 0.5, phase_whole/going/empty/returning 0.43/0.18/0.21/0.18 (sums to 1.0), artifact_version 1795195942-6a0a; no idle rest, matching the noted departure.
+- Evidence timeline: diffed the merge commit's own two parents against their merge-base and confirmed the merge from main touched no files under tools/ or crates/ui/ - the claim that the pre-merge test-tools control pair "still stands" after the merge holds.
+- gh pr checks 91 shows one green check at head 774873286c8631106d80c0fc1ab4a6a7d3feeb9d, matching the notes' claim that the re-run is green on the same head.
+- Diff is confined to the plan's named files (foundations.json, generated.rs, design_pages.py, foundations_generate.py, the two test files); no drawing code changed, so no image was needed.
+- Every check recorded directly, no sh -c/pipe/tail, in the task's own implementation notes.
+- Plan approval present: "Plan approved by @bruk (7e94152ad20d, size-2)".
 
 ---
 <!-- COMMENTS:END -->

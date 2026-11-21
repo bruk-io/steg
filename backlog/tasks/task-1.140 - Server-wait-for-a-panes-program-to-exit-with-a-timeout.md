@@ -1,16 +1,20 @@
 ---
 id: TASK-1.140
 title: 'Server: wait for a pane''s program to exit, with a timeout'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T20:52:00Z'
+updated_date: '2026-11-21T22:09:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.90
+references:
+  - task-1.140-server-wait-for-a-pane-s-program-to-exit
+  - https://github.com/bruk-io/steg/pull/92
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -18,6 +22,10 @@ asdlc_branch: task-1.140-server-wait-for-a-pane-s-program-to-exit
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '83254935a0f3'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_review_policies: ["review", "testing-rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -719,6 +727,49 @@ Departures from the plan, each small: runtime/testing.rs needed pending_waits ad
 Every production-code negative control recorded as a failing+passing pair at this commit: the Some(0) branch, the negative-timeout check, the TimedOut message's own seconds, the close-path drain, the exit-path drain (events.rs), and a scratch lock-held sleep in register_wait for AC #2 - plus AC #3's cancel_waits control (recorded before this commit, same mechanism).
 
 just check at this commit: every step passes (format, lint, boundaries, foundations, design pages, licences) except the tests step, which fails on exactly the two tests named in my brief (cli::output::tests::nested_plain_and_json_are_identical_bytes, cli::output::tests::a_field_declared_text_but_really_structured_renders_its_own_compact_json) - the known main-is-red JSON key-order issue (TASK-1.145), reached because this task's own sdk change pulls steg-app into the same test command. Not pushing per instructions; waiting for TASK-1.145's fix to land on main.
+
+Check passed: `just check` exited 0 at 2026-11-21T21:40:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at a8edfb54f3de:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (84.9s)
+ok      build (steg-sdk) (2.6s)
+ok      test (steg-sdk) (2.7s)
+ok      test (steg-sdk, local-socket) (3.2s)
+ok      build (steg-kernel) (1.7s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (1.5s)
+ok      test (steg-server) (63.5s)
+ok      test (steg-server, race-fixture) (116.0s)
+ok      test (steg-server, pty-race-fixture) (106.6s)
+ok      test (steg-server, accept-backoff-fixture) (98.3s)
+ok      build (steg) (2.9s)
+ok      test (steg) (8.0s)
+ok      test (steg, fixtures) (13.2s)
+ok      build (steg-ui) (15.8s)
+ok      test (steg-ui) (1.6s)
+ok      build (steg-app) (1.6s)
+ok      test (steg-app) (2.3s)
+ok      tool tests (40.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.2s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Built pane.wait per the approved, revised plan: pending waits in Runtime's own state (new crates/server/src/runtime/wait.rs), resolved from the lock-holding exit (events.rs), close (close.rs) and disconnect (connection.rs) paths, one early-wakeable timer per positive --timeout wait. --timeout 0 checks now; a negative one is BadRequest before anything is touched; TimedOut names the expired seconds; the reply is the typed steg_sdk::WaitResult. pane.wait moved into connection.rs's own interception (dispatch/pane.rs, dispatch/mod.rs, cross_cutting.rs updated to match).
+
+Checks: just check recorded green at the pre-merge head and again at the final merged head (a8edfb54, PR CI also green there). Every production-code negative control (the --timeout 0 branch, the negative-timeout check, the TimedOut message's own seconds, the close-path drain, the exit-path drain, and a scratch lock-held sleep proving the lock is released before a pending wait) recorded as a failing-then-passing pair, plus AC #3's cancel_waits control from a same-crate connection.rs unit test - all at the pre-merge head. None re-recorded after merging origin/main: the merge touched only Cargo.toml/boundaries.toml (workspace feature wiring for TASK-1.145's own fix), crates/steg/src/cli/output.rs (that fix itself, unrelated to pane.wait), and docs - none of wait.rs/close.rs/events.rs/connection.rs or the two test files this task added/touched, so no control's own mechanism or test changed at the final head; just check's own full test run passed cleanly there regardless.
+
+Departures from the plan, each small: runtime/testing.rs's State literal and lib.rs's record re-export both needed one-line additions the plan's own new field/type implied but didn't name; pending_wait_count_for_test ended up #[cfg(test)] rather than plain pub(crate) (matching attachment_count_for_test's real precedent - the plan's own prose calling it 'not #[cfg(test)]' was a misreading, now corrected in the doc comment); crates/steg/src/cli/exit.rs got a one-line doc-comment rename only (a test name it cites, renamed for the error count going 13->14), no logic or test change there.
+
+For a reviewer: start with crates/server/src/runtime/wait.rs (the whole mechanism in one file) and its three call sites in events.rs/close.rs/connection.rs; the six-step decision tree in register_wait is where the three engineer-decided behaviours (TimedOut, --timeout 0/negative, typed WaitResult) actually live.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -730,6 +781,45 @@ created: 2026-11-21T20:19:00Z
 ---
 
 Plan approved by @bruk (83254935a0f3, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-21T21:58:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.140: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-21T22:09:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review, testing-rust. The diff does not match the plan.
+
+[Tests, Nit] crates/server/tests/pane_wait.rs:226 wait_for_program_status polls pane.show with a 20ms sleep between tries to establish an already-ended precondition for two tests, instead of waiting on an event (event.watch --for pane.exited exists for exactly this). This is a departure from .claude/rules/testing-rust.md ("No test sleeps to wait for something; it waits on the event"); the doc comment's claim that "there is no event at this level to wait on instead" is not accurate. Kept as a Nit, not Important: it is precondition setup only, bounded at 20s, fails loudly on timeout rather than passing spuriously, and the assertions it feeds (real exit codes) are sound either way. (The 5ms sleep in start_server() polling for the socket to accept, pane_wait.rs:75, is verbatim precedent already used in pane_capture.rs/pane_send.rs and is not a departure this diff introduces.)
+
+No other findings. What I checked:
+
+Thread/handle lifecycle for the one new kind of background thread (a timer per positive --timeout wait), every path that can end it or drop its last handle:
+- Real exit (events.rs's Exited arm): resolve_pane_waits_locked removes the PendingWait under lock, sends the real reply, calls gate.resolve() if a gate exists. The timer thread's gate.wait wakes at once (Condvar notified), re-locks in timeout_wait_locked, finds nothing at (request_id, client_id), no-op, thread exits. No double reply.
+- Close (close_and_dispatch): same resolve_pane_waits_locked call, still under the lock the close already holds, before force_end runs - same effect on the timer thread as above.
+- Real timeout elapsing with nothing else having resolved it: the timer thread's gate.wait returns on the real Duration, timeout_wait_locked locks, finds-and-removes the entry (still present), replies TimedOut, drops the lock, thread exits. Bounded by its own `secs`, never past it.
+- Client disconnect (ConnectionCleanup::drop -> cancel_waits): retains non-matching entries, calling gate.resolve() on every removed one with a gate, no reply (correct - the connection is gone). The timer thread wakes via the gate, finds nothing in timeout_wait_locked, no-op, exits. Matches AC #3.
+- The push-then-spawn race (a PendingWait is pushed under lock, the lock is dropped, then the thread is spawned): the Arc<WaitGate> clone stored in the PendingWait is already resolvable before the thread exists: if exit/close/cancel fires in that window, the gate is already marked done, so the thread's own wait() returns immediately instead of sleeping, and the already-gone entry makes timeout_wait_locked a no-op. No reply is ever sent twice, and no thread blocks past its bound.
+- Server stop (Runtime::stop/Drop, which calls force_end directly, bypassing close_and_dispatch): the plan rests this on every connection's ConnectionCleanup::drop (hence cancel_waits) running before Stopper::stop() lets the accept loop end, pre-existing listen.rs/lifecycle.rs machinery this task does not touch, already relied on for forget_attachment in the identical Drop. I did not re-derive that shutdown ordering myself; even if it were wrong, the timer thread is still bounded by its own timeout and does not outlive the process, so this would not leave a thread blocked for good.
+I also repeated the --timeout 0 negative control myself, in a scratch worktree off the branch's own head (a8edfb54): with the Some(0) immediate-reply branch in register_wait replaced with indefinite registration, timeout_zero_on_a_running_pane_answers_timed_out_at_once fails exactly as described (times out reading the reply); reverted, it passes again. Confirms the control is real and still valid at the final head, not just at the pre-merge commit it was recorded against.
+
+Evidence: the seven production-code negative controls (plus AC #3's cancel_waits control) were all recorded as failing-then-passing asdlc record-check pairs before the merge of origin/main (at ccf5dfb2b3b9), not re-recorded at the final head (a8edfb54). I checked what that merge actually changed: Cargo.toml/boundaries.toml (serde_json preserve_order wiring), crates/steg/src/cli/output.rs (the unrelated TASK-1.145 fix), board docs, and plugins/team/rules/testing.md (adding the "every control is a recorded asdlc record-check pair" rule) - none of wait.rs/close.rs/events.rs/connection.rs or the two test files these controls exercise. Per that same newly-added testing.md line ("when a test is edited after its control was recorded ... run the control again before citing it"), since none of those files were edited by the merge, the pre-merge pairs still count; I also re-ran one of them myself at the final head above and got the described result. One wrinkle: a later just check at ccf5dfb2b3b9 shows rustfmt reflowing two call sites in pane_wait.rs after the controls were recorded against that commit - whitespace-only (line-wrapping multi-arg calls), not a behavioural edit, so it does not invalidate the pairs either. The final just check is recorded directly against the PR head (a8edfb54), green across the whole suite including steg-server's race/pty-race/accept-backoff fixtures.
+
+Plan-matched: no, even though each departure is explained in the notes and I found all of them benign - runtime/testing.rs's and lib.rs's one-line additions (both forced by the new field/type, not named in the plan), pending_wait_count_for_test ending up #[cfg(test)] rather than plain pub(crate) (verified true: attachment_count_for_test, the precedent the notes cite, is #[cfg(test)] too, at attach.rs:207), and crates/steg/src/cli/exit.rs's doc-comment-only rename (no logic or test change, confirmed by the diff).
+
+Compliance: all four acceptance criteria have a test or recorded run behind each clause (AC #1: already-ended/real-exit/timeout/closed-while-waiting all in pane_wait.rs; AC #2: the lock/reader-not-blocked test; AC #3: connection.rs's own unit test plus its control; AC #4: pane.wait removed from dispatch/pane.rs's HANDLED and real-pty/bounded proof throughout). doc-2 sections 5/6/8 match the built behaviour exactly (TimedOut status 1, --timeout 0 checks now, negative --timeout is BadRequest status 2 before the target is resolved, typed WaitResult). Plan approval present and current (83254935a0f3, size-3, "Plan approved by @bruk").
 
 ---
 <!-- COMMENTS:END -->

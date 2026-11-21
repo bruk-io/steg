@@ -4,7 +4,7 @@ title: 'Server and CLI tests: every remaining wait with no bound gets one'
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-21T20:19:00Z'
+updated_date: '2026-11-21T22:10:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -398,4 +398,8 @@ More sightings on 2026-11-18, noted by @bruk.o: with three builds running, login
 Split by @bruk.o on 2026-11-20, on the planner's recommendation: the flake (login_env grandchild test, attach.rs under sibling builds) moves to its own task (drafted as DRAFT-2, awaiting acceptance). What stays here is the bounding sweep only. Released until TASK-1.140 (pane wait) merges, because the sweep collides with it in the dispatch tests; the next planner trims this plan to the sweep and drops AC 4's stale reference to TASK-1.88/1.90 in favour of TASK-1.140.
 
 Sighting 2026-11-21, by @bruk.o: crates/server/tests/shutdown.rs many_short_connections_do_not_grow_the_tracked_set failed once in CI on PR 89 (a change to one markdown file) at its final assertion, the process-wide open-descriptor count after 200 connections being under before+10. The count is for the whole test process, so tests running beside it in the same binary can move it. Add to the sweep.
+
+Sighting 2026-11-21, by @bruk.o: crates/steg/tests/cli_connection_arbitration.rs a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding failed once in CI on PR 91 (TASK-1.136, a change to crates/ui and tools only) at its assertion on line 101, in the steg package's own test step. Passed locally at the same head. Add to the sweep.
+
+From the review of TASK-1.140 (nit, 2026-11-21): crates/server/tests/pane_wait.rs wait_for_program_status polls pane.show with a 20 ms sleep instead of waiting on the pane.exited event. Fold into the sweep.
 <!-- SECTION:NOTES:END -->

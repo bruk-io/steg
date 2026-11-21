@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-21T20:23:00Z'
-updated_date: '2026-11-21T22:08:00Z'
+updated_date: '2026-11-21T22:14:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -20,8 +21,9 @@ asdlc_branch: task-1.147-rename-steg-socket-path-to-steg-server
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '042346b24b0f'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -320,6 +322,29 @@ created: 2026-11-21T22:08:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.147: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-21T22:14:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+No findings.
+
+Checked: reproduced the plan's exact sed command (grep -rl --null 'STEG_SOCKET_PATH' crates | xargs -0 sed -i '' 's/STEG_SOCKET_PATH/STEG_SERVER/g') against origin/main's pre-rename files in a scratch copy and diffed the result against every one of the 18 changed files at the branch head: 15 files match the mechanical swap exactly, byte for byte. The only three departures are exactly the ones the notes name separately: crates/sdk/src/paths.rs (the explicit.filter(|p| !p.is_empty()) behaviour fix plus its doc comment and new unit test), crates/steg/tests/login_environment.rs (the STEG_SOCKET_PATH/STEG_SERVER entry and its two doc-comment clauses dropped from the plumbing_var absence list, not renamed), and crates/server/tests/fixtures/accept_backoff_attempt.rs (a one-line cargo-fmt reflow). No other non-mechanical line anywhere.
+
+login_environment.rs: read the whole file. The dropped list entry is the only change to the test; nothing else in it was loosened. The entry's removal is legitimate rather than a weakened check: pane_environment (crates/server/src/env.rs:51, called from crates/server/src/runtime/start.rs:217 with an empty placeholder today) sets STEG_SERVER on every real pane, so once the names are unified, asserting its absence would assert something that is never true - a check on a name, not on a leak. The thing the dropped entry protected (env_leak_client's own debug override not leaking into the pane) is still exercised structurally: the override is still set on the client's own environment at line 277 and the test still proves the client's ambient environment doesn't reach the pane via the other four plumbing vars plus the leak marker, through the real server code.
+
+paths.rs behaviour fix: confirmed start.rs:217-218 passes pane_environment("", ...) today, i.e. STEG_SERVER really is an empty-string placeholder on every pane pending TASK-1.146, so the fix answers a real regression the rename would otherwise introduce. Checked arbiter.rs/main.rs's AlreadyRunning vs Refuse paths referenced in the plan's point 4; both read as described. Ran the new unit test directly (cargo test -p steg-sdk --lib paths::) - an_empty_explicit_override_is_treated_as_absent passes, reaching the fix.
+
+Evidence: repeated the recorded negative control myself in a separate scratch worktree, on cli_connection_arbitration.rs's a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding - removed the .env("STEG_SERVER", socket) line in run_steg, ran cargo test -p steg --test cli_connection_arbitration directly: FAILED, exit 101, the same assertion (left: Some(4), right: Some(0)) the recorded check shows. Restored the line, reran: passed, 14/14. The recorded check pair matches exactly. The zero-occurrence grep (exit 1 = nothing found) is correctly explained as the pass in the notes, and I independently confirmed no STEG_SOCKET_PATH remains anywhere outside backlog/. The final `just check` was recorded with the fmt fix uncommitted at 9117ac885cef; diffed that merge commit against the actual head (9f5877f6) and confirmed the only difference is the single-file fmt reflow the notes describe, so the recorded pass covers exactly what was committed. The merge commit (9117ac88) only brings in TASK-1.145's own files (Cargo.toml, boundaries.toml, per-crate Cargo.tomls, cli/output.rs) plus the task's own board-file notes; no undisclosed hand edit.
+
+Plan approval comment present and correctly formatted (Plan approved by @bruk, 042346b24b0f, size-2). Files touched match the plan's inventory exactly (18 files under crates/, same three non-mechanical exceptions). No boundary, licence or requirements concerns - no new dependencies, no I/O added outside the three existing env::var_os call sites, the one behaviour change lives in the already-pure function the project's own functional-core convention assigns this kind of precedence decision to.
 
 ---
 <!-- COMMENTS:END -->

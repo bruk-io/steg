@@ -1,15 +1,18 @@
 ---
 id: TASK-1.145
 title: 'Main is red: JSON key order changes with what steg is built beside'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-21T20:09:00Z'
-updated_date: '2026-11-21T21:06:00Z'
+updated_date: '2026-11-21T21:21:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.145-main-is-red-json-key-order-changes-with
+  - https://github.com/bruk-io/steg/pull/90
 parent_task_id: TASK-1
 priority: high
 project: bruk-io-steg
@@ -566,6 +569,70 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Finished at head bf6fc378 (confirmed green on PR CI). All recorded checks below were
+run at or after this merge commit.
+
+Decision: declared serde_json's preserve_order as a [workspace.dependencies] entry
+in root Cargo.toml and switched crates/sdk, crates/server, crates/steg, crates/app to
+serde_json.workspace = true - forced, not a judgement call, since gpui's own
+dependency chain already turns the feature on unconditionally in any build that
+includes steg-app, and cargo's workspace feature unification means nothing in
+steg's own crates could turn it back off; the "leave order unspecified" alternative
+cannot satisfy AC #1's "the same order" requirement. The order this produces:
+dispatch::Outcome::into_value builds a Value via serde_json::to_value, which is a
+BTreeMap (sorted) without the feature and an IndexMap (declaration order) with it -
+the variance was upstream of the CLI, at the server's own into_value, not only in
+how the CLI re-prints.
+
+Files: Cargo.toml (new workspace dependency + comment), crates/{sdk,server,steg,app}/Cargo.toml
+(serde_json.workspace = true + comment pointers; crates/steg's also corrects a stale
+claim that main.rs never reaches serde_json, false since TASK-1.120's output.rs),
+boundaries.toml ([steg] reason text corrected to match, its checked behaviour
+unaffected - no deny-features entry for serde_json anywhere), crates/steg/src/cli/output.rs
+(the two tests that encoded the old sorted order corrected to the real preserve_order
+bytes, copied from the recorded failing runs, not hand-typed).
+
+Which recorded run proves which criterion:
+- AC #3 (before/after pair): `just test-all` failed on exactly the two named tests
+  before any edit (tail was only their assertion diffs); `just test-all` passed
+  after the fix.
+- AC #1 (same order, both builds, chosen on purpose): `just check-packages`, run
+  after the manifest edits but before correcting the two test strings, failed on
+  the *same two tests* with the *same* preserve_order-ordered text that `just test-all`
+  produced - the alone build and workspace build agreed (both "wrong" in that
+  intermediate state, proving they'd stopped disagreeing); after correcting the
+  two strings, `just check-packages` passed clean, complete (no abort).
+- AC #2 (`just test-all` and the affected-tests run of a crates/ui-touching change
+  both pass): `just test-all` passed. This task's own diff includes the root
+  Cargo.toml (a GLOBAL_FILES entry in affected.py), so `just test`/`just show-affected`
+  resolve to "all" for this change regardless of touch point - recorded `just test`
+  directly, identical result to test-all. Stated plainly in the task notes rather
+  than silently reinterpreted: in general (a change that does not also touch a
+  global file), a crates/ui-only touch selects only -p steg-app -p steg-ui and
+  never runs crates/steg's own tests at all (confirmed via show-affected against a
+  scratch touch before any edit), so that half of AC #2's wording is satisfied
+  vacuously by such a touch in general, not demonstrated by one; a crates/sdk touch
+  (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server, also confirmed)
+  is the selection that actually unifies features with the app and is the honest
+  general demonstration. This task's own change sidesteps the distinction since it
+  is itself global.
+- Final gate: `just check` recorded green at the final merged head (bf6fc378), no
+  flakes hit on crates/server/tests/shutdown.rs or attach.rs - passed clean on the
+  first attempt, no retry needed.
+
+Departures from the plan: none in substance. Two additions the plan anticipated as
+likely and left as findings rather than fixed scope: corrected crates/steg/Cargo.toml's
+and boundaries.toml's stale "main.rs never imports serde_json" claim (both already
+false before this task, found while touching the exact lines) - a text-only fix,
+boundaries.toml's checked behaviour unchanged. asdlc's test-edit guard did not
+refuse the edit to output.rs's two tests.
+
+Whether PR CI's selection should have caught this (asked in the description): no,
+not by bad luck - affected.py's own documented design is structurally blind to
+workspace-wide feature unification with a crate outside the selected set. Left as
+a follow-up for the orchestrator, not built here; TASK-1.148 appears to already be
+that follow-up (seen on the board after merging origin/main into this branch).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

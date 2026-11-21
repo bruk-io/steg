@@ -216,6 +216,19 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 222 filtered out
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --lib connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds` exited 0 at 2026-11-21T20:33:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140 on task-1.140-server-wait-for-a-pane-s-program-to-exit at ccf5dfb2b3b9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.140/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.94s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::connection_cleanups_drop_cancels_every_pending_wait_it_still_holds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 222 filtered out; finished in 0.01s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

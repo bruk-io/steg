@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T07:18:00Z'
-updated_date: '2026-11-22T20:28:00Z'
+updated_date: '2026-11-22T20:29:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -420,3 +420,9 @@ mergeable or independently useful without the others.
    worker's reasoning (upstream's own real app almost certainly needs it;
    nothing in the chain turns it on without steg saying so) as settled.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against the task's criteria by @bruk.o (22 Nov 2026): ok to go to the engineer after three corrections, now made - criterion 3 is a standing step in just check (check-shipped-features, in tools/ with its own tests); the limit of that check is stated and the shipped builds are named (just run, just build); the licence proof rests on the allow list holding no GPL identifier, with the direct control tried and abandoned as too costly. For the build: the full-workspace licence run is the real proof; the engineer's live run covers font rendering (font-kit turned on explicitly). Consequence for TASK-1.151: a runner crate with test-support as a normal dependency would be unified into steg-app by just build's cargo build --workspace; that plan is being revised.
+<!-- SECTION:NOTES:END -->

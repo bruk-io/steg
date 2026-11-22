@@ -1,11 +1,11 @@
 ---
 id: TASK-1.137
 title: 'Server and CLI tests: every remaining wait with no bound gets one'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T06:24:00Z'
+updated_date: '2026-11-22T19:56:00Z'
 labels:
   - size-3
   - review-passed

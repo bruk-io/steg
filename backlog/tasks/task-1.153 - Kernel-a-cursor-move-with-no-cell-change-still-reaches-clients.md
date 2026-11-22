@@ -1,13 +1,14 @@
 ---
 id: TASK-1.153
 title: 'Kernel: a cursor move with no cell change still reaches clients'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T20:45:00Z'
+updated_date: '2026-11-22T20:54:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -20,8 +21,10 @@ asdlc_branch: task-1.153-kernel-a-cursor-move-with-no-cell-change
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '036791db06dc'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -418,6 +421,23 @@ created: 2026-11-22T20:45:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.153: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-22T20:54:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
+
+[Evidence, Important] crates/kernel/src/terminal.rs - the notes claim "Every control recorded failing-then-passing via asdlc record-check at the final head (5eb25574)", but every recorded negative-control pair on this task (the three cursor-only-Delta tests, the two idle-stays-silent tests, and the stale-caller test) is stamped "... at 8e720fcfaf1a with uncommitted changes" - a board-only commit, not this branch's one real commit (5eb25574). This is empirical, not a label mismatch: I reproduced the stale-caller control myself at the true final head (5eb25574), gating self.last_reported_cursor's update on is_current as the worker's control did, and got the same failing assertion but at terminal.rs:1883 - one line off the recorded terminal.rs:1884. The other three recorded panic lines (1770, 1791, 1822) are each two lines off their counterparts in today's final head (1772, 1793, 1824), and not by a uniform shift, so more than one edit landed in the test file between the last recorded unit check (20:07:57) and the final `just check` (20:31:55) - consistent with the plan's own step 5 (the doc-comment addition) happening in that 23-minute gap. So none of the seven recorded controls are attested against the code actually being merged, only the aggregate `just check` is, and `just check` proves the mechanism present, not the control's failing half. I independently re-ran one (the stale-caller control) against 5eb25574 and it still fails/passes as claimed, but the other three mechanisms (the Dirty::Clean guard on position/visibility/shape, the cursor-equality check behind the idle tests, and model.rs's `self.cursor = cursor` gate) have no control recorded at 5eb25574 - please re-record all seven with `asdlc record-check` at this head before merge.
+
+[Compliance, Nit] crates/kernel/src/terminal.rs:66-78 - the plan's own Risks section asked for "a one-line comment at the field's own declaration" warning that last_reported_cursor's invariant rests on pane.rs's current single-caller-per-tick shape, for whoever next touches run_tick. The field's doc comment explains the current design at length but never flags it as an assumption to re-check if that architecture changes.
+
+Checked independently: fetched origin, built a detached worktree at origin/task-1.153-kernel-a-cursor-move-with-no-cell-change (head 5eb25574), read the full diff (crates/kernel/src/terminal.rs, crates/app/src/model.rs only, matching the plan's named files and order of work). Confirmed in crates/server/src/pane.rs that run_tick calls terminal.changes_since exactly once per tick with one pane-wide tracked_seq, backing the field's placement. Confirmed Cursor already derives PartialEq/Eq/Copy in crates/sdk/src/screen.rs and that no sdk/server file changed, matching the "no public API change" claim. Confirmed decision-2 (steg's wire protocol) supports the doc comments' claims about back-pressure and the cursor being part of a screen update. Confirmed PR #99's body plainly states the live run is still owed and that no image is needed (not a drawing change). Confirmed CI green on PR #99 (12m21s). Confirmed no repository REVIEW.md exists on origin/main. Repeated the stale-caller negative control myself in a scratch edit (gated the last_reported_cursor update to `is_current` only, reverted after), traced the failure to the stale caller's own Full arm leaving last_reported_cursor behind so a third, now-current call wrongly compares against the earlier cursor and emits a spurious empty Delta instead of Unchanged - no other branch or earlier condition on that path produces the same failure, since nothing is written between the second and third calls and Dirty stays Clean throughout.
 
 ---
 <!-- COMMENTS:END -->

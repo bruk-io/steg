@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -573,6 +574,15 @@ done
 echo "TASK-1.150: passed $N of $N"
 
 just check at final head: recorded exit 0, all steps ok.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T06:28:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.150: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T06:03:00Z'
+updated_date: '2026-11-22T06:10:00Z'
 labels:
   - size-3
   - changes-requested
@@ -385,6 +385,14 @@ test a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding .
 test closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect ... ok
 
 test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+```
+
+Commits since the review: 29, 28 without the Asdlc-Worker trailer.
+
+Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/TASK-1.150-repeat-run.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.150` exited 0 at 2026-11-22T06:10:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.150 on task-1.150-find-why-a-freshly-autostarted-server at 9f4a6e1949b3:
+
+```text
+TASK-1.150: passed 300 of 300
 ```
 
 Commits since the review: 29, 28 without the Asdlc-Worker trailer.

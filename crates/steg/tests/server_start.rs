@@ -16,7 +16,7 @@ use steg_sdk::{
 
 #[path = "support/mod.rs"]
 mod support;
-use support::scoped_socket_path;
+use support::{run_bounded, scoped_socket_path};
 
 fn steg_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_steg"))
@@ -721,10 +721,16 @@ fn four_simultaneous_starts_converge_on_one_server() {
             spawn_steg_server_start(&socket_path, true)
         }));
     }
-    let mut children: Vec<KillOnDrop> = handles
-        .into_iter()
-        .map(|h| KillOnDrop::new(h.join().expect("spawning thread should not panic")))
-        .collect();
+    let mut children: Vec<KillOnDrop> = run_bounded(
+        "all four spawning threads to finish starting their own process",
+        Duration::from_secs(5),
+        move || {
+            handles
+                .into_iter()
+                .map(|h| KillOnDrop::new(h.join().expect("spawning thread should not panic")))
+                .collect()
+        },
+    );
 
     wait_for_socket(&socket_path, Duration::from_secs(5));
 

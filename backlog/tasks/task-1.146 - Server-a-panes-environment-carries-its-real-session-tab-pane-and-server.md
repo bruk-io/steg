@@ -20,6 +20,8 @@ asdlc_branch: task-1.146-server-a-pane-s-environment-carries-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'bbbd420b5776'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r3
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -607,6 +609,15 @@ created: 2026-11-22T04:47:00Z
 ---
 
 Plan approved by @bruk (bbbd420b5776, size-2): its worker may build it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-22T05:54:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.146: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

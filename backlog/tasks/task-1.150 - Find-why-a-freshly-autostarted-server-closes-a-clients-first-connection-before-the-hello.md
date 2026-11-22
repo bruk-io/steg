@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T06:46:00Z'
+updated_date: '2026-11-22T06:47:00Z'
 labels:
   - size-3
   - changes-requested
@@ -702,6 +702,22 @@ The three findings from my first review are resolved at the final head (9f4a6e19
 3. [Evidence, Nit] resolved. Last code commit is d3478839 (2026-11-22 06:02:12 UTC), then the no-conflict merge of main, 9f4a6e19 (06:02:22 UTC). Every check cited as final-head proof is recorded after both, at 9f4a6e19: control-fails-old-order 06:03:06 UTC, control-passes-fixed-order 06:03:22 UTC, 300-run 06:10:40 UTC, just check 06:16:27 UTC. The "with uncommitted changes" tag on the control-fail step is inherent to running a control (a scratch flip) and isn't a defect.
 
 Diff remains test-only: crates/steg/tests/cli_connection_arbitration.rs, 71 insertions/6 deletions against origin/main, nothing else touched. Size-3 plan approval by @bruk is present and unaffected by this finding.
+
+---
+
+created: 2026-11-22T06:47:00Z
+
+---
+
+Re-review finding fixed: spawn_hostile_listener's doc comment (lines 40-49) was still describing the pre-fix order (stream dropped, then listener) in the present tense as current behaviour, with a second paragraph appended underneath stating the real order - self-contradictory, despite my earlier notes saying it was "rewritten". It was not; it was appended to. Rewritten now as one coherent description of what the function does today (listener dropped first, then the stream after gap, the mechanism this avoids, and the listen.rs precedent) - history moved to the commit message only.
+
+This is a comment-only change (confirmed via git diff - no code lines touched). Since it is comment-only:
+- Ran the test file once (narrow) and recorded it passing at the new head.
+- Re-recorded the control pair at the new head (listener/stream order flipped back inside spawn_hostile_listener): fails with ConnectError::ClosedBeforeHello, exit 101; reverted, passes 15/15, exit 0.
+- `just check` re-recorded at the new head: exit 0.
+- The 300-repetition run was NOT repeated for this change - stated explicitly rather than left implied, since nothing about the test's own behaviour or the code it exercises changed, only a doc comment.
+
+Commits since the last review: 55989f87 (the doc comment rewrite), then a merge of origin/main (board files only, no code conflicts). Everything above is recorded at that merged head.
 
 ---
 <!-- COMMENTS:END -->

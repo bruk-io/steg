@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-21T20:20:00Z'
-updated_date: '2026-11-22T05:19:00Z'
+updated_date: '2026-11-22T05:30:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -507,6 +507,44 @@ failures:
 test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
 
 error: test failed, to rerun pass `-p steg-server --test pane_environment`
+```
+
+Check passed: `just check` exited 0 at 2026-11-22T05:30:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+ok      format check (0.4s)
+ok      lint (2.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (115.1s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.8s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (0.6s)
+ok      test (steg-server) (104.3s)
+wait    test (steg-server, race-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, race-fixture) (67.2s)
+wait    test (steg-server, pty-race-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, pty-race-fixture) (99.9s)
+wait    test (steg-server, accept-backoff-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, accept-backoff-fixture) (87.6s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.5s)
+ok      test (steg, fixtures) (11.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

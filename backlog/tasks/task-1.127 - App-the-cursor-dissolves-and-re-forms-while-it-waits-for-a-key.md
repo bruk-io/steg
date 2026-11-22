@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T20:53:00Z'
+updated_date: '2026-11-22T20:57:00Z'
 labels:
   - size-3
   - changes-requested
@@ -900,6 +900,38 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 101 filtered out; fi
 ```
 
 Commits since the review: 176, 149 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app piece_states_at_matches_the_engineers_own_table` exited 101 at 2026-11-22T20:57:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 4bd36ab4fbbc with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::piece_states_at_matches_the_engineers_own_table ... FAILED
+
+failures:
+
+---- terminal_element::tests::piece_states_at_matches_the_engineers_own_table stdout ----
+
+thread 'terminal_element::tests::piece_states_at_matches_the_engineers_own_table' (80873851) panicked at crates/app/src/terminal_element.rs:1378:13:
+assertion `left == right` failed: at fraction 0.43
+  left: [Shade, Whole, Whole, Whole, Whole, Whole]
+ right: [Whole, Whole, Whole, Shade, Whole, Whole]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::piece_states_at_matches_the_engineers_own_table
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 101 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 177, 149 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

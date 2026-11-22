@@ -1,11 +1,11 @@
 ---
 id: TASK-1.140
 title: 'Server: wait for a pane''s program to exit, with a timeout'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-21T22:09:00Z'
+updated_date: '2026-11-22T03:55:00Z'
 labels:
   - size-3
   - review-passed

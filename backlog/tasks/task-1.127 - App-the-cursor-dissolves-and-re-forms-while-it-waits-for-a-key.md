@@ -949,6 +949,45 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 101 filtered out; fi
 ```
 
 Commits since the review: 177, 149 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app a_closed_gate_clears_any_pending_wake_for_every_named_case` exited 101 at 2026-11-22T20:57:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 4bd36ab4fbbc with uncommitted changes:
+
+```text
+warning: unused variable: `fade`
+   --> crates/app/src/terminal_element.rs:873:33
+    |
+873 | fn apply_fade_schedule_decision(fade: &Rc<RefCell<CursorFadeState>>, should_run: bool) -> bool {
+    |                                 ^^^^ help: if this is intentional, prefix it with an underscore: `_fade`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 1 warning (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::a_closed_gate_clears_any_pending_wake_for_every_named_case ... FAILED
+
+failures:
+
+---- terminal_element::tests::a_closed_gate_clears_any_pending_wake_for_every_named_case stdout ----
+
+thread 'terminal_element::tests::a_closed_gate_clears_any_pending_wake_for_every_named_case' (80877982) panicked at crates/app/src/terminal_element.rs:1581:13:
+a closed gate must never decide to run, case false (false, true, true, true, false, false)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::a_closed_gate_clears_any_pending_wake_for_every_named_case
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 101 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 177, 149 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

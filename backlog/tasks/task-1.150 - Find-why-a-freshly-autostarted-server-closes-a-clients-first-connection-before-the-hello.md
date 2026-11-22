@@ -1,9 +1,9 @@
 ---
-id: DRAFT-2
+id: TASK-1.150
 title: >-
   Find why a freshly autostarted server closes a client's first connection
   before the hello
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-22T04:13:00Z'
 updated_date: '2026-11-22T04:16:00Z'
@@ -13,6 +13,7 @@ milestone: m-3
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

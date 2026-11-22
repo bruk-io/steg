@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T21:14:00Z'
+updated_date: '2026-11-22T21:30:00Z'
 labels:
   - size-2
   - changes-requested
@@ -640,6 +640,43 @@ running 1 test
 test model::tests::a_delta_with_no_rows_still_moves_the_cursor ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-22T21:30:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 2b6fec0fa18c:
+
+```text
+ok      format check (0.4s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-server) (66.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (66.5s)
+ok      test (steg-server, race-fixture) (64.8s)
+ok      test (steg-server, pty-race-fixture) (68.7s)
+ok      test (steg-server, accept-backoff-fixture) (68.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.7s)
+ok      test (steg, fixtures) (5.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.

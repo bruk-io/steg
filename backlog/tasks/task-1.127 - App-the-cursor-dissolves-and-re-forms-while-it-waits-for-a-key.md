@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T04:30:00Z'
+updated_date: '2026-11-22T04:31:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -569,6 +569,34 @@ test terminal_element::tests::grapheme_at_finds_the_grapheme_in_a_single_run_row
 test terminal_element::tests::grapheme_at_a_wide_character_reports_two_columns_per_grapheme ... ok
 
 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 94 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-app show_whole_resets_the_cycle_and_drops_any_pending_wake` exited 101 at 2026-11-22T04:31:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::show_whole_resets_the_cycle_and_drops_any_pending_wake ... FAILED
+
+failures:
+
+---- terminal_element::tests::show_whole_resets_the_cycle_and_drops_any_pending_wake stdout ----
+
+thread 'terminal_element::tests::show_whole_resets_the_cycle_and_drops_any_pending_wake' (74953607) panicked at crates/app/src/terminal_element.rs:1670:9:
+assertion failed: state.scheduled_wake.is_none()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::show_whole_resets_the_cycle_and_drops_any_pending_wake
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 <!-- SECTION:NOTES:END -->
 

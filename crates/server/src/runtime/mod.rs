@@ -99,6 +99,16 @@ struct State {
     /// before it can accept a connection at all - see `set_stopper`'s own
     /// doc (`lifecycle.rs`).
     stopper: Option<crate::listen::Stopper>,
+    /// The address this server's own socket is reachable at (TASK-1.146,
+    /// doc-2 section 4's `STEG_SERVER`) - set once, by `listen::run`
+    /// itself, before it can accept a connection at all (`Runtime::
+    /// bind_server_address`, `lifecycle.rs`), the same "told once,
+    /// unconditionally, for every server" shape `stopper` just above
+    /// already has. `None` only in a test `Runtime` nothing has wired one
+    /// into - `start.rs::launch_spec`'s own caller degrades that to `""`,
+    /// which `steg_sdk::paths::socket_path` already treats as absent
+    /// (TASK-1.147), not as a real override.
+    server_address: Option<String>,
     /// Every pane's own outstanding `pane.wait` calls (TASK-1.140), kept
     /// here for the same reason `panes`/`subscribers` are: every site that
     /// can resolve one already holds this lock when it needs to (a real
@@ -206,6 +216,7 @@ impl Runtime {
             subscribers: HashMap::new(),
             notify_session_count_changed: None,
             stopper: None,
+            server_address: None,
             pending_waits: HashMap::new(),
             #[cfg(test)]
             applied_marks: HashMap::new(),

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-21T20:28:00Z'
+updated_date: '2026-11-22T20:16:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -372,6 +372,33 @@ Split by @bruk.o on 2026-11-21: the server half of the plan (real STEG_SESSION, 
 Decided by the engineer on 2026-11-21: one variable. STEG_SOCKET_PATH is renamed to STEG_SERVER by TASK-1.147, which this task now also depends on; no precedence between two names is built here.
 
 Plan (2220a19df068) checked against doc-2 R33 and section 4 by @bruk.o on 2026-11-21: ok. It builds only the context path: the hello carries the caller's session, tab and pane identifiers (never labels, as section 4 says), the server makes its dispatch context from them, and the CLI reads STEG_SESSION, STEG_TAB and STEG_PANE; no new flag, variable or exit status. AC 1 has a test per clause (pane by the chain test, tab and session by hand-set environment), with a server-side and a CLI-side control; AC 2 and AC 3 are pinned by end-to-end tests of behaviour that already holds. It adds no reading of the server address (TASK-1.147) and does not write the pane's environment (TASK-1.146). Three points for the engineer: a malformed or stale identifier in the hello drops that one field rather than refusing the connection; the hello's identifiers are not checked against the tree at handshake; the hello's new fields are named session, tab, pane.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig ZIG_GLOBAL_CACHE_DIR=/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/target/zig-global-cache cargo test -p steg --test cli_terminal_context` exited 0 at 2026-11-22T20:16:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51 on task-1.51-cli-act-on-the-terminal-it-runs-in at 55efff68d151 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests/cli_terminal_context.rs (target/debug/deps/cli_terminal_context-710299a0987f97e0)
+
+running 16 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::run_bounded_returns_the_bodys_value_when_it_finishes_in_time ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::one_scoped_temp_dir_can_hand_out_two_different_paths ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::wait_for_socket_returns_once_something_is_listening ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::wait_for_socket_panics_when_nothing_ever_answers - should panic ... ok
+test support::tests::run_bounded_panics_when_the_body_does_not_finish_in_time - should panic ... ok
+test pane_show_with_no_target_outside_a_pane_is_status_2_and_says_so ... ok
+test session_show_with_no_target_inside_a_pane_resolves_to_that_panes_own_session ... ok
+test pane_list_with_no_target_inside_a_pane_resolves_to_that_panes_own_tab ... ok
+test a_pane_whose_own_program_is_steg_resolves_pane_show_and_finds_its_own_server ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

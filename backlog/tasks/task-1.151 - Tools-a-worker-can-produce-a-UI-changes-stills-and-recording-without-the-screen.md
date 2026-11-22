@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-22T04:52:00Z'
-updated_date: '2026-11-22T19:58:00Z'
+updated_date: '2026-11-22T19:59:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -87,4 +87,6 @@ UNKNOWNS THAT STILL APPLY (narrowed - the provenance/route unknowns now belong t
 
 <!-- SECTION:NOTES:BEGIN -->
 22 Nov 2026 (@bruk.o): the engineer accepted the GPUI move as TASK-1.154 (git pin on zed-industries/zed; gpui-pre only as a fallback that comes back to the engineer). TASK-1.151 now depends on it and keeps parts (b), (c) and the rule wording (d) of its plan; part (a) is TASK-1.154's.
+
+Plan checked against the task's criteria by @bruk.o (22 Nov 2026, plan a482bf1aa9d2): not yet for approval. (1) Recording: stills per scripted step do not make a recording of motion - a wait step would give one frame; the harness needs frames sampled at a fixed interval of the tool's clock across waits, and the plan must say so. (2) Determinism: the pane program, pty and server run on real threads and real time, outside the tool's clock; the plan must say how the harness waits for pane output (an event with a bound, no polling, no sleep) before advancing, and must read how the dissolve's timer and phase are driven in terminal_element.rs (executor timer or wall clock) since byte-identical frames depend on it. (3) Split: the dissolve scenario is drafted as its own task (DRAFT-3, depends on this one) carrying criterion 3; once the engineer accepts it this plan covers the harness only, proved on a trivial scenario that includes motion.
 <!-- SECTION:NOTES:END -->

@@ -1,7 +1,7 @@
 ---
-id: DRAFT-3
+id: TASK-1.155
 title: 'Tools: the cursor dissolve as the first capture scenario'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-22T19:59:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.151
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-3
 ---
 
 ## Description

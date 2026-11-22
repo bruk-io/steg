@@ -3,13 +3,14 @@ id: TASK-1.150
 title: >-
   Find why a freshly autostarted server closes a client's first connection
   before the hello
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T05:43:00Z'
+updated_date: '2026-11-22T05:56:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -22,8 +23,10 @@ asdlc_branch: task-1.150-find-why-a-freshly-autostarted-server
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '39ca1e575b3d'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -367,6 +370,25 @@ created: 2026-11-22T05:43:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.150: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T05:56:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 1 nit. Cites: review. The diff matches the plan.
+
+[Evidence, Important] crates/steg/tests/cli_connection_arbitration.rs (AC #3's own proof): the implementation notes record TASK-1.150-repeat-run.sh exiting 1 ("failed at run 1 of 300") at the same commit and same uncommitted working tree as the later run that passed "300 of 300" three minutes afterwards. Comment #2 presents only the passing run as AC #3's proof and never mentions or explains the failing one, unlike the unrelated attach.rs flake in the same session, which the notes do trace to machine contention. The board's own "Record a check" history shows TASK-1.146's checks running on this machine in the same window, so contention is a plausible cause, but the notes do not say so. I repeated 100 then 300 consecutive runs of the built binary myself at the true final head (76b48af4) with no failures, which bounds the risk, but an unexplained failure of the exact check an acceptance criterion rests on should be investigated and disclosed, not superseded silently.
+
+[Bugs/Compliance, Important] crates/steg/tests/cli_connection_arbitration.rs:75-106: the new "permanent regression guard" test (closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect) drives spawn_hostile_listener_with_gap, a separate, independently written helper, not spawn_hostile_listener itself - the function TASK-1.150 actually fixed and the one the other two tests depend on. I confirmed directly: reverting the drop order only inside spawn_hostile_listener_with_gap (leaving the real, fixed spawn_hostile_listener untouched) makes the new test fail with ClosedBeforeHello exactly as the notes describe - but a regression that reverted spawn_hostile_listener's own order instead would leave the new test green, resurfacing only as the pre-existing test's original roughly 1-in-150 flake rate, the exact unreliable signal this task exists to replace. AC #2's "a test that fails without it" is not met for the fix as applied to spawn_hostile_listener.
+
+[Evidence, Nit] The control pair and the 300-run were recorded while the fix was still an uncommitted working-tree change (commit 48b88c74, "with uncommitted changes"), not at a commit on the task's branch; comment #2 calls this "the final committed code apart from one scratch flip," which overstates it. Harmless here - the file is byte-identical to what was committed next, and the later just check run at the true final commit (76b48af4) re-passed the same test - but recording the control itself post-commit would remove the need to take that on trust.
+
+Control repeated myself, in a scratch edit reverted after: in <repo>.worktrees/review-1.150 at the final head (76b48af4), flipped spawn_hostile_listener_with_gap's own two statements from drop(listener); sleep(gap); drop(stream) to drop(stream); sleep(gap); drop(listener) (nothing else touched) and ran cargo test -p steg --test cli_connection_arbitration -- closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect --exact: FAILED, panicking on the real CLI's own ClosedBeforeHello message (ruling out NoServerRunning and Timeout, which print different text) - confirming the control fails by the named mechanism, not another route. Reverted, git status clean, full file re-run with the committed order: 15/15 passed. Also confirmed crates/sdk/src/local_socket.rs:159-183 as written: connect() reaches command.spawn() only on the branch where the raw UnixStream::connect(&path) already returned Err, and crates/server/src/listen.rs:518-544 drops its own listener immediately after the accept loop stops for the identical stated reason this task cites as precedent - both claims check out. No product code is touched by this diff (crates/steg/tests/cli_connection_arbitration.rs only); the plan's "no change" to the SDK's single retry is consistent with that. Size-3 plan approval by @bruk is present and the diff matches the plan's named file and steps.
 
 ---
 <!-- COMMENTS:END -->

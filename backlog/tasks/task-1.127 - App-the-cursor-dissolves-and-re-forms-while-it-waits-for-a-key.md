@@ -1035,6 +1035,22 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 101 filtered out; fi
 ```
 
 Commits since the review: 177, 149 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app an_open_gate_leaves_a_pending_wake_alone` exited 0 at 2026-11-22T20:58:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 4bd36ab4fbbc:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::an_open_gate_leaves_a_pending_wake_alone ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 101 filtered out; finished in 0.00s
+```
+
+Commits since the review: 177, 149 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

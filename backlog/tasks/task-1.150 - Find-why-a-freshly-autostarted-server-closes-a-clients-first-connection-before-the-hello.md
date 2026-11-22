@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T05:10:00Z'
+updated_date: '2026-11-22T05:19:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -162,6 +162,41 @@ Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-s
 
 ```text
 TASK-1.150: passed 300 of 300
+```
+
+Check passed: `just check` exited 0 at 2026-11-22T05:19:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.150 on task-1.150-find-why-a-freshly-autostarted-server at 48b88c74cb52 with uncommitted changes:
+
+```text
+ok      format check (0.4s)
+ok      lint (50.7s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg) (4.3s)
+ok      build (steg-sdk) (3.7s)
+ok      test (steg-sdk) (2.6s)
+ok      test (steg-sdk, local-socket) (3.0s)
+ok      build (steg-kernel) (44.2s)
+ok      test (steg-kernel) (1.6s)
+ok      build (steg-server) (1.6s)
+ok      test (steg-server) (91.2s)
+ok      test (steg-server, race-fixture) (99.0s)
+ok      test (steg-server, pty-race-fixture) (75.4s)
+ok      test (steg-server, accept-backoff-fixture) (93.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.7s)
+ok      test (steg, fixtures) (9.6s)
+ok      build (steg-ui) (21.5s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (2.9s)
+ok      test (steg-app) (2.3s)
+ok      tool tests (41.2s)
+ok      architecture (0.9s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

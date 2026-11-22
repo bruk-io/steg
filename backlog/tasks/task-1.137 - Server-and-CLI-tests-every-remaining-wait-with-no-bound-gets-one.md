@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T05:41:00Z'
+updated_date: '2026-11-22T05:43:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -418,6 +418,32 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `cargo test -p steg-server --test server_stop -- server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running --exact` exited 101 at 2026-11-22T05:43:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137 on task-1.137-server-and-cli-tests-every-remaining at a83377cddb75 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_stop.rs (target/debug/deps/server_stop-e2ff52c6cb96857f)
+
+running 1 test
+test server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running ... FAILED
+
+failures:
+
+---- server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running stdout ----
+
+thread 'server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running' (77529526) panicked at crates/server/tests/support/mod.rs:44:29:
+timed out after 5s waiting for: the server thread to end after stop()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --test server_stop`
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -1,14 +1,13 @@
 ---
 id: TASK-1.153
 title: 'Kernel: a cursor move with no cell change still reaches clients'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T21:30:00Z'
+updated_date: '2026-11-22T21:42:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -680,6 +679,8 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Review findings fixed: added the plan's own requested one-line comment at last_reported_cursor's declaration (commit 2b6fec0f), flagging the invariant's own dependence on pane.rs's current single-caller-per-tick shape. With the worktree clean at that exact commit, re-recorded all seven control pairs (ten recordings: the three cursor-only-Delta tests share one command) - each confirmed against git rev-parse HEAD before the failing recording and git status clean before the passing one. Read every stamp back from the board: all ten name 2b6fec0fa18c. Appended two corrections to the notes for the earlier wrong claim and its own wrong recording count. just check recorded clean at this head (no forced commit). CI green on PR 99 (11m12s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

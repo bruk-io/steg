@@ -443,6 +443,23 @@ error: test failed, to rerun pass `-p steg-kernel --lib`
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-kernel changes_since_reports_a_cursor_only` exited 0 at 2026-11-22T21:10:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 2b6fec0fa18c:
+
+```text
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153/crates/kernel)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_kernel-9b3ea2512004541f)
+
+running 3 tests
+test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved ... ok
+test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed ... ok
+test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibility_changed ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 333 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

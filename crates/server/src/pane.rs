@@ -2480,7 +2480,14 @@ mod capture_tests {
         // never read it at all (which `send` itself, not `recv_timeout`,
         // would already catch as `PaneGone`).
         std::thread::spawn(move || {
-            let super::PaneCommand::Capture { reply, .. } = rx.recv().unwrap() else {
+            // Bounded (TASK-1.137): a plain `recv()` here had no bound -
+            // this thread is never joined, so a bug that starved it
+            // would otherwise leak a thread silently rather than fail
+            // loudly.
+            let super::PaneCommand::Capture { reply, .. } = rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("the one Capture command this test sends")
+            else {
                 panic!("expected a Capture command")
             };
             drop(reply);
@@ -2524,6 +2531,7 @@ mod attach_tests {
 
     use crate::outbound::{Outbound, run_writer};
     use crate::pty::{LaunchSpec, RealLauncher};
+    use crate::test_support::run_bounded;
 
     use super::{
         AttachState, Attachment, AttachmentId, PaneEvent, Terminal, flush_ended, maybe_arm_tick,
@@ -2619,7 +2627,14 @@ mod attach_tests {
 
         fn finish(self) {
             self.outbound.close();
-            let _ = self.writer.join();
+            let writer = self.writer;
+            run_bounded(
+                "the writer thread to end",
+                Duration::from_secs(5),
+                move || {
+                    let _ = writer.join();
+                },
+            );
         }
     }
 
@@ -3397,6 +3412,12 @@ mod attach_tests {
                 Err(e) => panic!("decode failed: {e}"),
             }
         }
-        writer.join().unwrap();
+        run_bounded(
+            "the writer thread to end",
+            Duration::from_secs(5),
+            move || {
+                writer.join().unwrap();
+            },
+        );
     }
 }

@@ -28,11 +28,16 @@ use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
 #[path = "support/mod.rs"]
 mod support;
-use support::{ScopedTempDir, scoped_socket_path};
+use support::{ScopedTempDir, run_bounded, scoped_socket_path};
 
 /// This file's own connections' default read timeout (TASK-1.123) - see
 /// `connect_and_handshake`'s own doc for why 15s, not the 5s it replaces.
 const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// The deadline `call_and_read_reply`/`attach`/`declare_size` each wait on
+/// for a reply - above `DEFAULT_READ_TIMEOUT` (TASK-1.123), named once
+/// rather than duplicated as the same literal three times (TASK-1.137).
+const REPLY_DEADLINE: Duration = DEFAULT_READ_TIMEOUT.saturating_add(Duration::from_secs(5));
 
 /// A working `PATH` is required (TASK-1.87), the same reasoning
 /// `routing.rs`'s own `test_login` gives - this file's own tests all
@@ -78,7 +83,31 @@ fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<(
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
     stop.stop();
-    handle.join().expect("the server thread should not panic");
+    // 90s, derived rather than measured once: `force_end`'s own nominal
+    // worst case for one pane is `force_grace + ESCALATE_CONFIRM_TIMEOUT +
+    // FORCE_JOIN_TIMEOUT` (2s + 2s + 2s = 6s, this file's own comment
+    // above `pane_close_force_returns_within_its_bound_even_while_the_
+    // panes_own_worker_is_stuck`), plus `force_end`'s own pass 6
+    // (`join_worker`) running sequentially per pane - the flood tests
+    // below stop a server with two panes (`stuck_pane`/`other_pane`),
+    // so up to one more `FORCE_JOIN_TIMEOUT` (2s) on top, ~10s nominal
+    // worst case for this file's own tests specifically. That same test's
+    // own already-reviewed bound for a single force_end-involving wait
+    // under this machine's own CPU contention is 30s - about 5x the
+    // single-pane nominal (6s) - a generosity this sweep found was
+    // itself not quite enough: this exact join measured over 32s once.
+    // Applying that same ~5x multiplier to the two-pane nominal (10s)
+    // gives ~50s; 90s keeps real margin above both that and the one
+    // measured run, while staying well under `cross_process_flood_
+    // guard`'s own 180s and the 900s per-step ceiling `steg-quiet`
+    // itself imposes (`tools/src/steg_tools/quiet.py`).
+    run_bounded(
+        "the server thread to end after stop()",
+        Duration::from_secs(90),
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
 }
 
 /// Same shape as `routing.rs`'s own `connect_and_handshake` - the real
@@ -130,7 +159,7 @@ fn call_and_read_reply(
 ) -> Response {
     let (id, bytes) = connection.call(method, params).expect("a valid call");
     stream.write_all(&bytes).unwrap();
-    let deadline = Instant::now() + Duration::from_secs(20); // TASK-1.123: above DEFAULT_READ_TIMEOUT (15s)
+    let deadline = Instant::now() + REPLY_DEADLINE;
     loop {
         // Drains every already-decoded frame before reading more
         // (TASK-1.128: an attached call like `pane.close --force` can
@@ -248,7 +277,7 @@ fn attach(stream: &mut UnixStream, connection: &mut Connection, pane: &str) -> P
         .expect("a valid call");
     stream.write_all(&bytes).unwrap();
 
-    let deadline = Instant::now() + Duration::from_secs(20); // TASK-1.123: above DEFAULT_READ_TIMEOUT (15s)
+    let deadline = Instant::now() + REPLY_DEADLINE;
     let response = loop {
         match connection.poll() {
             Some(Incoming::Reply {
@@ -339,7 +368,7 @@ fn declare_size(
         .declare_size(Some(tab), columns, rows)
         .expect("a valid call");
     stream.write_all(&bytes).unwrap();
-    let deadline = Instant::now() + Duration::from_secs(20); // TASK-1.123: above DEFAULT_READ_TIMEOUT (15s)
+    let deadline = Instant::now() + REPLY_DEADLINE;
     loop {
         if let Some(Incoming::Reply {
             id: reply_id,

@@ -721,7 +721,11 @@ mod tests {
             0,
             "nothing more was written: the one-too-many frame was really dropped"
         );
-        writer.join().unwrap();
+        run_bounded(
+            "the writer thread to end",
+            Duration::from_secs(5),
+            move || writer.join().unwrap(),
+        );
     }
 
     // --- `Outbound::end_stream` (TASK-1.128) -----------------------------
@@ -764,7 +768,11 @@ mod tests {
             0,
             "nothing arrives on the stream after its own final frame"
         );
-        writer.join().unwrap();
+        run_bounded(
+            "the writer thread to end",
+            Duration::from_secs(5),
+            move || writer.join().unwrap(),
+        );
     }
 
     /// A `Write` that forwards to a real socket, then blocks until the
@@ -781,7 +789,13 @@ mod tests {
     impl Write for StepWriter {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             self.inner.write_all(buf)?;
-            let _ = self.proceed.recv();
+            // Bounded (TASK-1.137): a plain `recv()` here had no bound -
+            // deliberately blocking until the test says to proceed is the
+            // point, but that should still fail with a message rather
+            // than hang if the test itself never sends.
+            self.proceed
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap_or_else(|_| panic!("the test never signalled this StepWriter to proceed"));
             Ok(buf.len())
         }
 
@@ -852,7 +866,11 @@ mod tests {
         );
 
         proceed_tx.send(()).unwrap(); // lets `write("the-end")` itself return
-        writer.join().unwrap();
+        run_bounded(
+            "the writer thread to end",
+            Duration::from_secs(5),
+            move || writer.join().unwrap(),
+        );
     }
 
     // --- `Outbound::enqueue_control_and_wait_until_written` (TASK-1.88) ---
@@ -920,7 +938,11 @@ mod tests {
         );
 
         outbound.close();
-        writer.join().unwrap();
+        run_bounded(
+            "the writer thread to end",
+            Duration::from_secs(5),
+            move || writer.join().unwrap(),
+        );
     }
 
     /// The timeout/closed-queue half: nothing ever arrives to ack a frame
@@ -1035,7 +1057,11 @@ mod tests {
             "a control reply must not wait behind a data flood; took {latency:?}"
         );
 
-        flooder.join().unwrap();
+        run_bounded(
+            "the flooder thread to end",
+            Duration::from_secs(5),
+            move || flooder.join().unwrap(),
+        );
         outbound.close();
         // Drain the rest of the flood so the writer thread actually exits
         // (it would otherwise still be blocked trying to write the flood's
@@ -1044,6 +1070,10 @@ mod tests {
             let mut sink = [0_u8; 65536];
             while client.read(&mut sink).unwrap_or(0) > 0 {}
         });
-        drain.join().unwrap();
+        run_bounded(
+            "the drain thread to end",
+            Duration::from_secs(5),
+            move || drain.join().unwrap(),
+        );
     }
 }

@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 #[path = "support/mod.rs"]
 mod support;
-use support::{scoped_socket_path, wait_child_bounded};
+use support::{run_bounded, scoped_socket_path, wait_child_bounded};
 
 /// Bounded wait for an already-`kill()`ed child to actually exit -
 /// generous, since `kill()` already ran: this is a backstop against the
@@ -69,12 +69,21 @@ impl Drop for ReapOnDrop {
 /// winner, which is now parked in `accept()`.
 fn read_outcome_line(child: &mut ReapOnDrop) -> String {
     let stdout = child.0.stdout.take().expect("stdout was piped");
-    let mut reader = BufReader::new(stdout);
-    let mut line = String::new();
-    reader
-        .read_line(&mut line)
-        .expect("reading the fixture's outcome line should not fail");
-    line.trim().to_owned()
+    // Bounded (TASK-1.137): the comment above argues a line is always
+    // there to read, but that is not itself a bound on the primitive -
+    // the same reader-thread-plus-`recv_timeout` wrapper every other
+    // stdout-line read in this sweep already goes through
+    // (`server_start.rs`'s own `read_one_line_bounded`), rather than a
+    // bare `read_line` that could block forever if the comment's own
+    // premise ever turns out wrong.
+    run_bounded("the fixture's own outcome line", STOP_TIMEOUT, move || {
+        let mut reader = BufReader::new(stdout);
+        let mut line = String::new();
+        reader
+            .read_line(&mut line)
+            .expect("reading the fixture's outcome line should not fail");
+        line.trim().to_owned()
+    })
 }
 
 fn wait_until_accepting(path: &std::path::Path, deadline: Instant) {

@@ -37,7 +37,12 @@ use steg_server::{ConnectionEvent, LoginShell, ServerConfig, Stopper, serve};
 
 #[path = "support/mod.rs"]
 mod support;
-use support::{ScopedTempDir, scoped_socket_path};
+use support::{ScopedTempDir, run_bounded, scoped_socket_path};
+
+/// This file's own bound for its bare joins (TASK-1.137) - matches the
+/// 10s deadline already used elsewhere in this file for a real program's
+/// own pid file to appear.
+const JOIN_DEADLINE: Duration = Duration::from_secs(10);
 
 /// A working `PATH` is required (TASK-1.87): `RealLauncher::spawn`'s own
 /// `.env_clear()` means `LoginShell::default()`'s own empty `base_env`
@@ -91,7 +96,13 @@ fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<(
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
     stop.stop();
-    handle.join().expect("the server thread should not panic");
+    run_bounded(
+        "the server thread to end after stop()",
+        JOIN_DEADLINE,
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
 }
 
 /// Real handshake over a real socket, with the sdk's own `Connection` -
@@ -805,7 +816,13 @@ fn the_server_stops_promptly_after_a_hostile_connection_that_was_never_explicitl
 
     let started = Instant::now();
     stop.stop();
-    handle.join().expect("the server thread should not panic");
+    run_bounded(
+        "the server thread to end after stop()",
+        JOIN_DEADLINE,
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
     assert!(
         started.elapsed() < Duration::from_secs(5),
         "run() must return promptly even with a hostile connection mid-close"
@@ -829,7 +846,13 @@ fn the_server_stops_promptly_with_a_connection_mid_request() {
 
     let started = Instant::now();
     stop.stop();
-    handle.join().expect("the server thread should not panic");
+    run_bounded(
+        "the server thread to end after stop()",
+        JOIN_DEADLINE,
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
     assert!(
         started.elapsed() < Duration::from_secs(5),
         "run() must return promptly even with a request in flight"
@@ -895,7 +918,13 @@ fn stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the
     );
 
     stop.stop();
-    handle.join().expect("the server thread should not panic");
+    run_bounded(
+        "the server thread to end after stop()",
+        JOIN_DEADLINE,
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
 
     assert!(
         !process_exists(pid),

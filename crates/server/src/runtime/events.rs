@@ -347,6 +347,7 @@ mod tests {
         TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, test_base_env, test_state,
     };
     use crate::runtime::{Filter, LoginShell, Runtime, Subscriber};
+    use crate::test_support::run_bounded;
 
     /// Registers a subscriber in `state` with a real writer thread
     /// actually draining its queue onto a real, paired `UnixStream` - so
@@ -516,7 +517,11 @@ mod tests {
         );
 
         outbound.close();
-        writer.join().unwrap();
+        run_bounded(
+            "the writer thread to end",
+            Duration::from_secs(5),
+            move || writer.join().unwrap(),
+        );
     }
 
     /// AC #2: a shell pane's own exit, which cascades all the way to its
@@ -570,7 +575,11 @@ mod tests {
         );
 
         outbound.close();
-        writer.join().unwrap();
+        run_bounded(
+            "the writer thread to end",
+            Duration::from_secs(5),
+            move || writer.join().unwrap(),
+        );
     }
 
     /// AC #2: a typed command's start and end (TASK-1.84's own marks)
@@ -627,7 +636,11 @@ mod tests {
         );
 
         outbound.close();
-        writer.join().unwrap();
+        run_bounded(
+            "the writer thread to end",
+            Duration::from_secs(5),
+            move || writer.join().unwrap(),
+        );
     }
 
     /// A subscriber registered but never having called `event.watch`
@@ -646,7 +659,11 @@ mod tests {
         assert_nothing_arrives_within(&mut stream, Duration::from_millis(200));
 
         outbound.close();
-        writer.join().unwrap();
+        run_bounded(
+            "the writer thread to end",
+            Duration::from_secs(5),
+            move || writer.join().unwrap(),
+        );
     }
 
     /// AC #3: a subscriber whose own queue is full is closed, not

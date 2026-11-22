@@ -355,6 +355,7 @@ mod tests {
     use super::Runtime;
     use super::testing::{TEST_GRACE, TEST_TICK, login};
     use crate::pty::RealLauncher;
+    use crate::test_support::run_bounded;
 
     /// What a panic inside one connection's call to `Runtime::handle`
     /// (TASK-1.45 §5) actually rests on: `Runtime::lock`'s own existing
@@ -375,11 +376,21 @@ mod tests {
         );
 
         let state_handle = std::sync::Arc::clone(&runtime.state);
-        let panicked = std::thread::spawn(move || {
-            let _guard = state_handle.lock().unwrap();
-            panic!("a bug inside a request handler, simulated for this test");
-        })
-        .join();
+        // Bounded (TASK-1.137): the join's own `Result` is what the
+        // assertion below inspects (the thread really did panic), so
+        // this needs `run_bounded`'s own return value rather than a
+        // plain `.expect()` inside the closure.
+        let panicked = run_bounded(
+            "the spawned thread to end after panicking",
+            std::time::Duration::from_secs(5),
+            move || {
+                std::thread::spawn(move || {
+                    let _guard = state_handle.lock().unwrap();
+                    panic!("a bug inside a request handler, simulated for this test");
+                })
+                .join()
+            },
+        );
         assert!(
             panicked.is_err(),
             "the spawned thread really did panic while holding the lock"

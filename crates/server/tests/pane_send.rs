@@ -9,11 +9,14 @@
 //! arrived.
 //!
 //! A new file, not `attach.rs`: TASK-1.123 is actively fixing bounds in
-//! that file, and the helpers below (a per-test socket directory, the
-//! handshake, `call_and_read_reply`, `attach`/`next_update`) are each
-//! file's own small, self-contained copies - the established convention
-//! in this crate (`tests/support/mod.rs`'s own doc: "each file under
-//! `tests/` is its own compilation unit"), not a new shared module.
+//! that file, and the helpers below (the handshake, `call_and_read_reply`,
+//! `attach`/`next_update`) are each file's own small, self-contained
+//! copies - the established convention in this crate (`tests/support/
+//! mod.rs`'s own doc: "each file under `tests/` is its own compilation
+//! unit"), not a new shared module. The per-test socket directory itself
+//! *is* shared, through `support::scoped_socket_path` (TASK-1.137): this
+//! file's own former copy of that one helper is now the same as the
+//! other nine `crates/server/tests/*.rs` files already use.
 
 #![expect(
     clippy::unwrap_used,
@@ -23,7 +26,6 @@
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value, json};
@@ -33,37 +35,16 @@ use steg_sdk::{
 };
 use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
-/// A fresh, per-test temporary *directory* (not merely a uniquely-named
-/// file in the one shared `temp_dir()` every other file in this crate
-/// still uses) - TASK-1.123 is about to replace those files' own
-/// duplicated `unique_socket_path` helpers with one shared one; a
-/// per-test directory here, rather than copying that pattern again, is
-/// the smaller target for that swap, and is itself a stronger guard
-/// against the kind of path collision across concurrent worktrees
-/// TASK-1.123's own sweep already found once (comment on that task,
-/// 2026-11-18).
-fn test_socket_dir() -> PathBuf {
-    // Short, on purpose: a Unix socket's own path has a small fixed
-    // limit (macOS: 104 bytes including the terminator), and
-    // `std::env::temp_dir()` on macOS is already a long, randomised
-    // path - a verbose directory name on top of it, plus "/steg.sock",
-    // can overflow that limit with no warning beyond a connection that
-    // never succeeds (found while building this file). `pid` plus a
-    // per-process counter is already unique for this test binary's own
-    // life, which is all one test run ever needs.
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("psend-{}-{suffix}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("creating this test's own temp directory");
-    dir
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::{ScopedTempDir, run_bounded, scoped_socket_path};
 
 /// A working `PATH` is required (TASK-1.87) - every program this file
 /// starts is given explicitly (never the caller's own `$SHELL`/`HOME`).
-fn test_login(home: &std::path::Path) -> LoginShell {
+fn test_login() -> LoginShell {
     LoginShell {
         argv0: "/bin/sh".to_string(),
-        home: home.to_str().unwrap().to_string(),
+        home: std::env::temp_dir().to_str().unwrap().to_string(),
         user: None,
         base_env: vec![(
             std::ffi::OsString::from("PATH"),
@@ -72,16 +53,16 @@ fn test_login(home: &std::path::Path) -> LoginShell {
     }
 }
 
-/// Starts a real server on its own socket, inside its own temporary
-/// directory - `dir` is returned too, so the caller can remove it once
-/// the server has stopped.
-fn start_server() -> (PathBuf, PathBuf, Stopper, std::thread::JoinHandle<()>) {
-    let dir = test_socket_dir();
-    let socket_path = dir.join("s.sock");
+/// Starts a real server on its own socket, inside its own scoped
+/// temporary directory (`support::scoped_socket_path`) - the directory
+/// is returned too, so the caller keeps it alive (and, on drop, removes
+/// it) for as long as the socket path must stay valid.
+fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<()>) {
+    let (socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout: Duration::from_secs(5),
-        login: test_login(&dir),
+        login: test_login(),
         ..ServerConfig::default()
     };
     let stop = Stopper::new();
@@ -100,18 +81,24 @@ fn start_server() -> (PathBuf, PathBuf, Stopper, std::thread::JoinHandle<()>) {
         assert!(Instant::now() < deadline, "server never started accepting");
         std::thread::sleep(Duration::from_millis(5));
     }
-    (socket_path, dir, stop, handle)
+    (socket_dir, socket_path, stop, handle)
 }
 
-/// Stops the server and removes its own temporary directory - every test
-/// below calls this on its own way out (the same explicit-call
-/// convention `attach.rs` already uses; a mid-test assertion panic
-/// skipping it is an accepted, pre-existing risk in this crate, not
-/// something this task changes).
-fn stop_server(dir: &std::path::Path, stop: &Stopper, handle: std::thread::JoinHandle<()>) {
+/// Stops the server - every test below calls this on its own way out
+/// (the same explicit-call convention `attach.rs` already uses; a
+/// mid-test assertion panic skipping it is an accepted, pre-existing
+/// risk in this crate, not something this task changes). The socket
+/// directory's own removal is `ScopedTempDir`'s `Drop`, not this
+/// function's job now.
+fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
     stop.stop();
-    handle.join().expect("the server thread should not panic");
-    let _ = std::fs::remove_dir_all(dir);
+    run_bounded(
+        "the server thread to end after stop()",
+        Duration::from_secs(10),
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
 }
 
 fn connect_and_handshake(socket_path: &std::path::Path) -> (UnixStream, Connection) {
@@ -630,7 +617,7 @@ fn echo_lines_program() -> Vec<&'static str> {
 
 #[test]
 fn pane_send_delivers_text_then_a_key_in_order_without_a_client_attached() {
-    let (socket_path, dir, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     // One connection creates the pane and sends to it; it never calls
     // `pane.attach` at all, anywhere in this test - the structural proof
     // of "without a client attached" (AC #1).
@@ -683,12 +670,12 @@ fn pane_send_delivers_text_then_a_key_in_order_without_a_client_attached() {
         Duration::from_secs(15),
     );
 
-    stop_server(&dir, &stop, handle);
+    stop_server(&stop, handle);
 }
 
 #[test]
 fn pane_send_delivers_each_named_key_with_its_documented_bytes() {
-    let (socket_path, dir, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut sender_stream, mut sender_connection) = connect_and_handshake(&socket_path);
     // `stty -icanon` so this pane's own pty delivers every byte as soon
     // as it arrives, rather than buffering a whole line (none of these
@@ -796,12 +783,12 @@ fn pane_send_delivers_each_named_key_with_its_documented_bytes() {
         consumed += expected_hex.len();
     }
 
-    stop_server(&dir, &stop, handle);
+    stop_server(&stop, handle);
 }
 
 #[test]
 fn pane_send_refuses_a_pane_with_no_running_program() {
-    let (socket_path, dir, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut sender_stream, mut sender_connection) = connect_and_handshake(&socket_path);
     let pane = new_pane_running(
         &mut sender_stream,
@@ -873,12 +860,12 @@ fn pane_send_refuses_a_pane_with_no_running_program() {
     };
     assert_eq!(error.code, ErrorCode::ProgramNotRunning);
 
-    stop_server(&dir, &stop, handle);
+    stop_server(&stop, handle);
 }
 
 #[test]
 fn pane_send_refuses_text_and_key_together() {
-    let (socket_path, dir, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut sender_stream, mut sender_connection) = connect_and_handshake(&socket_path);
     let pane = new_pane_running(
         &mut sender_stream,
@@ -934,12 +921,12 @@ fn pane_send_refuses_text_and_key_together() {
     };
     assert_eq!(error.code, ErrorCode::BadRequest);
 
-    stop_server(&dir, &stop, handle);
+    stop_server(&stop, handle);
 }
 
 #[test]
 fn pane_send_with_an_unknown_key_name_is_bad_request() {
-    let (socket_path, dir, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
     let pane = new_pane_running(&mut stream, &mut connection, echo_lines_program());
 
@@ -953,5 +940,5 @@ fn pane_send_with_an_unknown_key_name_is_bad_request() {
     };
     assert_eq!(error.code, ErrorCode::BadRequest);
 
-    stop_server(&dir, &stop, handle);
+    stop_server(&stop, handle);
 }

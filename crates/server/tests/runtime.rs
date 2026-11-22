@@ -31,6 +31,21 @@ const POLL_INTERVAL: Duration = Duration::from_millis(20);
 /// window closed" scheduling noise, not evidence.
 const TEST_GRACE: Duration = Duration::from_millis(30);
 
+/// Bounded join (TASK-1.137) - the same shape `tests/support/mod.rs`'s
+/// own `run_bounded` uses: a watcher thread does the real join(s), and
+/// this only ever blocks on a channel with `POLL_TIMEOUT`, so a thread
+/// that never finishes fails with a named message instead of hanging
+/// the job. Not pulled from `support` itself: this file never opens a
+/// socket, so it has no other reason to include that module.
+fn join_bounded<T: Send + 'static>(what: &str, body: impl FnOnce() -> T + Send + 'static) -> T {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(body());
+    });
+    rx.recv_timeout(POLL_TIMEOUT)
+        .unwrap_or_else(|_| panic!("timed out after {POLL_TIMEOUT:?} waiting for: {what}"))
+}
+
 /// A tiny `attach_tick` for every `Runtime::new` in this file that does
 /// not itself need a real tick to measure against (TASK-1.47) - none of
 /// this file's own tests attach to a pane.
@@ -1082,7 +1097,10 @@ fn a_pane_being_forced_is_unreachable_by_another_request_meanwhile() {
          were happening"
     );
 
-    forcing.join().unwrap();
+    join_bounded(
+        "the forcing thread to finish its force_end call",
+        move || forcing.join().unwrap(),
+    );
     assert!(!process_exists(pid));
 }
 
@@ -1176,7 +1194,10 @@ fn a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it() {
         );
     }
 
-    forcing.join().unwrap();
+    join_bounded(
+        "the forcing thread to finish its force_end call",
+        move || forcing.join().unwrap(),
+    );
     assert!(!process_exists(pid));
 }
 
@@ -1251,7 +1272,10 @@ fn a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it() {
         );
     }
 
-    forcing.join().unwrap();
+    join_bounded(
+        "the forcing thread to finish its force_end call",
+        move || forcing.join().unwrap(),
+    );
     assert!(!process_exists(pid));
 }
 
@@ -1330,7 +1354,10 @@ fn a_session_being_forced_is_unreachable_by_every_method_that_can_name_it() {
         );
     }
 
-    forcing.join().unwrap();
+    join_bounded(
+        "the forcing thread to finish its force_end call",
+        move || forcing.join().unwrap(),
+    );
     assert!(!process_exists(pid));
 }
 
@@ -1380,7 +1407,10 @@ fn a_force_racing_another_force_on_the_same_pane_never_double_acts() {
             )
         }));
     }
-    let results: Vec<_> = threads.into_iter().map(|t| t.join().unwrap()).collect();
+    let results: Vec<_> = join_bounded(
+        "both racing pane.close --force threads to finish",
+        move || threads.into_iter().map(|t| t.join().unwrap()).collect(),
+    );
 
     let ok_count = results
         .iter()

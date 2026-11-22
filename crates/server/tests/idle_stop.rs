@@ -180,10 +180,12 @@ impl portable_pty::Child for FakeChild {
     }
 
     fn wait(&mut self) -> std::io::Result<portable_pty::ExitStatus> {
+        // Bounded (TASK-1.137): a plain `recv()` here had no bound of
+        // its own, unlike every other wait in this file.
         self.exit_code
             .lock()
             .expect("not poisoned: &mut self already keeps this exclusive")
-            .recv()
+            .recv_timeout(Duration::from_secs(10))
             .map(exit_status)
             .map_err(|_| std::io::Error::other("the fake program's exit was never reported"))
     }

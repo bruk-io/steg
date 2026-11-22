@@ -35,7 +35,7 @@ use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
 #[path = "support/mod.rs"]
 mod support;
-use support::{ScopedTempDir, scoped_socket_path};
+use support::{ScopedTempDir, run_bounded, scoped_socket_path};
 
 /// A working `PATH` is required (TASK-1.87): the one test here that
 /// starts a real, long-lived program needs `sh` resolvable - the same
@@ -209,7 +209,13 @@ fn server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps
     );
 
     stop.stop();
-    handle.join().expect("the server thread should not panic");
+    run_bounded(
+        "the server thread to end after stop()",
+        Duration::from_secs(5),
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
 }
 
 /// AC #2 in full, with no session at all (so no `--force` is even
@@ -276,9 +282,15 @@ fn server_stop_with_no_sessions_flushes_the_reply_then_stops_and_a_second_client
         std::thread::sleep(Duration::from_millis(5));
     }
     second_stop.stop();
-    second_handle
-        .join()
-        .expect("the second server thread should not panic");
+    run_bounded(
+        "the second server thread to end after stop()",
+        Duration::from_secs(5),
+        move || {
+            second_handle
+                .join()
+                .expect("the second server thread should not panic");
+        },
+    );
 }
 
 /// `--force` with a real session: the program actually running is

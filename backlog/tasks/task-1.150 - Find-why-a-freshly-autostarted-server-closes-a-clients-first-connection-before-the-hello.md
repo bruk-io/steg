@@ -22,6 +22,8 @@ asdlc_branch: task-1.150-find-why-a-freshly-autostarted-server
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '39ca1e575b3d'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -356,6 +358,15 @@ echo "TASK-1.150: passed $N of $N"
 just check: recorded exit 0 (one earlier run hit a transient failure in crates/server/tests/attach.rs, a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream - unrelated file, passed instantly alone, traced to machine contention from two other concurrent builds; the clean recorded run shows STEG_CHECK_SLOTS wait lines for the same reason).
 
 CI is running on the PR now; will finish once green.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T05:43:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.150: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -292,6 +292,30 @@ mod tests {
         assert_eq!(model.row_count(), 3);
     }
 
+    /// TASK-1.153: a cursor-only change (an arrow key, with no cell content
+    /// changed) arrives as a `Delta` with no rows at all - this is already
+    /// correct today (`apply`'s own `Delta` arm sets `self.cursor` unconditionally,
+    /// never gated on `rows` being non-empty), so this proves it rather than
+    /// changing it.
+    #[test]
+    fn a_delta_with_no_rows_still_moves_the_cursor() {
+        let mut model = Model::from_snapshot(snapshot(vec![row(vec![narrow_run("aaaaa")])]));
+        let moved = Cursor {
+            x: 3,
+            y: 0,
+            ..cursor()
+        };
+        model.apply(ScreenUpdate::Delta {
+            rows: Vec::new(),
+            cursor: moved,
+            seq: 1,
+        });
+        assert_eq!(model.cursor(), moved);
+        // The row content itself must be exactly as before - a cursor-only
+        // delta touches nothing else.
+        assert_eq!(model.rows()[0], row(vec![narrow_run("aaaaa")]));
+    }
+
     #[test]
     fn a_full_update_replaces_the_whole_grid_and_its_own_reported_size() {
         let mut model = Model::from_snapshot(snapshot(vec![row(vec![narrow_run("aaaaa")])]));

@@ -1,9 +1,8 @@
 ---
 id: TASK-1.153
 title: 'Kernel: a cursor move with no cell change still reaches clients'
-status: In Progress
-assignee:
-  - '@bruk.w3'
+status: To Do
+assignee: []
 created_date: '2026-11-22T04:58:00Z'
 updated_date: '2026-11-22T04:59:00Z'
 labels:

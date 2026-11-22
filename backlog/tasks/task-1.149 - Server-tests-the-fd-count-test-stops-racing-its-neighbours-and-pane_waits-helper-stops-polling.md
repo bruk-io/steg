@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-22T04:12:00Z'
+updated_date: '2026-11-22T05:39:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -27,3 +28,9 @@ Split out of TASK-1.137 by its plan (22 November 2026). Two sighted problems tha
 - [ ] #2 crates/server/tests/pane_wait.rs wait_for_program_status waits on the pane's exit through pane wait, with no sleep-and-poll loop left in the file
 - [ ] #3 just check passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Sighting for whoever plans this, 22 November 2026 (not in this task's scope unless the plan takes it): crates/server/tests/attach.rs a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream failed once in a local just check on TASK-1.150's branch while two other builds ran on the machine; it passed alone and in the next full run. Reported by @bruk.w5 as contention, cause not established.
+<!-- SECTION:NOTES:END -->

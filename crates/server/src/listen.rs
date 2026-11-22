@@ -637,6 +637,7 @@ mod tests {
     use std::time::Duration;
 
     use super::{RecoverableAcceptError, classify_accept_error, reap_finished};
+    use crate::test_support::run_bounded;
 
     /// AC #1: the three named cases, each a real `std::io::Error` built
     /// from a real errno value (`from_raw_os_error`, not a mock of
@@ -721,9 +722,13 @@ mod tests {
         wait_until_finished(&finished_join);
 
         // Still genuinely blocked (never told to proceed), standing in
-        // for a connection still open and holding its thread.
+        // for a connection still open and holding its thread. Bounded
+        // (TASK-1.137): a plain `recv()` here had no bound of its own -
+        // released by this test's own `drop(done_tx)` right before the
+        // join below, the same practically-fast-but-not-strictly-bounded
+        // shape already fixed in shutdown.rs and idle.rs.
         let open_join = std::thread::spawn(move || {
-            let _ = done_rx.recv();
+            let _ = done_rx.recv_timeout(Duration::from_secs(5));
         });
 
         let mut connections = vec![(finished_stream, finished_join), (open_stream, open_join)];
@@ -739,7 +744,13 @@ mod tests {
 
         // Let the still-open thread end so the test does not leak it.
         drop(done_tx);
-        connections.pop().unwrap().1.join().unwrap();
+        run_bounded(
+            "the still-open connection's thread to end",
+            Duration::from_secs(5),
+            move || {
+                connections.pop().unwrap().1.join().unwrap();
+            },
+        );
     }
 
     #[test]

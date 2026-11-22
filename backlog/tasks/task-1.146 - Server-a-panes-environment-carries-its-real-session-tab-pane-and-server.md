@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-21T20:20:00Z'
-updated_date: '2026-11-22T05:54:00Z'
+updated_date: '2026-11-22T06:03:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -20,8 +21,9 @@ asdlc_branch: task-1.146-server-a-pane-s-environment-carries-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'bbbd420b5776'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r3
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -618,6 +620,21 @@ created: 2026-11-22T05:54:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.146: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-22T06:03:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+No findings.
+
+Checked: locking (launch_spec never calls self.lock(); start_and_dispatch holds the lock for the whole function; only production Runtime construction site is listen::run, which calls bind_server_address before the accept loop even exists, so no pane can start before a real server's address is bound - every other Runtime::new call site is inside a #[test] fn). Server address: resolve_socket_path's one PathBuf (explicit config.socket_path or the env-derived default) is handed to both arbiter::attempt (the real bind) and run (bind_server_address), so STEG_SERVER is always the path actually bound, explicit or default. Test safety: the pane's own script only ever printfs the four named STEG_* lines to a file; assert_line's failure message interpolates only that captured dump and test-known values (real ids or the test's own socket path), never a wider environment. Evidence: repeated control (b) myself in a scratch edit (not the worker's worktree), at the branch's actual final head (6b8cf04dc4a8) - forced server into launch_spec's call to "" and reran cargo test -p steg-server --test pane_environment. Failed on STEG_SERVER alone (empty, still the real socket path expected), with STEG_SESSION/STEG_TAB/STEG_PANE still the real ids (00000001/00000002/00000003) - traced to assert_line's four calls running in order, the first three passing silently and only the fourth (STEG_SERVER) failing, so this is the named mechanism alone and not a second one keeping the test green by another route. Reverted; reran, passing again. History: branch is one commit (6b8cf04dc4a8) ahead of main, whose parent (3b5fdab9) is an ancestor of current main - a clean rebase, nothing orphaned; its content exactly matches the diff from the pre-rebase base (98ca618e9202) the recorded controls were run against, and a full `just check` is separately recorded green at the final head itself. login_environment.rs's leak-absence list already dropped STEG_SERVER (TASK-1.147, since pane_environment sets it on every pane regardless of value); start.rs's own steg_vars_and_term_always_win test builds its Runtime via plain Runtime::new (no bind_server_address), so server_address still degrades to "", which still overrides its fabricated bogus STEG_SERVER - both verified by reading, not only trusting the notes. size-2 plan approval comment present and real.
 
 ---
 <!-- COMMENTS:END -->

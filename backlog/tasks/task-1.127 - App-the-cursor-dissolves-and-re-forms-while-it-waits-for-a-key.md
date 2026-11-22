@@ -932,6 +932,23 @@ error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 177, 149 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app piece_states_at_matches_the_engineers_own_table` exited 0 at 2026-11-22T20:57:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 4bd36ab4fbbc:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::piece_states_at_matches_the_engineers_own_table ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 101 filtered out; finished in 0.00s
+```
+
+Commits since the review: 177, 149 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

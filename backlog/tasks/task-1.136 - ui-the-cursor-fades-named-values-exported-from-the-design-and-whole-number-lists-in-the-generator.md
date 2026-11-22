@@ -3,11 +3,11 @@ id: TASK-1.136
 title: >-
   ui: the cursor fade's named values, exported from the design, and whole-number
   lists in the generator
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T04:42:00Z'
-updated_date: '2026-11-21T22:59:00Z'
+updated_date: '2026-11-22T03:57:00Z'
 labels:
   - size-2
   - review-passed

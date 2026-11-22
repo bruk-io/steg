@@ -451,6 +451,20 @@ test terminal_element::tests::next_wake_lands_exactly_on_the_next_boundary ... o
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 96 filtered out; finished in 0.00s
 ```
+
+Check passed: `cargo test -p steg-app a_full_traversal_of_the_cycle_yields_exactly_the_expected_number_of_wakes` exited 0 at 2026-11-22T04:29:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::a_full_traversal_of_the_cycle_yields_exactly_the_expected_number_of_wakes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

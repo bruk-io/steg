@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-22T20:50:00Z'
+updated_date: '2026-11-22T21:00:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -26,8 +27,10 @@ asdlc_branch: task-1.51-cli-act-on-the-terminal-it-runs-in
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '2220a19df068'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=2'
+asdlc_review_policies: ["review", "testing-rust"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -771,6 +774,29 @@ created: 2026-11-22T20:50:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.51: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T21:00:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. Cites: review, testing-rust. The diff matches the plan.
+
+Verdict: clean. Diff reviewed at PR #100 head c621fbec3d05 (confirmed via gh pr view, matches origin/task-1.51-cli-act-on-the-terminal-it-runs-in). CI's "check" job (which runs `just check`, including `cargo test` for the affected crates sdk/server/steg) is green at this exact head.
+
+Compliance: files touched (sdk wire/handshake.rs, wire/connection.rs, local_socket.rs; server dispatch/mod.rs, connection.rs; steg cli/connect.rs + new tests/cli_terminal_context.rs) and order of work match the approved plan (2220a19df068) exactly. ClientHello::new/Connection::send_hello stay untouched as planned; the new with_context/send_hello_with_context path is additive. Context::from_hello degrades a malformed/absent field to None per-field, never refuses the handshake, matching the plan's recorded engineer decision. Stale doc comments in dispatch/mod.rs were corrected as the plan's housekeeping step required. Read dispatch/lookup.rs: an explicit target always wins over the new context fallback (target_str checked before context.default_*), so AC #1's new mechanism cannot shadow an explicit target - confirmed by reading the code, not inferred. The handshake is not described in sdk's API description, so nothing there goes stale. TASK-1.146/1.147, which this task depends on, are both completed.
+
+Evidence: repeated the chain test and the CLI-side negative control myself in a scratch worktree at the PR's actual head (c621fbec3d05). `cargo test -p steg --test cli_terminal_context` passes (16/16) at head. With the three `.as_deref()` context args in connect.rs's connect_and_handshake temporarily replaced with None, None, None (then reverted), the same three tests fail with the same "no target given, and this connection has no .../tab/session context to fall back on" message as the worker's own recorded control. Traced: that message has exactly one origin, dispatch/lookup.rs's missing_context(), reached only when Context's relevant field is None - confirming the control genuinely isolates the CLI's env-reading and is not confounded by another branch or mechanism.
+
+Nit 1 [Evidence, review.md]: the implementation notes' summary says both negative controls and the decisive integration test were recorded "at the final head," but their Check log entries are at a local, pre-rebase commit, not the pushed PR head. The code tree is byte-identical between that commit and the head (checked via diff --stat: only backlog/ files differ), and CI's own green run plus my own repeat at the actual head both independently confirm the same result, so this is an imprecision in the notes' wording, not a gap in what was actually verified.
+
+Nit 2 [Tests, testing-rust.md]: the new tests/cli_terminal_context.rs's wait_for_socket/wait_for_output helpers sleep-poll for an external condition (a socket becoming connectable; a file becoming non-empty), which the rule "no test sleeps to wait for something; it waits on the event" disallows. Both are duplicated from an existing pattern already in cli_exit_statuses.rs/login_environment.rs, so this task did not introduce it, but it is still worth naming.
+
+No findings repeat an earlier review's finding on this task (comments show only the plan approval and the review claim, no prior review verdict).
 
 ---
 <!-- COMMENTS:END -->

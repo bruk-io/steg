@@ -587,6 +587,35 @@ test result: FAILED. 13 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out;
 
 error: test failed, to rerun pass `-p steg --test cli_terminal_context`
 ```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig ZIG_GLOBAL_CACHE_DIR=/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/target/zig-global-cache cargo test -p steg --test cli_terminal_context` exited 0 at 2026-11-22T20:32:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51 on task-1.51-cli-act-on-the-terminal-it-runs-in at 275addc46e4b:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.88s
+     Running tests/cli_terminal_context.rs (target/debug/deps/cli_terminal_context-710299a0987f97e0)
+
+running 16 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::run_bounded_returns_the_bodys_value_when_it_finishes_in_time ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::one_scoped_temp_dir_can_hand_out_two_different_paths ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::wait_for_socket_returns_once_something_is_listening ... ok
+test support::tests::wait_for_socket_panics_when_nothing_ever_answers - should panic ... ok
+test support::tests::run_bounded_panics_when_the_body_does_not_finish_in_time - should panic ... ok
+test pane_show_with_no_target_outside_a_pane_is_status_2_and_says_so ... ok
+test a_pane_whose_own_program_is_steg_resolves_pane_show_and_finds_its_own_server ... ok
+test session_show_with_no_target_inside_a_pane_resolves_to_that_panes_own_session ... ok
+test pane_list_with_no_target_inside_a_pane_resolves_to_that_panes_own_tab ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

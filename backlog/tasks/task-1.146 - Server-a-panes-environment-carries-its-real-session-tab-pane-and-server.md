@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-21T20:20:00Z'
-updated_date: '2026-11-22T04:05:00Z'
+updated_date: '2026-11-22T04:47:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -14,6 +14,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.146-server-a-pane-s-environment-carries-its
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'bbbd420b5776'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -222,3 +225,16 @@ goes through `launch_spec`/`Runtime` at all, so it is untouched by this task.
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-2 (section 4, R33) by @bruk.o: ok. Builds only this task's part (no wire, dispatch-context or CLI change), touches none of TASK-1.51's files, and its proof covers each criterion: one real-pane test with an explicit program for #1 and #2, and two separate recorded controls (identifiers, server address) for #3. The test writes only the four STEG_ lines, never a whole environment dump.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-22T04:47:00Z
+
+---
+
+Plan approved by @bruk (bbbd420b5776, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

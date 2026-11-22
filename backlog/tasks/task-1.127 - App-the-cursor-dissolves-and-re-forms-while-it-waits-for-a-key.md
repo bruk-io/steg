@@ -326,6 +326,21 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out;
 
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
+
+Check passed: `cargo test -p steg-app the_bottom_right_piece_reaches_the_cells_own_true_far_edge` exited 0 at 2026-11-22T04:28:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.88s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::the_bottom_right_piece_reaches_the_cells_own_true_far_edge ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T20:54:00Z'
+updated_date: '2026-11-22T21:10:00Z'
 labels:
   - size-2
   - changes-requested
@@ -401,6 +401,48 @@ ok      ui colours (0.1s)
 ```
 
 Built to the approved plan, with the one requirement added at plan-check: the remembered cursor is updated on every reporting path in changes_since (both Delta arms, both Full arms including the stale-caller one) via one line right after outcome is computed, covering all four uniformly. Rewrote the several-readers test to actually prove the stale-caller Full path updates last_reported_cursor, since checking only the Full's own cursor field (always fresh regardless) proved nothing - the revised test drives a third call, now current again, and checks it sees Unchanged rather than a spurious repeat; confirmed failing with the update scoped to is_current only, passing with the real fix. Checks: cargo test -p steg-kernel -p steg-app (336+100 passing), cargo fmt --check and cargo clippy --all-targets clean on both crates. Every control recorded failing-then-passing via asdlc record-check at the final head (5eb25574): the three cursor-only-Delta tests (position/visibility/shape, control: revert the Dirty::Clean guard), the two idle-stays-silent tests (control: drop the cursor-equality check), the stale-reader test (control: skip the update when not is_current), and the app-model test (control: gate the cursor assignment on rows being non-empty). just check recorded clean at the final head, once unrecorded to confirm and once recorded. CI green on PR 99 (12m21s), no retries needed. No sdk, server, or app production change needed beyond the one kernel field - checked every match on ScreenUpdate in the workspace. Live run (arrow keys and backspace, both erasing and non-erasing) still owed by the engineer before merge, named in the PR body.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-kernel changes_since_reports_a_cursor_only` exited 101 at 2026-11-22T21:10:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 2b6fec0fa18c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_kernel-9b3ea2512004541f)
+
+running 3 tests
+test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved ... FAILED
+test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed ... FAILED
+test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibility_changed ... FAILED
+
+failures:
+
+---- terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved stdout ----
+
+thread 'terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved' (81052233) panicked at crates/kernel/src/terminal.rs:1776:17:
+expected a cursor-only Delta, got Unchanged
+
+---- terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed stdout ----
+
+thread 'terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed' (81052234) panicked at crates/kernel/src/terminal.rs:1828:17:
+expected a cursor-only Delta, got Unchanged
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibility_changed stdout ----
+
+thread 'terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibility_changed' (81052235) panicked at crates/kernel/src/terminal.rs:1797:17:
+expected a cursor-only Delta, got Unchanged
+
+
+failures:
+    terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved
+    terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed
+    terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibility_changed
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 333 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T20:07:00Z'
+updated_date: '2026-11-22T20:51:00Z'
 labels:
   - size-3
   - changes-requested
@@ -699,6 +699,45 @@ Hold, decided by the engineer on 22 November 2026: steg PR 95 is not to be merge
 22 Nov 2026 (@bruk.o): steg PR 95 was merged by the engineer at e7dc7a1d before its review and before TASK-1.153 (arrow-key and backspace redraw), which the earlier hold note named as the condition. Review by bruk.r1 started after the merge, against the merge commit's diff; Important findings become follow-up work. The recording and stills are still owed.
 
 22 Nov 2026 (@bruk.o): review by bruk.r1 returned changes (3 Important, 2 nits) on the already-merged diff. The fixes (a test that each closed gate schedules no further frame; the pattern test reading the real foundations values; the stale was_in_focus flag) go on this task's branch after merging origin/main, as a new pull request, by bruk.w4 once TASK-1.153 is In Review - TASK-1.153 comes first because its bugs are live on main. The recording and stills are the engineer's to make, or come from the capture tool (TASK-1.151, TASK-1.155) when it exists.
+
+Check FAILED: `cargo test -p steg-app a_closed_gate_clears_any_pending_wake_for_every_named_case` exited 101 at 2026-11-22T20:51:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 37bfeb7af780 with uncommitted changes:
+
+```text
+warning: unused variable: `fade`
+   --> crates/app/src/terminal_element.rs:859:33
+    |
+859 | fn apply_fade_schedule_decision(fade: &Rc<RefCell<CursorFadeState>>, should_run: bool) {
+    |                                 ^^^^ help: if this is intentional, prefix it with an underscore: `_fade`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 1 warning (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::a_closed_gate_clears_any_pending_wake_for_every_named_case ... FAILED
+
+failures:
+
+---- terminal_element::tests::a_closed_gate_clears_any_pending_wake_for_every_named_case stdout ----
+
+thread 'terminal_element::tests::a_closed_gate_clears_any_pending_wake_for_every_named_case' (80831566) panicked at crates/app/src/terminal_element.rs:1540:13:
+a closed gate must clear any pending wake, case false (false, true, true, true, false, false)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::a_closed_gate_clears_any_pending_wake_for_every_named_case
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 101 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 176, 149 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

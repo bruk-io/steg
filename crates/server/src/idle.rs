@@ -311,7 +311,9 @@ mod tests {
         // First observation: eligible from construction (no clients, no
         // sessions) - `Wait::Until(idle_timeout)`.
         assert_eq!(
-            observed_rx.recv().expect("the first observation"),
+            observed_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("the first observation"),
             Wait::Until(idle_timeout)
         );
         // Send `Connected` now that the checker is confirmed blocked on
@@ -321,7 +323,9 @@ mod tests {
             .send(ConnectionEvent::Connected)
             .expect("the checker is still running");
         assert_eq!(
-            observed_rx.recv().expect("the second observation"),
+            observed_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("the second observation"),
             Wait::Forever
         );
         // Held here, genuinely idle-ineligible, for several multiples of
@@ -352,23 +356,31 @@ mod tests {
             .send(ConnectionEvent::Disconnected)
             .expect("the checker is still running");
         assert_eq!(
-            observed_rx.recv().expect("the third observation"),
+            observed_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("the third observation"),
             Wait::Until(idle_timeout)
         );
         // No further event: the bounded wait above times out, `wait()` is
         // called a fourth time and returns `Expired`, the checker calls
         // `stop.stop()` and returns.
         assert_eq!(
-            observed_rx.recv().expect("the fourth observation"),
+            observed_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("the fourth observation"),
             Wait::Expired
         );
         assert!(
-            observed_rx.recv().is_err(),
+            observed_rx.recv_timeout(Duration::from_secs(5)).is_err(),
             "exactly four observations for this script - a fifth would mean an \
              extra, unexplained wake-up"
         );
 
-        checker.join().expect("the checker thread should not panic");
+        crate::test_support::run_bounded(
+            "the checker thread to end",
+            Duration::from_secs(5),
+            move || checker.join().expect("the checker thread should not panic"),
+        );
     }
 
     /// TASK-1.98's own addition to this shared channel (section 5 of this
@@ -401,7 +413,9 @@ mod tests {
         });
 
         assert_eq!(
-            observed_rx.recv().expect("the first observation"),
+            observed_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("the first observation"),
             Wait::Until(idle_timeout)
         );
         signal_tx
@@ -418,7 +432,10 @@ mod tests {
         // shape) and never a fresh full period either (what `Connected`
         // then `Disconnected` produces, test 4's own shape) - a retry is
         // neither.
-        match observed_rx.recv().expect("the second observation") {
+        match observed_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("the second observation")
+        {
             Wait::Until(remaining) => assert!(
                 remaining < idle_timeout,
                 "the clock should have kept running, not reset: {remaining:?} should be \
@@ -430,6 +447,10 @@ mod tests {
         }
 
         drop(signal_tx);
-        checker.join().expect("the checker thread should not panic");
+        crate::test_support::run_bounded(
+            "the checker thread to end",
+            Duration::from_secs(5),
+            move || checker.join().expect("the checker thread should not panic"),
+        );
     }
 }

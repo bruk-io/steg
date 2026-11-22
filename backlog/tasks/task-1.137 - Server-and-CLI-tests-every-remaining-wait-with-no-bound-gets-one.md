@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T04:11:00Z'
+updated_date: '2026-11-22T04:12:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -97,12 +97,13 @@ fixable inside this task's own scope
 
 Fetched PR #91's own first (failed) CI attempt directly (`gh api
 repos/bruk-io/steg/actions/jobs/136994285808/logs`, run 44952822506 attempt 1,
-`just check` step). The failure is not a timeout: `assertion left == right failed:
-stderr: steg: the steg server accepted the connection and closed it before a hello
-arrived, twice`. That message is `ConnectError::ClosedBeforeHello` - meaning **both**
-`connect_handshaken` attempts in this run ended in EOF-before-hello: the hostile
-fixture's deliberate first closure, *and* the second attempt, against the real,
-freshly-autostarted server this test expects to succeed cleanly.
+`just check` step). The failure is not a timeout: the panic is `ConnectError::
+ClosedBeforeHello` - meaning **both** `connect_handshaken` attempts in this run ended
+in EOF-before-hello: the hostile fixture's deliberate first closure, *and* the second
+attempt, against the real, freshly-autostarted server this test expects to succeed
+cleanly. (The log itself is not reproduced here or anywhere else on the board, per this
+task's own safety rule; the run/job/attempt ids above are enough for anyone with CI
+access to pull it again.)
 
 Every wait on this path already has a bound with a named failure
 (`connect_timeout` 10s - `crates/steg/src/cli/connect.rs:32`; `arbitration_timeout` 5s
@@ -151,6 +152,12 @@ is dropped, or kept as a documented assertion that a non-"ended" caller would be
 contract violation this helper no longer supports - open question #3, recommended
 default: drop the parameter, since both call sites pass the same literal).
 
+This is not a blocking risk for the already-ended case: a no-timeout `pane.wait`
+against a pane that has already exited answers at once rather than blocking, through
+`register_wait`'s own step-5 immediate-reply branch - the same branch
+`timeout_zero_on_an_already_ended_pane_answers_ok_with_the_real_exit_code` already
+proves. The precondition call cannot hang waiting for an exit that already happened.
+
 ## 2. Inventory of remaining unbounded waits - tool-based, re-run against this head
 
 Command: `git grep -nE '\.join\(\)'` / `'\.recv\(\)'` (excluding `recv_timeout`) /
@@ -188,9 +195,9 @@ tests/{cli_exit_statuses,idle_stop,login_environment,server_start}.rs`); `test_s
 rs`'s/`support/mod.rs`'s own helper internals.
 
 **Category B - bare `.recv()`.** 14 sites in `tests/` (`idle_stop.rs:186`, `program.rs`
-x13 - re-counted exactly, not "about"), plus 10 in `src/`'s own unit-test modules:
-`idle.rs:314,324,355,362,366,404,421` (7, not the previous draft's "at least 3" -
-two separate `#[test]` fns each make several `observed_rx.recv()` calls),
+x13), plus 10 in `src/`'s own unit-test modules:
+`idle.rs:314,324,355,362,366,404,421` (7 - two separate `#[test]` fns each make
+several `observed_rx.recv()` calls),
 `listen.rs:726` (1, inside `a_finished_connection_is_removed_and_a_still_open_one_
 is_kept`'s own spawned-thread body - released by the test's own `drop(done_tx)` right
 before, but has no bound of its own today), `outbound.rs:784` (1, `StepWriter`'s own
@@ -289,10 +296,9 @@ own answer to "which entries go where," not left to the split itself to decide l
   Task B only ever touches `listen.rs`'s own `#[cfg(test)]` module, but a same-file
   edit is still a rebase conflict risk - sequenced last in Task B, re-checked against
   `main` after TASK-1.146 merges.
-- `crates/server/src/connection.rs`: TASK-1.51 (@bruk.w1) edits its production code;
-  Task B only touches... **nothing** here, on inspection - `connection.rs:350`'s own
-  `.join()` is production code, already excluded (section 2). No real overlap with
-  TASK-1.51's file list after all; corrected from this plan's own first-pass worry.
+- `crates/server/src/connection.rs`: TASK-1.51 (@bruk.w1) edits its production code.
+  `connection.rs:350`'s own `.join()` is production code, already excluded (section
+  2) - Task B has no file overlap with TASK-1.51's list.
 - TASK-1.51 also adds `crates/steg/tests/cli_terminal_context.rs`, a file this
   inventory cannot have covered (it does not exist yet at this head) - named so Task
   B's own notes don't claim completeness it cannot have.
@@ -331,7 +337,13 @@ own answer to "which entries go where," not left to the split itself to decide l
 4. `Barrier::wait()`: leave the four sites as a named exception (recommended default,
    carried from the previous draft), or replace with a bounded channel rendezvous?
 5. Confirm the two-task split in section 4, and its file-ownership assignment, before
-   either is approved.
+   either is approved. This task's own AC #4 ("the files TASK-1.88 and TASK-1.90 are
+   editing are done last") is satisfied by construction (section 0: both merged,
+   nothing left to sequence around) and is now vacuous as written - it needs either
+   restating against TASK-1.146/1.51 (section 5) or striking, and neither task drafted
+   from this plan yet has an AC covering the `shutdown.rs` lock, the `pane_wait.rs`
+   rewrite, or the `cli_connection_arbitration.rs` write-up - the engineer's edit when
+   drafting Task A and Task B's own acceptance criteria, not this plan's to write.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

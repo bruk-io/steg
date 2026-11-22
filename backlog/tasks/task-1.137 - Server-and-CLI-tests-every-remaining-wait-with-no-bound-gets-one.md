@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T04:16:00Z'
+updated_date: '2026-11-22T04:26:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -34,356 +34,298 @@ Split from TASK-1.123 by its plan on 2026-11-18. TASK-1.113's sweep counted abou
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-## 0. What changed since this plan's last draft - replaces it, does not extend it
+## 0. Scope - this task is Task B only; DRAFT-1 and DRAFT-2 hold the rest
 
-The plan previously on this task (sections 0/1/1a/1b there) planned the login_env
-grandchild timeout and the attach.rs flood-guard widening as work still to do. Both
-are merged: TASK-1.143 ("the login_env grandchild and attach tests stop failing under
-sibling builds", PR #88) raised login_env.rs's functional timeout and widened
-attach.rs's own flood guard, exactly along the lines that plan proposed. TASK-1.140
-(pane wait) is also merged (PR #92), so the AC #4 sequencing question that plan carried
-forward is answered: nothing from TASK-1.88/1.90 or TASK-1.140 is still live to sequence
-around. The live file-level overlaps today are TASK-1.146 (@bruk.w2: `runtime/start.rs`,
-`listen.rs`, `env.rs`, likely `crates/steg/tests/login_environment.rs`) and TASK-1.51
-(@bruk.w1: `connection.rs`, `dispatch/mod.rs`, `cli/connect.rs`, new
-`cli_terminal_context.rs`) - see section 5.
+Per the engineer's split: this task keeps only the mechanical join/recv bounding
+sweep, the two named follow-ups (`attach.rs`'s `REPLY_DEADLINE` constant,
+`pane_send.rs`'s `ScopedTempDir` move), and AC #3's poll/sleep listing.
 
-This plan covers only what is left: the file-by-file bounding sweep (AC #1/#2/#3) plus
-the three sightings folded in since (shutdown.rs, cli_connection_arbitration.rs,
-pane_wait.rs).
+- **DRAFT-1** owns `shutdown.rs`'s fd-count serialisation (the new lock, taken by all
+  seven tests) and `pane_wait.rs`'s `wait_for_program_status` rewrite (poll ->
+  `pane.wait`). This task does **not** touch either of those two specific mechanisms.
+- **DRAFT-2** owns the `cli_connection_arbitration.rs` `ClosedBeforeHello`
+  investigation (H1/H2) and any fix that comes out of it. This task makes no change to
+  that file and draws no conclusion about it.
 
-## 1. The three sightings, diagnosed separately - they are not the same kind of problem
+**The boundary inside `shutdown.rs` and `pane_wait.rs`, by line, so DRAFT-1's worker
+can see exactly where this task stops:** this task still wraps the two files' own
+*ordinary* bare `.join()` sites - the ones that are not the sighted fix itself:
+- `shutdown.rs:208,438,439,492,553` (5 sites - see section 1 for why this is 5, not
+  the 7 originally counted) stay in this task. `shutdown.rs:124,131` (the file's own
+  existing `join_within` helper) are not touched by anyone - already bounded, see
+  section 1.
+- `pane_wait.rs:82` (`stop_server`'s own bare `handle.join()`) stays in this task -
+  it is unrelated to `wait_for_program_status`, which DRAFT-1 owns.
 
-### 1a. `shutdown.rs::many_short_connections_do_not_grow_the_tracked_set` - root cause
-established; not a missing bound
-
-Every wait in this test already has one: six `recv_timeout(5s)` calls, a `join_within`
-with its own 5s bound. The failing assertion (`after < before + 10`) counts this
-*whole process's* open file descriptors (`open_fd_count`, `/dev/fd` entries) before and
-after 200 connections. `shutdown.rs` has seven `#[test]` fns in one binary
-(confirmed: `grep -n '#\[test\]' crates/server/tests/shutdown.rs`), and nothing in the
-file serialises them - `cargo test -p steg-server` runs a binary's own tests on
-multiple threads by default (confirmed: no `--test-threads=1` anywhere in the
-justfile's `cargo test -p steg-server` invocations). Any of the other six tests
-opening or closing a socket, pipe or pty concurrently while this one measures `before`
-or `after` can move the count past the +10 margin - a false failure, not a leak. This
-is why it failed once in CI on an unrelated one-line markdown PR (#89): nothing about
-that diff could have changed `run`'s own tracked-set logic.
-
-**Fix, reusing `attach.rs`'s own established pattern** (`FLOOD_TEST_LOCK`, a file-scoped
-`static Mutex<()>` every test that needs exclusivity takes before running): add
-`static PROCESS_FD_COUNT_LOCK: Mutex<()> = Mutex::new(());` to `shutdown.rs` and have
-**all seven** tests in the file take it at the top of their body, not only the
-fd-counting one - a guard only one test takes does not stop the other six from running
-concurrently with it, which is the whole mechanism this bug depends on. This serialises
-the file; the tradeoff (this file's own wall-clock cost in `just check`, currently
-parallel, becomes sequential) is the engineer's call (open question #1) against the
-alternative of changing what the test measures (e.g., counting only fds this test's
-own connections opened, by diffing the socket's own accepted-connection count rather
-than the whole process's fd table - a bigger change this plan does not propose without
-being asked for it).
-
-**Forceable control** (not load-dependent): in a scratch, uncommitted copy, add a
-sibling test in the same file that deliberately opens and holds open ~20 file
-descriptors (e.g. a `Vec<File>` from repeatedly opening `/dev/null`) for the duration of
-`many_short_connections_do_not_grow_the_tracked_set`'s own measurement window, with no
-lock. Without the new lock: fails deterministically (recorded: N/N failures). With the
-lock added and the sibling test also taking it: passes (recorded: N/N passes). Revert
-the scratch test before building the real fix.
-
-### 1b. `cli_connection_arbitration.rs::a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding`
-- root cause narrowed to two candidates by reading the code and two independent CI
-logs; not a missing bound either way; which of the two actually occurred is not
-established, said plainly
-
-Two sightings now, both read directly from their own CI logs rather than guessed:
-PR #91's own first attempt (run 44952822506, attempt 1, `test (steg)` step) and main's
-own CI at commit 4ccc8344 (run 44982930304, attempt 1, `test (steg, fixtures)` step -
-a different build variant, so this is not specific to one feature combination). Both
-panic identically at this test's own line 101 on `ConnectError::ClosedBeforeHello`
-(exit code 4 - every `ConnectError` variant maps to that one bucket,
-`crates/steg/src/cli/exit.rs`, so the exit code alone does not distinguish variants;
-the panic's own message does, and it is the same message both times). Neither log nor
-the test's own output records whether a real server process was ever spawned - that
-detail is not instrumented anywhere this reading can see, so it is not available
-without changing the fixture or the test.
-
-**Two candidates, read from the code, not assumed:**
-- **(H1) The retry re-meets the same hostile listener** - never reaches autostart at
-  all. `spawn_hostile_listener` calls `accept()` exactly once, then `drop(stream)`,
-  then (no intervening I/O) `drop(listener)`. A Unix domain listening socket keeps
-  accepting connections into its own kernel backlog for as long as the listening fd
-  stays open, independent of whether user code calls `accept()` again - ordinary POSIX
-  socket behaviour, not special to this codebase. If the client's *second* `connect()`
-  (the retry) lands in that backlog in the narrow window between `drop(stream)` and
-  `drop(listener)` - two back-to-back drops with no syscall between them, but still
-  non-zero wall-clock time, and racing against the *client's own* second `connect()`
-  syscall, which under CI's own concurrent-build contention can itself be delayed by
-  scheduling - the OS discards that queued connection once the listener closes, and the
-  client sees exactly the same EOF-before-hello its first attempt saw. Under H1,
-  `connect()`'s autostart branch (`command.spawn()`) never runs at all - the second
-  `UnixStream::connect(&path)` already succeeded at the kernel level, so `connect()`
-  returns `Ok(stream)` straight away, before ever checking `options.autostart`.
-- **(H2) A real server is spawned and its own first accepted connection also closes
-  before a hello** - the mechanism `connect_handshaken`'s own doc names
-  (TASK-1.77: the accept loop dropping a connection it took "in the instant it sees a
-  stop flag"), but nothing in this freshly-spawned, nothing-asking-it-to-stop server
-  obviously supplies that trigger; the most likely structural candidate reading finds
-  is a losing side of R99's own arbitration accepting one connection before it notices
-  it lost and shuts down, which is not confirmed by reading alone.
-
-**H1 is the better-supported reading, not merely the first one found**: it needs no
-new, unconfirmed production-code race (H2's own candidate mechanism is speculative
-even by its own account above), it rests on ordinary, well-documented socket backlog
-semantics rather than a guess, and it is consistent with both sightings landing under
-heavy concurrent-build CI load with no other symptom anywhere else in the suite of a
-freshly-spawned on-demand server itself failing its first handshake. It is still not
-proven: confirming it over H2 would need either strace/packet-level evidence from a
-failing run, or instrumenting the fixture to record whether `connect()`'s own
-`command.spawn()` branch ever ran (e.g. a counter file the test checks after a
-failure) - both are new investigation, beyond what reading the code and two CI logs
-can settle, and beyond this bounded-wait sweep's own scope either way.
-
-Every wait on this path already has a bound with a named failure (`connect_timeout`
-10s - `crates/steg/src/cli/connect.rs:32`; `arbitration_timeout` 5s with a 20ms poll -
-`crates/server/src/arbiter.rs`; the hostile listener's own `ready.recv_timeout(2s)`),
-so this is outside AC #1/#2 as written regardless of which hypothesis is correct -
-nothing here is unbounded or unnamed.
-
-**No code change proposed in this sweep.** If H1 is confirmed, the fix is in the test
-fixture (e.g. have the hostile thread drain and reject, non-blocking, any connection
-still queued before it drops the listener - closes this specific window, though the
-fixture's reliance on an unconfigurable std backlog stays inherently racy under
-adversarial scheduling), not in production code; if H2, it is a production
-retry-semantics question. Recommending a separate follow-up task to run the
-instrumented reproduction above and settle which one before anyone writes that fix,
-rather than guessing at a fix for the wrong hypothesis, is the engineer's call (open
-question #2) - not decided unilaterally in a test-bounding sweep.
-
-### 1c. `pane_wait.rs::wait_for_program_status` - the review nit's own suggestion does
-not fit as stated; resolved by reading, not by picking
-
-The nit says wait on "the pane.exited event" instead of polling `pane.show`. Two
-candidate events exist and neither is free to use here without extra protocol setup
-this file's own tests don't do:
-- `ScreenUpdate::Ended` (commit f7887880): delivered only on a pane's own **attach**
-  stream - this helper's connection never calls `pane.attach`.
-- `TreeEvent::PaneExited` (`tree_event.rs`): delivered only to a client **subscribed**
-  via `event.watch` - this helper's connection never subscribes either.
-
-The actual fix that needs neither: this file's own `pane.wait --for exit` (with no
-`timeout`) already blocks until the real exit, with no attach or subscription
-required - proven by every other test in this same file. `wait_for_program_status`'s
-only two call sites (lines 273, 382) both wait for `"ended"` before issuing a
-`--timeout 0` or no-timeout `pane.wait` call as the thing under test; replacing the
-poll with a blocking `pane.wait` call for the *precondition* is the same mechanism the
-tests already exercise, not a new one. Concretely: replace the `loop { pane.show;
-sleep(20ms) }` body with one `call_and_read_reply(..., "pane.wait",
-wait_params(pane, None))`, asserting `Response::Ok`, and keep the function's name/
-signature (callers pass `"ended"` today; the `expected` parameter becomes unused and
-is dropped, or kept as a documented assertion that a non-"ended" caller would be a
-contract violation this helper no longer supports - open question #3, recommended
-default: drop the parameter, since both call sites pass the same literal).
-
-This is not a blocking risk for the already-ended case: a no-timeout `pane.wait`
-against a pane that has already exited answers at once rather than blocking, through
-`register_wait`'s own step-5 immediate-reply branch - the same branch
-`timeout_zero_on_an_already_ended_pane_answers_ok_with_the_real_exit_code` already
-proves. The precondition call cannot hang waiting for an exit that already happened.
-
-## 2. Inventory of remaining unbounded waits - tool-based, re-run against this head
+## 1. Inventory - tool-derived, re-verified per site against its own context, not just
+   counted by pattern match
 
 Command: `git grep -nE '\.join\(\)'` / `'\.recv\(\)'` (excluding `recv_timeout`) /
-`'Barrier'`, each scoped to `crates/server/tests/*.rs`, `crates/steg/tests/*.rs`,
-`crates/sdk/src/*.rs` and `crates/sdk/src/**/*.rs`, and separately to
+`'Barrier'`, scoped to `crates/server/tests/*.rs`, `crates/steg/tests/*.rs`,
+`crates/sdk/src/*.rs`/`crates/sdk/src/**/*.rs`, and separately to
 `crates/server/src/*.rs`/`crates/server/src/**/*.rs`/`crates/steg/src/*.rs`/
-`crates/steg/src/**/*.rs`, with every `src/` hit read in place to split production
-code from its own `#[cfg(test)] mod tests`. `run_bounded`/`wait_child_bounded` call
-sites found the same way, to correct the previous draft's "zero usage elsewhere"
-claim: `run_bounded` is already called at `crates/server/src/outbound.rs:651` and in
-`crates/steg/tests/cli_output_formats.rs` (from TASK-1.120, TASK-1.113's own original
-sweep) - not a new finding, just a correction; it does not change which sites below
-are still bare.
+`crates/steg/src/**/*.rs`. Every hit was then read in place - not just counted - to
+settle two things a pattern match cannot: whether it sits inside a `#[cfg(test)]`
+module at all (several files have more than one separate `mod tests`/`mod
+some_other_tests` block, so a line number alone does not say), and whether it is
+genuinely bare or already wrapped by a file-local bounded-wait helper that duplicates
+`run_bounded`'s own shape without calling it by name. This reading corrected the
+previous draft's counts in both directions - fewer real fixes in several files, and
+two real fixes previously miscounted as production code - detailed below so the
+correction itself is checkable, not asserted.
 
-**Category A - bare `.join()`.** 37 sites, confirmed by file
-(`accept_backoff.rs`, `attach.rs`, `events.rs` x2, `accept_backoff_attempt.rs`,
-`handshake.rs` x2, `idle_stop.rs` x4, `openpty_race.rs`, `pane_capture.rs`,
-`pane_send.rs`, `pane_wait.rs`, `real_pty.rs`, `routing.rs` x4, `runtime.rs` x5,
-`server_stop.rs` x4, `shutdown.rs` x7, `server_start.rs`) in `tests/`, plus 14 in
-`src/`'s own unit-test modules, re-derived against this head (not copied from the
-previous draft's stale line numbers): `idle.rs:371,433` (2), `outbound.rs:
-724,767,855,923,1038,1047` (6), `pane.rs:3400` (1), `listen.rs:742` (1), `runtime/
-events.rs:519,573,630,649` (4). Production-code `.join()` left untouched, confirmed by
-reading each in place: `connection.rs:350`, `listen.rs:258/548/572`, `pane.rs:
-258/1776/2622`, `runtime/close.rs:381`, `runtime/mod.rs:371` - none inside a
-`#[cfg(test)]` boundary.
+**Category A - bare `.join()`, real fixes needed.**
+
+*An already-bounded idiom this reading found duplicated across four files - not a new
+mechanism, the same shape `run_bounded` and `support/mod.rs`'s own helpers already
+use (a watcher thread does the real join; the caller only ever blocks on a channel
+`recv_timeout`), just hand-rolled per file rather than calling the shared helper by
+name. The exemption rests on one property common to all four, not on the four being
+identical in shape: the bound is the surrounding `recv_timeout`, whatever its own
+timeout path does next. Two of the four (`idle_stop.rs`, `shutdown.rs`) share the
+exact same two-join shape as `server_stop.rs`'s own `join_within` - the outer
+`waiter.join()` is unreachable on the timeout path at all, since the `recv_timeout`'s
+own `unwrap_or_else` panics first. `accept_backoff.rs`'s own `join_with_bound` is a
+different shape - it returns `None` on timeout rather than panicking, and its own doc
+says the watcher thread "is never joined" - but the exempting property still holds:
+the real join is still bounded by the same `recv_timeout`, just handled differently
+once that bound is crossed. Each already names what it waited for
+(`"run should have returned within {bound:?} of being stopped"`,
+`"the waiter thread should not panic"`). These are not Category A fixes - wrapping an
+already-bounded helper's own internals in a second layer of `run_bounded` would be
+circular, the same reasoning that already exempts `support/mod.rs`'s own helpers:*
+- `idle_stop.rs`'s own `join_within` (two separate call sites of the idiom in this
+  file: lines 73-82 and 341-380) - **all 4 of this file's own `.join()` sites
+  (75,82,342,380) are this helper's internals, not fixes.** (The previous draft
+  counted this file as 4 real sites; it is 0.)
+- `server_stop.rs`'s own `join_within` (lines 164-173) - 2 of this file's own 4
+  `.join()` sites (166,173) are the helper's internals; **212 and 280 are genuinely
+  bare** (`second_handle.join()`, `handle.join()` with no bound) - 2 real fixes, not 4.
+- `shutdown.rs`'s own `join_within` (lines 122-131) - 2 of this file's own 7
+  `.join()` sites (124,131) are the helper's internals; **208, 438, 439, 492, 553 are
+  genuinely bare** - 5 real fixes, not 7 (these 5 stay in this task per section 0).
+- `accept_backoff.rs`'s own `join_with_bound` (lines 120-141, explicitly documented as
+  the same shape) - its one `.join()` site (133) is the helper's own internal, never
+  the fix. (The previous draft counted this file as 1 real site; it is 0.)
+
+*One more correction in the other direction - already fixed, miscounted as needing
+one:*
+- `openpty_race.rs:347`'s `.join()` is already inside a `run_bounded(...)` call
+  (confirmed by reading the surrounding closure) - this file was one of the two
+  TASK-1.113 already finished directly; this line should never have been in the
+  count. (The previous draft counted it as 1 real site; it is 0.)
+
+*Two sites the previous draft placed in the production-code exclusion list that are
+actually test code, genuinely bare, and real fixes - found by checking each file's
+own `#[cfg(test)]` module boundaries precisely rather than inheriting the line numbers:*
+- `pane.rs:2622` - inside `mod attach_tests` (starts line 2515), a test double's own
+  `finish(self)` method: `let _ = self.writer.join();`, no bound.
+- `runtime/mod.rs:371` - inside `mod tests` (starts line 342),
+  `a_panic_while_holding_the_lock_does_not_poison_a_later_call`'s own
+  `std::thread::spawn(...).join()`, no bound. One shape difference from every other
+  site in this list: this `.join()`'s own `Result` is bound to a name and asserted on
+  next (the test's whole point is checking that the spawned thread *did* panic), so
+  the mechanical `run_bounded("...", bound, move || handle.join().expect(...))`
+  rewrite does not apply as-is - `run_bounded` returns the body's value, so this site
+  needs `run_bounded("...", bound, move || handle.join())` with the existing assertion
+  then run against what `run_bounded` returns, not a plain `.expect()` inside the
+  closure.
+
+**Real Category A fixes, by file, corrected:**
+`tests/`: `attach.rs` (1), `events.rs` (2), `handshake.rs` (2), `pane_capture.rs` (1),
+`pane_send.rs` (1), `pane_wait.rs` (1 - stays here, section 0), `real_pty.rs` (1),
+`routing.rs` (4), `runtime.rs` (5), `server_stop.rs` (2), `server_start.rs` (1),
+`shutdown.rs` (5 - stays here, section 0) = **26** (not the previous draft's 37).
+`src/` unit-test modules, each re-verified against its own file's `#[cfg(test)]`
+boundaries: `idle.rs:371,433` (2), `outbound.rs:724,767,855,923,1038,1047` (6),
+`pane.rs:3400,2622` (2, not 1 - the correction above), `listen.rs:742` (1),
+`runtime/events.rs:519,573,630,649` (4), `runtime/mod.rs:371` (1, not 0 - the
+correction above) = **16** (not the previous draft's 14).
+**Total: 42 real Category A fixes** (26 + 16), down from the previous draft's
+51-site estimate once the already-bounded helpers are excluded and the two
+miscounted production sites are added back in.
+
 Fix: `run_bounded("<what it is joining>", <bound>, move || handle.join().expect(...))`,
 the file's own existing liveness bound where it has one (15s/20s), else the shared
-default. `shutdown.rs`'s own 7 and `pane_wait.rs`'s own 1 are fixed as part of section
-1's own edits to those files (same-file ownership - see section 4), not duplicated
-here.
+default.
+
+Production `.join()` confirmed excluded by checking each file's own (possibly
+multiple) `#[cfg(test)]` module locations against the target line, not inherited:
+`connection.rs:350` (before its own only `#[cfg(test)]` at line 992),
+`listen.rs:258/548/572` (before its own only `#[cfg(test)]` at line 633),
+`pane.rs:258` (before its first `#[cfg(test)]` at line 1742),
+`runtime/close.rs:381` (before its own only `#[cfg(test)]` at line 441).
+Also exempt, confirmed test code but already bounded via a local helper the same way
+as above: `pane.rs:1776` (`join_within`'s own internal, inside `mod tests` at 1742).
+
 Exceptions left alone, as before: `Drop`-impl backstop reaps right after an explicit
-`kill()` (race.rs's/openpty_race.rs's `ReapOnDrop`; the `Drop` impls in `crates/steg/
-tests/{cli_exit_statuses,idle_stop,login_environment,server_start}.rs`); `test_support.
-rs`'s/`support/mod.rs`'s own helper internals.
+`kill()` (`race.rs`'s/`openpty_race.rs`'s `ReapOnDrop`; the `Drop` impls in
+`crates/steg/tests/{cli_exit_statuses,idle_stop,login_environment,server_start}.rs`);
+`test_support.rs`'s/`support/mod.rs`'s own helper internals.
 
-**Category B - bare `.recv()`.** 14 sites in `tests/` (`idle_stop.rs:186`, `program.rs`
-x13), plus 10 in `src/`'s own unit-test modules:
-`idle.rs:314,324,355,362,366,404,421` (7 - two separate `#[test]` fns each make
-several `observed_rx.recv()` calls),
-`listen.rs:726` (1, inside `a_finished_connection_is_removed_and_a_still_open_one_
-is_kept`'s own spawned-thread body - released by the test's own `drop(done_tx)` right
-before, but has no bound of its own today), `outbound.rs:784` (1, `StepWriter`'s own
-test double), `pane.rs:2483` (1, a spawned-thread test helper). Production-code bare
-`.recv()` in `idle.rs:129`, `listen.rs` and `pane.rs`'s own command/reply channels left
-untouched (not test code at all). Zero bare `.recv()` in `crates/sdk/src/` (checked,
-in scope per the brief, nothing found).
-Fix: `.recv_timeout(<bound>).expect("<what it waited for>")`, or `run_bounded` when the
-receive is a helper's whole body.
+One inventory note, not a fix: `crates/server/tests/fixtures/
+accept_backoff_attempt.rs` is a fixture *binary*, a separate glob this task's own
+`crates/server/tests/*.rs` scope does not reach. It has one bare `.join()` (line 197),
+already documented safe in its own comment ("`reporter`'s own loop ends on its own
+once `run` drops every clone of `events_tx`") - out of this task's own file list
+either way.
 
-**Category C - `Barrier::wait()`.** Confirmed still 4 sites: `events.rs:907,916`,
-`real_pty.rs:463`, `server_start.rs:720`. Recommended default (open question #4,
-carried unchanged from the previous draft): leave as a named exception - every
-participant is already a running thread at the rendezvous point by construction, so a
-stall here surfaces as the test's own outer bound tripping, not a separately unbounded
-wait.
+**Category B - bare `.recv()`.** Re-verified the same way (every `src/` hit checked
+against its own file's `#[cfg(test)]` boundary; no local already-bounded-recv helper
+found anywhere, unlike Category A). Counts unchanged from the previous draft: 14 in
+`tests/` (`idle_stop.rs:186`, `program.rs` x13), 10 in `src/` (`idle.rs:
+314,324,355,362,366,404,421` - 7, two separate `#[test]` fns; `listen.rs:726` - 1,
+inside a spawned-thread test body; `outbound.rs:784` - 1, a test double's own
+`StepWriter`; `pane.rs:2483` - 1, inside `mod capture_tests`, started at 2315).
+Production bare `.recv()` confirmed excluded the same way: `idle.rs:129` (before its
+own only `#[cfg(test)]` at 156), `listen.rs`'s and `pane.rs`'s own command/reply
+channels (all well before their own first `#[cfg(test)]` marker). Zero bare `.recv()`
+in `crates/sdk/src/`.
+Fix: `.recv_timeout(<bound>).expect("<what it waited for>")`, or `run_bounded` when
+the receive is a helper's whole body.
 
-**Category D - `Child::wait()` outside the shared helpers.** One real exception,
-confirmed unchanged: `race.rs:75`'s `read_outcome_line` does a bare
-`reader.read_line(&mut line)` on the fixture's stdout with no reader-thread/
-`recv_timeout` wrapper, unlike every other such read in this sweep. Fix the same way
+**Category C - `Barrier::wait()`.** Unchanged: 4 sites, `events.rs:907,916`,
+`real_pty.rs:463`, `server_start.rs:720`. Recommended default (open question #1,
+carried forward): leave as a named exception - every participant is already a
+running thread at the rendezvous point by construction, so a stall here surfaces as
+the test's own outer bound tripping, not a separately unbounded wait.
+
+**Category D - `Child::wait()` outside the shared helpers.** Unchanged: one real
+exception, `race.rs:75`'s `read_outcome_line`, a bare `reader.read_line(&mut line)`
+on the fixture's stdout with no reader-thread/`recv_timeout` wrapper. Fix the same way
 `server_start.rs:236`'s own `read_one_line_bounded` already does it. `real_pty.rs`'s
-own `wait_bounded` (line 500) and the `Drop`-impl backstop reaps are left alone - their
-own failure, where they have one, already names what they waited for.
+own `wait_bounded` (line 500) and the `Drop`-impl backstop reaps are left alone.
 
-**Category E - reader-thread-wrapped reads.** Unchanged from the previous draft:
-checked every `read_line`/`read_to_end` call site on a child's stdout; all but
-`race.rs:75` already go through a bound (`read_one_line_bounded`,
-`assert_stream_stays_silent`, or an inline equivalent).
+**Category E - reader-thread-wrapped reads.** Unchanged: every other `read_line`/
+`read_to_end` call site on a child's stdout already goes through a bound
+(`read_one_line_bounded`, `assert_stream_stays_silent`, or an inline equivalent).
 
 **AC #3's own listing - every remaining poll/sleep, named with its reason** (not a
-fix; the notes record this, as the file-by-file edits land):
+fix; recorded in the notes as the file-by-file edits land):
 - `race.rs::wait_until_accepting` and its file-local equivalents elsewhere - the
-  established cross-process-liveness-poll exception (TASK-1.123's own precedent):
-  no in-process event exists for "has this other process's socket started accepting
-  yet."
-- `pane_wait.rs::start_server`'s own 5ms poll waiting for the socket to accept - same
-  reason, unaffected by section 1c's fix (that fix only touches
-  `wait_for_program_status`).
+  established cross-process-liveness-poll exception (TASK-1.123's own precedent): no
+  in-process event exists for "has this other process's socket started accepting yet."
 - `crates/sdk/src/local_socket.rs:193`'s 20ms poll inside `connect`'s own autostart
-  wait - production code within the sdk's one permitted I/O exception (R103); not a
-  test file, out of scope for AC #3's test-only wording, named here only so the notes
-  don't look like they missed it.
-- `crates/sdk/src/local_socket.rs:456`'s 30s sleep and `:586`'s 100ms sleep, both in
-  the same `fake-server-for-tests`/`CooperativeHeldOpen` fixture: already named by
-  TASK-1.123's own notes as its own separate, size-1 follow-up - listed here per AC #3's
-  own wording, not fixed in this sweep.
-- Every other `loop {}` in both crates' test files (87 by the previous draft's own
-  count, not re-verified site-by-site here) already carries an `Instant::now() <
-  deadline` assertion - the build phase's own file-by-file pass must still confirm this
-  holds for each one as it lands, not claimed complete by this plan.
+  wait - production code within the sdk's one permitted I/O exception (R103), named
+  here only so the notes don't look like they missed it.
+- `crates/sdk/src/local_socket.rs:456`'s 30s sleep and `:586`'s 100ms sleep, in the
+  `fake-server-for-tests`/`CooperativeHeldOpen` fixture - already named by TASK-1.123's
+  own notes as its own separate, size-1 follow-up; listed here, not fixed in this sweep.
+- `pane_wait.rs::start_server`'s own 5ms poll waiting for the socket to accept - same
+  cross-process-liveness reason; unaffected by DRAFT-1's own fix, which only touches
+  `wait_for_program_status`.
+- Every other `loop {}` in both crates' test files already carries an
+  `Instant::now() < deadline` assertion - the build phase's own file-by-file pass must
+  still confirm this holds for each one as it lands, not claimed complete by this plan.
 
-## 3. Named follow-ups folded into this sweep
+## 2. Named follow-ups folded into this sweep
 
 - `attach.rs:133,251,342`: extract one named constant (e.g. `const REPLY_DEADLINE:
   Duration = DEFAULT_READ_TIMEOUT.saturating_add(Duration::from_secs(5));`), used by
-  all three helpers - confirmed still duplicated three times, unchanged since TASK-1.123.
+  all three helpers - confirmed still duplicated three times. (Checked: each one's own
+  failure message already names what it waited for - `"timed out waiting for a reply
+  to {method}"` - so this is a dedup, not an AC #2 fix.)
 - `pane_send.rs:54-56`: move its own `AtomicU64` counter/`std::process::id()` socket
   helper onto `ScopedTempDir`/`scoped_socket_path` (`support/mod.rs:325,386`), the way
   the other nine `crates/server/tests/*.rs` files already were.
 
-## 4. Split - by file ownership, not by category
+## 3. Criterion 4, restated - every file named in it is merged; the files to sequence
+   around now are different ones
 
-Two tasks, each owning a disjoint file list (no file edited by both):
+TASK-1.88, TASK-1.90 and TASK-1.140 (all three originally named or implied by this
+criterion) are merged - nothing from any of them is still live to sequence around.
+Read criterion 4 as: **the files other in-flight tasks are editing are done last and
+re-checked against `main` first.** Today that is:
+- `crates/server/src/listen.rs` and `crates/steg/tests/login_environment.rs`
+  (TASK-1.146, @bruk.w2) - this task's own touch on `listen.rs` is its `#[cfg(test)]`
+  module only (one `.join()` fix, line 742), but a same-file edit is still a rebase
+  conflict risk.
+- Whatever TASK-1.51 (@bruk.w1) touches (`connection.rs`, `dispatch/mod.rs`,
+  `cli/connect.rs`, new `cli_terminal_context.rs`) - checked and found **no actual
+  file overlap**: `connection.rs`'s only `.join()` (line 350) is production code,
+  already excluded above, so this task makes no edit to any file TASK-1.51 is
+  editing. Named here so the notes don't claim more completeness than they have -
+  TASK-1.51's own new `cli_terminal_context.rs` is a file this inventory cannot have
+  covered, since it does not exist yet at this head.
 
-**Task A - the three sightings** (size-2): `crates/server/tests/shutdown.rs` (the new
-`PROCESS_FD_COUNT_LOCK`, taken by all seven tests, plus that file's own 7 Category-A
-`.join()` sites), `crates/server/tests/pane_wait.rs` (the `pane.wait`-based rewrite of
-`wait_for_program_status`, plus that file's own 1 Category-A `.join()` site); the
-`cli_connection_arbitration.rs` finding written up in the task's notes with no code
-change, plus a recommendation on whether to open a follow-up task for the real
-server's own EOF-before-hello path (open question #2). Proof: section 1a's forced
-control (scratch sibling test, N/N failing then N/N passing, reverted before the real
-fix); `cargo test -p steg-server --test shutdown` and `--test pane_wait`; a full `just
-check` before finishing.
+Sequencing: this task's own `listen.rs` and `src/` unit-test-module edits go last,
+rebased onto `main` once TASK-1.146 merges, re-checked with `just check` before this
+task finishes.
 
-**Task B - the mechanical sweep** (size-3, matching TASK-1.123's own precedent for a
-comparable call-site count): every other file in categories A/B/D/E above, the two
-named follow-ups (section 3), the AC #3 listing in the notes (which may reference
-`shutdown.rs`/`pane_wait.rs`'s own remaining poll sites without editing those files -
-a listing is not a competing edit). Order within Task B: Category A and B fixes first,
-file by file, smallest first; the two follow-ups next; the `src/` unit-test modules
-after (a different compilation unit, does not block on the integration tests);
-`listen.rs`'s and `connection.rs`'s own unit-test-module edits and `crates/steg/
-tests/login_environment.rs` last of all, rebased onto `main` once TASK-1.146 and
-TASK-1.51 merge (section 5) - the same ordering this task's own AC #4 already asked
-for against tasks now merged.
+## 4. Criterion 2 (already-bounded waits), answered with counts
 
-Split confirmation is open question #5; the file-ownership rule above is this plan's
-own answer to "which entries go where," not left to the split itself to decide later.
+**The answer, in three lines: zero already-bounded waits need changing; roughly 25
+already-bounded call sites stay exactly as they are, each already naming what it
+waited for; recommended default is no criterion-2 changes in this task.** The
+counts and the sites behind that answer, for the reviewer to check against the same
+file list section 1 built, follow below.
 
-## 5. Collisions
+**Already-bounded waits this plan would leave alone, with counts** (all of them,
+confirmed): the four file-local bounded-join helpers found in section 1
+(`idle_stop.rs`'s own `join_within` - 4 internal call sites; `server_stop.rs`'s own
+`join_within` - 2; `shutdown.rs`'s own `join_within` - 2; `accept_backoff.rs`'s own
+`join_with_bound` - 1; `pane.rs`'s own test-module `join_within` - 1 =
+**10 call sites**), each with its own named failure (`"run should have returned
+within {bound:?} of being stopped"` or equivalent); `openpty_race.rs`'s own already-
+`run_bounded`-wrapped join (1); `real_pty.rs`'s own `wait_bounded` (1) and the
+`Drop`-impl backstop reaps (6, named in section 1); `attach.rs`'s own `REPLY_DEADLINE`
+helpers (3 call sites, already named `"timed out waiting for a reply to {method}"` -
+section 2's fix is a dedup of the constant, not a message fix); every Category E
+reader-thread-wrapped read (already named, per file).
 
-- `crates/server/src/listen.rs` and `crates/steg/tests/login_environment.rs`: TASK-1.146
-  (@bruk.w2) edits production code in the first and is likely to touch the second;
-  Task B only ever touches `listen.rs`'s own `#[cfg(test)]` module, but a same-file
-  edit is still a rebase conflict risk - sequenced last in Task B, re-checked against
-  `main` after TASK-1.146 merges.
-- `crates/server/src/connection.rs`: TASK-1.51 (@bruk.w1) edits its production code.
-  `connection.rs:350`'s own `.join()` is production code, already excluded (section
-  2) - Task B has no file overlap with TASK-1.51's list.
-- TASK-1.51 also adds `crates/steg/tests/cli_terminal_context.rs`, a file this
-  inventory cannot have covered (it does not exist yet at this head) - named so Task
-  B's own notes don't claim completeness it cannot have.
+**Already-bounded waits this plan would change, with counts: zero.** Every
+already-bounded wait this task's own file list reaches already names what it waited
+for in its own failure message - none triggers criterion 2's own "unless" clause.
 
-## 6. Risks
+**Recommended default: make no changes under criterion 2** - leave every
+already-bounded wait exactly as it is. This is the engineer's call to confirm before
+the build starts, since it is a negative finding (nothing to change) rather than a
+positive one, and a reviewer should be able to check it against the same file list
+above rather than take it on trust.
 
-- Wrapping ~51 bare `.join()`/`.recv()` call sites (Task B) touches most of both
+## 5. Risks
+
+- Wrapping 42 bare `.join()`/24 bare `.recv()` call sites touches most of both
   crates' test files - low risk per site, large diff surface; stage file-by-file with
   its own `cargo test -p <crate> --test <file>` (or `--lib`) after each, not only at
   the final `just check`.
-- A forceable, recorded failing-then-passing control for every mechanical site (Task
-  B) is not practical at this count - not promised. The mechanism itself already has
-  its own self-test (`support/mod.rs:416`, `wait_child_bounded` against a sleep that
-  outlives its bound); the mechanical sites' own proof is `just check` plus the diff
-  showing each wrapped site's failure names what it waited for. Real forced
-  failing-then-passing pairs are reserved for Task A's two diagnosed fixes (section 1a;
-  1c has no control to force, since it removes a wait rather than re-timing one -
-  proof there is the two tests it serves still passing).
-- Serialising all seven `shutdown.rs` tests (Task A) may add real wall-clock time to
-  `just check`'s own `test (steg-server)` step - the engineer's tradeoff (open
-  question #1).
-- `Barrier::wait()` (Category C, open question #4) stays a judgement call, not decided
-  here.
+- A forceable, recorded failing-then-passing control for every mechanical site is not
+  practical at this count - not promised. The mechanism itself already has its own
+  self-test (`support/mod.rs:416`, `wait_child_bounded` against a sleep that outlives
+  its bound); the mechanical sites' own proof is `just check` plus the diff showing
+  each wrapped site's failure names what it waited for.
+- `shutdown.rs` and `pane_wait.rs`: this task's own edits (the ordinary bare-join
+  wraps named in section 0) and DRAFT-1's own edits (the fd-lock, the
+  `wait_for_program_status` rewrite) land in the same two files - real merge-conflict
+  risk between the two tasks even with the line-level boundary in section 0 drawn as
+  precisely as it is; whoever finishes second rebases onto the other's merge.
+- `Barrier::wait()` (Category C, open question #1) stays a judgement call, not
+  decided here.
+- `runtime/mod.rs:371` (section 1) needs the slightly different `run_bounded` shape
+  noted there, not the mechanical one-liner every other site gets - worth flagging so
+  a reviewer checks that site specifically, not just the diff's shape in general.
+
+## 6. Proof per acceptance criterion
+
+- AC #1 (every unbounded wait gets a bound, named failure message): per file,
+  `cargo test -p steg-server --test <file>` (or `-p steg --test <file>`, or `--lib`
+  for the `src/` unit-test modules) recorded via `asdlc record-check` before and after
+  that file's own edit; a full `just check` at the end.
+- AC #2 (already-bounded waits left alone unless unnamed): section 4's own count (zero
+  changes) is the proof - the reviewer checks it against the same file list, not a
+  separate step.
+- AC #3 (no sleep-in-a-loop where an event exists; every remaining poll/sleep named):
+  the notes list every site section 1's own listing names, with its reason.
+- AC #4 (other in-flight tasks' files done last, re-checked against `main`): section 3's
+  own sequencing - `listen.rs` and the `src/` unit-test modules last, rebased onto
+  `main` after TASK-1.146 merges, `just check` run once more before this task finishes.
 
 ## 7. Open questions for the engineer, with recommended defaults
 
-1. `shutdown.rs`: serialise all seven tests with a shared lock (recommended default),
-   or change what the test measures instead?
-2. `cli_connection_arbitration.rs`: now sighted twice (PR #91, and main at 4ccc8344),
-   both the identical `ConnectError::ClosedBeforeHello`, read from each CI log
-   directly. Section 1b narrows this to two candidates and recommends H1 (the retry
-   re-meeting the same hostile listener via a kernel backlog race, never reaching
-   autostart) as the better-supported one, but not proven over H2 (a freshly-spawned
-   server's own first connection independently closing early). Recommended default:
-   open a separate follow-up task to run the instrumented reproduction section 1b
-   describes (confirm whether `connect()`'s own autostart branch ever runs in a
-   failing case) before any fix is written, rather than fix the wrong hypothesis -
-   this task's own scope is bounding waits, not diagnosing or changing retry/fixture
-   semantics. Accepting the rare CI retry as-is, with no follow-up, is the alternative.
-3. `pane_wait.rs`: drop `wait_for_program_status`'s now-unused `expected` parameter
-   (recommended default, both call sites pass the same literal), or keep it as a
-   documented, enforced precondition?
-4. `Barrier::wait()`: leave the four sites as a named exception (recommended default,
-   carried from the previous draft), or replace with a bounded channel rendezvous?
-5. Confirm the two-task split in section 4, and its file-ownership assignment, before
-   either is approved. This task's own AC #4 ("the files TASK-1.88 and TASK-1.90 are
-   editing are done last") is satisfied by construction (section 0: both merged,
-   nothing left to sequence around) and is now vacuous as written - it needs either
-   restating against TASK-1.146/1.51 (section 5) or striking, and neither task drafted
-   from this plan yet has an AC covering the `shutdown.rs` lock, the `pane_wait.rs`
-   rewrite, or the `cli_connection_arbitration.rs` write-up - the engineer's edit when
-   drafting Task A and Task B's own acceptance criteria, not this plan's to write.
+1. `Barrier::wait()` (Category C): leave the four sites as a named exception
+   (recommended default), or replace with a bounded channel rendezvous?
+2. Criterion 2 (section 4): confirm making no changes to any already-bounded wait
+   (recommended default - nothing found that needs one), before the build starts.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

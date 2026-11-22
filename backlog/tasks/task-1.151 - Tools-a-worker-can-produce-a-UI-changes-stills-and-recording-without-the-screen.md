@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-22T04:52:00Z'
-updated_date: '2026-11-22T20:32:00Z'
+updated_date: '2026-11-22T20:33:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -107,4 +107,6 @@ UNKNOWNS THAT STILL APPLY: whether steg-sdk already exposes a bounded content-wa
 Plan checked against the task's criteria by @bruk.o (22 Nov 2026, plan a482bf1aa9d2): not yet for approval. (1) Recording: stills per scripted step do not make a recording of motion - a wait step would give one frame; the harness needs frames sampled at a fixed interval of the tool's clock across waits, and the plan must say so. (2) Determinism: the pane program, pty and server run on real threads and real time, outside the tool's clock; the plan must say how the harness waits for pane output (an event with a bound, no polling, no sleep) before advancing, and must read how the dissolve's timer and phase are driven in terminal_element.rs (executor timer or wall clock) since byte-identical frames depend on it. (3) Split: the dissolve scenario is drafted as its own task (DRAFT-3, depends on this one) carrying criterion 3; once the engineer accepts it this plan covers the harness only, proved on a trivial scenario that includes motion.
 
 Plan checked again by @bruk.o (22 Nov 2026): ok to go to the engineer. Harness only; frames sampled on the tool's clock; a bounded event for pane output; a key-driven proof scenario with no timing in the pane program; three negative controls. Criterion 3 is carried by TASK-1.155. Building waits for TASK-1.154 to merge, and the plan is re-read against the GPUI that actually lands before the build starts.
+
+Plan checked a third time by @bruk.o (22 Nov 2026): ok to go to the engineer. The runner is an example target in crates/app on dev-dependencies (TASK-1.154's mechanism); a separate crate is rejected because just build's cargo build --workspace would unify test-support into the shipped app and TASK-1.154's declared-edge check cannot see that. Control (c) is just check-shipped-features. Building waits for TASK-1.154 to merge; the plan is re-read against what lands.
 <!-- SECTION:NOTES:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-22T20:33:00Z'
+updated_date: '2026-11-22T20:34:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -688,6 +688,16 @@ test session_show_with_no_target_inside_a_pane_resolves_to_that_panes_own_sessio
 test pane_list_with_no_target_inside_a_pane_resolves_to_that_panes_own_tab ... ok
 
 test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig ZIG_GLOBAL_CACHE_DIR=/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/target/zig-global-cache cargo test -p steg-sdk --lib --features local-socket -p steg-server --lib -p steg --test cli_terminal_context` exited 1 at 2026-11-22T20:34:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51 on task-1.51-cli-act-on-the-terminal-it-runs-in at c621fbec3d05:
+
+```text
+error: the argument '--lib' cannot be used multiple times
+
+Usage: cargo test [OPTIONS] [TESTNAME] [-- [ARGS]...]
+
+For more information, try '--help'.
 ```
 <!-- SECTION:NOTES:END -->
 

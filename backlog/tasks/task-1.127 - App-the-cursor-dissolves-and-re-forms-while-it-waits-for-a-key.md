@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T04:28:00Z'
+updated_date: '2026-11-22T04:29:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -382,6 +382,27 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Check passed: `cargo test -p steg-app the_fade_` exited 0 at 2026-11-22T04:28:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.92s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 7 tests
+test terminal_element::tests::the_fade_does_not_show_when_the_pane_is_not_focused ... ok
+test terminal_element::tests::the_fade_does_not_show_once_the_pane_has_ended ... ok
+test terminal_element::tests::the_fade_does_not_show_when_the_cursor_is_hidden ... ok
+test terminal_element::tests::the_fade_does_not_show_when_reduce_motion_is_on ... ok
+test terminal_element::tests::the_fade_does_not_show_when_the_program_has_not_asked_for_blinking ... ok
+test terminal_element::tests::the_fade_does_not_show_when_the_window_is_not_active ... ok
+test terminal_element::tests::the_fade_shows_when_every_gate_is_open ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

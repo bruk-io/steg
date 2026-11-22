@@ -471,4 +471,16 @@ created: 2026-11-22T04:47:00Z
 Plan approved by @bruk (33d5d39c8d80, size-3): its worker may build it.
 
 ---
+
+created: 2026-11-22T05:43:00Z
+
+---
+
+Representative control recorded (failing-then-passing pair at the final head, recorded above): `crates/server/tests/server_stop.rs::server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running`'s own `run_bounded("the server thread to end after stop()", Duration::from_secs(5), ...)`.
+
+Scratch edit: inserted `std::thread::sleep(Duration::from_secs(6))` as the first line inside the run_bounded closure (before the real `handle.join()`), so the watcher thread's own body takes longer than the 5s bound - the same effect, from run_bounded's own point of view, as the real joined thread itself taking too long. Ran unrecorded first (confirmed only the named panic message, nothing from the environment), then recorded: fails at `support/mod.rs:44:29` with exactly "timed out after 5s waiting for: the server thread to end after stop()" - the bound this fix added, not some other nearby timeout (the test's own prior assertions, on the refusal and the still-answering server, already passed before this point). Reverted (confirmed clean diff), re-ran, recorded passing.
+
+Chosen as representative: this is the `run_bounded`-around-a-plain-`.join()` shape every other mechanical site in this sweep uses verbatim (the dominant pattern across ~40 of the 42 real Category A fixes), on one of the shorter bounds (5s) so the control itself stays fast, and it is a site with no other timing-sensitive assertion nearby that could produce a false confirmation.
+
+---
 <!-- COMMENTS:END -->

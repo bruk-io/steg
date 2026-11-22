@@ -29,7 +29,7 @@ use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
 #[path = "support/mod.rs"]
 mod support;
-use support::{ScopedTempDir, scoped_socket_path};
+use support::{ScopedTempDir, run_bounded, scoped_socket_path};
 
 /// This file's own connections' default read timeout - the same bound
 /// `attach.rs`/`pane_send.rs` already settled on (TASK-1.123).
@@ -78,7 +78,13 @@ fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<(
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
     stop.stop();
-    handle.join().expect("the server thread should not panic");
+    run_bounded(
+        "the server thread to end after stop()",
+        Duration::from_secs(10),
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
 }
 
 fn connect_and_handshake(socket_path: &std::path::Path) -> (UnixStream, Connection) {

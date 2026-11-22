@@ -1,16 +1,19 @@
 ---
 id: TASK-1.137
 title: 'Server and CLI tests: every remaining wait with no bound gets one'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T06:00:00Z'
+updated_date: '2026-11-22T06:15:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.123
+references:
+  - task-1.137-server-and-cli-tests-every-remaining
+  - https://github.com/bruk-io/steg/pull/98
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -532,6 +535,18 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Mechanical sweep built: 42 bare .join() sites bounded (26 tests/, 16 src/), 24 bare .recv() sites bounded (14 tests/, 10 src/), one Child::wait() exception (race.rs::read_outcome_line), two named follow-ups (attach.rs's REPLY_DEADLINE constant, pane_send.rs's move onto ScopedTempDir/scoped_socket_path). listen.rs's two test-module sites built last, confirmed TASK-1.146 has not merged production code there yet; the engineer confirmed it was safe to proceed without waiting.
+
+Corrections found and fixed during planning/build, not just carried from the plan: four files (idle_stop.rs, server_stop.rs, shutdown.rs, accept_backoff.rs) each had a file-local bounded-join helper duplicating run_bounded's own shape - those internals are already bounded and already named, left alone, not double-wrapped. Two sites (pane.rs:2622, runtime/mod.rs:371) were miscounted as production code in the earlier plan; both are test code, genuinely bare, now fixed. attach.rs's stop_server bound was re-derived from force_end's own documented worst-case formula and this file's own established ~5x contention multiplier (confirmed force_grace really is the production 2s default), not left at a value picked from one local measurement that a reviewer would otherwise have to re-derive themselves.
+
+Checks recorded on the task: just check clean at an early head (before listen.rs), a representative failing-then-passing control at the final head (server_stop.rs's own run_bounded site, forced to outlive its bound with a reverted scratch edit - failed with exactly the named message, confirmed not another nearby timeout, then passed once reverted), and a final just check recorded clean at the final head (format, lint, boundaries, every crate's tests across all four steg-server feature combinations, tool tests, architecture, UI checks). CI on PR 98 passed (confirmed via gh pr checks, not a watched notification).
+
+AC #3's own listing (every remaining poll/sleep, named with its reason) is on the task as a comment, including the sdk's own two already-tracked sleep sites and the park-forever fixture processes that are not polls for an event at all.
+
+Deferred, not this task's own scope: TASK-1.149 (shutdown.rs's fd-count serialisation + pane_wait.rs's helper poll - was DRAFT-1) and TASK-1.150 (the cli_connection_arbitration.rs ClosedBeforeHello investigation - was DRAFT-2). Barrier::wait() (4 sites) left as a named exception per the engineer's accepted default; criterion 2 confirmed with counts - no already-bounded wait needed a message change.
+
+No test output, environment dump, or env output was put in any commit, comment, or the PR - confirmed unrecorded before every recorded failing run.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

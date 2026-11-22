@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T04:47:00Z'
+updated_date: '2026-11-22T05:52:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -349,6 +349,154 @@ From the review of TASK-1.140 (nit, 2026-11-21): crates/server/tests/pane_wait.r
 Sighting, 22 November 2026: crates/steg/tests/cli_connection_arbitration.rs a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding failed again in CI, this time on main at 4ccc8344 (the merge of steg PR 91, which touches only crates/ui and tools). Assertion at line 101; the client reported that the server accepted the connection and closed it before a hello arrived, twice. Second sighting of this test; re-run once by @bruk.o.
 
 Plan checked by @bruk.o, 22 November 2026: ok for the narrowed scope (the mechanical sweep; DRAFT-1 and DRAFT-2 hold the sighted problems). Covers each criterion; criterion 4 read as the files other in-flight tasks edit (listen.rs, login_environment.rs for TASK-1.146). Three things for the build, which the brief will carry: bring main in by merging, never by rebasing a pushed branch; narrow test runs go through the pinned Zig, and the final proof is just check; and since a control per site is not practical, record one representative control (one wrapped join made to outlive its bound, failing with its named message, then passing).
+
+Check passed: `just check` exited 0 at 2026-11-22T04:57:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137 on task-1.137-server-and-cli-tests-every-remaining at 98ca618e9202:
+
+```text
+ok      format check (0.4s)
+ok      lint (87.9s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.7s)
+ok      test (steg-sdk) (2.6s)
+ok      test (steg-sdk, local-socket) (2.9s)
+ok      build (steg-kernel) (43.0s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (44.0s)
+ok      test (steg-server) (61.2s)
+ok      test (steg-server, race-fixture) (63.5s)
+ok      test (steg-server, pty-race-fixture) (68.8s)
+ok      test (steg-server, accept-backoff-fixture) (67.0s)
+ok      build (steg) (2.9s)
+ok      test (steg) (4.5s)
+ok      test (steg, fixtures) (9.3s)
+ok      build (steg-ui) (21.0s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (2.8s)
+ok      test (steg-app) (2.2s)
+ok      tool tests (41.2s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-22T05:41:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137 on task-1.137-server-and-cli-tests-every-remaining at a83377cddb75:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (94.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (96.7s)
+ok      test (steg-server, race-fixture) (88.1s)
+ok      test (steg-server, pty-race-fixture) (65.0s)
+ok      test (steg-server, accept-backoff-fixture) (56.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.6s)
+ok      test (steg, fixtures) (5.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `cargo test -p steg-server --test server_stop -- server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running --exact` exited 101 at 2026-11-22T05:43:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137 on task-1.137-server-and-cli-tests-every-remaining at a83377cddb75 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_stop.rs (target/debug/deps/server_stop-e2ff52c6cb96857f)
+
+running 1 test
+test server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running ... FAILED
+
+failures:
+
+---- server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running stdout ----
+
+thread 'server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running' (77529526) panicked at crates/server/tests/support/mod.rs:44:29:
+timed out after 5s waiting for: the server thread to end after stop()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --test server_stop`
+```
+
+Check passed: `cargo test -p steg-server --test server_stop -- server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running --exact` exited 0 at 2026-11-22T05:43:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137 on task-1.137-server-and-cli-tests-every-remaining at a83377cddb75:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
+     Running tests/server_stop.rs (target/debug/deps/server_stop-e2ff52c6cb96857f)
+
+running 1 test
+test server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.03s
+```
+
+Check FAILED: `cargo test -p steg-server --test server_stop -- server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running --exact` exited 101 at 2026-11-22T05:52:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137 on task-1.137-server-and-cli-tests-every-remaining at 52529634000d with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_stop.rs (target/debug/deps/server_stop-e2ff52c6cb96857f)
+
+running 1 test
+test server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running ... FAILED
+
+failures:
+
+---- server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running stdout ----
+
+thread 'server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running' (77604760) panicked at crates/server/tests/support/mod.rs:44:29:
+timed out after 5s waiting for: the server thread to end after stop()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --test server_stop`
+```
+
+Check passed: `cargo test -p steg-server --test server_stop -- server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running --exact` exited 0 at 2026-11-22T05:52:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137 on task-1.137-server-and-cli-tests-every-remaining at 52529634000d:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running tests/server_stop.rs (target/debug/deps/server_stop-e2ff52c6cb96857f)
+
+running 1 test
+test server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.03s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -360,6 +508,61 @@ created: 2026-11-22T04:47:00Z
 ---
 
 Plan approved by @bruk (33d5d39c8d80, size-3): its worker may build it.
+
+---
+
+created: 2026-11-22T05:43:00Z
+
+---
+
+Representative control recorded (failing-then-passing pair at the final head, recorded above): `crates/server/tests/server_stop.rs::server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running`'s own `run_bounded("the server thread to end after stop()", Duration::from_secs(5), ...)`.
+
+Scratch edit: inserted `std::thread::sleep(Duration::from_secs(6))` as the first line inside the run_bounded closure (before the real `handle.join()`), so the watcher thread's own body takes longer than the 5s bound - the same effect, from run_bounded's own point of view, as the real joined thread itself taking too long. Ran unrecorded first (confirmed only the named panic message, nothing from the environment), then recorded: fails at `support/mod.rs:44:29` with exactly "timed out after 5s waiting for: the server thread to end after stop()" - the bound this fix added, not some other nearby timeout (the test's own prior assertions, on the refusal and the still-answering server, already passed before this point). Reverted (confirmed clean diff), re-ran, recorded passing.
+
+Chosen as representative: this is the `run_bounded`-around-a-plain-`.join()` shape every other mechanical site in this sweep uses verbatim (the dominant pattern across ~40 of the 42 real Category A fixes), on one of the shorter bounds (5s) so the control itself stays fast, and it is a site with no other timing-sensitive assertion nearby that could produce a false confirmation.
+
+---
+
+created: 2026-11-22T05:44:00Z
+
+---
+
+AC #3 - every remaining poll/sleep, named with its reason (criterion 3; this is a listing, not a fix, per the plan's own section 1):
+
+Confirmed while making the join/recv fixes above, file by file: every `loop {}` that polls with a `std::thread::sleep` in every file this task touched already carries its own `Instant::now() < deadline` (or equivalent) assertion with a named failure message - the established cross-process-liveness-poll exception TASK-1.123's own `race.rs::wait_until_accepting` set as precedent (no in-process event exists for "has this other process's socket started accepting yet" / "has the pid file appeared" / etc.). Spot-checked by comparing each touched file's own `loop {}` count against its own deadline-reference count (every file: deadline references well exceed loop counts) in addition to reading each site directly while fixing its own nearby join/recv. No new unguarded poll loop was found during this build.
+
+Named exceptions, not fixed in this sweep (per the plan, section 1):
+- `crates/sdk/src/local_socket.rs:193`'s 20ms poll inside `connect`'s own autostart wait - production code within the sdk's one permitted I/O exception (R103).
+- `crates/sdk/src/local_socket.rs:456`'s 30s sleep and `:586`'s 100ms sleep, in the `fake-server-for-tests`/`CooperativeHeldOpen` fixture - already TASK-1.123's own named, separate, size-1 follow-up.
+- `crates/server/tests/pane_wait.rs::start_server`'s own 5ms poll waiting for the socket to accept - unaffected by DRAFT-1's own `wait_for_program_status` fix, which is a different function in the same file.
+- `crates/steg/tests/fixtures/autostart_client.rs`'s `loop { sleep(3600) }` and the similarly-shaped park-forever fixtures in `crates/server/tests/support/mod.rs:419`/`crates/steg/tests/support/mod.rs:419`/`cli_exit_statuses.rs:536` - not a poll for an event at all: each is a deliberately parked process killed externally by a real signal from the test, already documented as such in its own comment. Listed here so this notes entry doesn't look like it missed them.
+- `crates/server/tests/fixtures/accept_backoff_attempt.rs`/`crates/server/tests/fixtures/race_attempt.rs`/`openpty_race_attempt.rs` - fixture binaries, outside the `tests/*.rs` glob this task scopes to (the open scope question the task's own description carried, not settled here).
+
+Every other `std::thread::sleep` site found (one-shot waits like `handshake.rs:181`'s deliberate `handshake_timeout * 5`, or a fixed pacing delay inside an already-bounded trickle, e.g. `handshake.rs:505`'s 40ms-per-byte write cadence) is not a retry-poll for an event at all - a single wait for a known fixed duration, or a deliberate write-cadence, not something AC #3's own wording targets.
+
+---
+
+created: 2026-11-22T05:48:00Z
+
+---
+
+Status correction, and a bound revised after a second look:
+
+Counts delivered so far vs. the plan's own totals (42 Category A, 24 Category B) - stating this explicitly rather than letting the plan's totals stand as if complete: Category A delivered is 41 of 42 (26 of 26 in tests/, 15 of 16 in src/) - crates/server/src/listen.rs's own one join is the outstanding site, held per the engineer's own instruction pending TASK-1.146. Category B delivered is 23 of 24 (14 of 14 in tests/, 9 of 10 in src/) - listen.rs's own one recv is the other outstanding site, same reason. Nothing else is deferred.
+
+attach.rs's stop_server bound, revised: the first version (60s) was picked from one local measurement (32.5s observed once). Re-derived instead from force_end's own documented worst case (crates/server/src/runtime/close.rs: force_grace + ESCALATE_CONFIRM_TIMEOUT + FORCE_JOIN_TIMEOUT, ~6s nominal for one pane; this file's own flood tests stop a server with two panes, so ~10s nominal for them specifically, pass 6 being sequential per pane) times the same ~5x contention multiplier this file's own pane_close_force_returns_within_its_bound... test already uses and justifies in its own comment (30s against a 6s single-pane nominal, "a generous bound... not a tight race against this machine's own CPU contention"). Landed on 90s - real margin above both that derivation and the one measured run, still well under cross_process_flood_guard's own 180s and steg-quiet's 900s per-step ceiling. Re-ran the full attach.rs suite (31 passed) after the change.
+
+The `just check` recorded earlier is now stale (a commit landed after it, and it did not cover listen.rs either way) - will record a fresh one at the final head once listen.rs is resolved, not before, to avoid recording it twice for the same reason.
+
+Also: found and removed a stray /tmp/attach.rs.bak this worktree's own earlier diagnostic step left behind (should have gone in the scratchpad) - confirmed gone, confirmed nothing else landed outside the worktree or the scratchpad.
+
+---
+
+created: 2026-11-22T05:50:00Z
+
+---
+
+Confirmed, not assumed: attach.rs::start_server's own ServerConfig only sets socket_path/handshake_timeout/login explicitly, with `..ServerConfig::default()` for the rest - and ServerConfig::default()'s own force_grace field is literally `crate::runtime::FORCE_GRACE_DEFAULT` (2s, crates/server/src/config.rs:157), the real production default, not a shortened test-only one. The 90s bound's own derivation holds.
 
 ---
 <!-- COMMENTS:END -->

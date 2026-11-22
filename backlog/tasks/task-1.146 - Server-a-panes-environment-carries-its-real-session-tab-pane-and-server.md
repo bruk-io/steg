@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-21T20:20:00Z'
-updated_date: '2026-11-22T04:47:00Z'
+updated_date: '2026-11-22T05:39:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -224,6 +224,363 @@ goes through `launch_spec`/`Runtime` at all, so it is untouched by this task.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-2 (section 4, R33) by @bruk.o: ok. Builds only this task's part (no wire, dispatch-context or CLI change), touches none of TASK-1.51's files, and its proof covers each criterion: one real-pane test with an explicit program for #1 and #2, and two separate recorded controls (identifiers, server address) for #3. The test writes only the four STEG_ lines, never a whole environment dump.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_environment` exited 0 at 2026-11-22T04:52:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pane_environment.rs (target/debug/deps/pane_environment-59131389791f8161)
+
+running 9 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values ... ok
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_environment` exited 101 at 2026-11-22T04:53:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes, last 40 of 42 lines:
+
+```text
+    |
+116 |         let session_id = session_owning_tab(&state.tree, tab_id);
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session_id`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/pane_environment.rs (target/debug/deps/pane_environment-59131389791f8161)
+
+running 9 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values ... FAILED
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+failures:
+
+---- a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values stdout ----
+
+thread 'a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values' (75219447) panicked at crates/server/tests/pane_environment.rs:235:5:
+expected "STEG_SESSION=00000001" in the pane's own captured lines, got:
+STEG_SESSION=00000000
+STEG_TAB=00000000
+STEG_PANE=00000000
+STEG_SERVER=/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/95885-0-74e5c8/s.sock
+
+
+
+failures:
+    a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+error: test failed, to rerun pass `-p steg-server --test pane_environment`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_environment` exited 0 at 2026-11-22T04:53:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.80s
+     Running tests/pane_environment.rs (target/debug/deps/pane_environment-59131389791f8161)
+
+running 9 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values ... ok
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_environment` exited 101 at 2026-11-22T04:53:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pane_environment.rs (target/debug/deps/pane_environment-59131389791f8161)
+
+running 9 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values ... FAILED
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+failures:
+
+---- a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values stdout ----
+
+thread 'a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values' (75236373) panicked at crates/server/tests/pane_environment.rs:235:5:
+expected "STEG_SERVER=/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/99237-0-79d698/s.sock" in the pane's own captured lines, got:
+STEG_SESSION=00000001
+STEG_TAB=00000002
+STEG_PANE=00000003
+STEG_SERVER=
+
+
+
+failures:
+    a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+error: test failed, to rerun pass `-p steg-server --test pane_environment`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_environment` exited 0 at 2026-11-22T04:54:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running tests/pane_environment.rs (target/debug/deps/pane_environment-59131389791f8161)
+
+running 9 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values ... ok
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+```
+
+Check passed: `just check` exited 0 at 2026-11-22T05:18:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+ok      format check (0.4s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (-p steg -p steg-server) (59.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (92.5s)
+ok      test (steg-server, race-fixture) (70.8s)
+ok      test (steg-server, pty-race-fixture) (103.6s)
+ok      test (steg-server, accept-backoff-fixture) (90.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.6s)
+ok      test (steg, fixtures) (5.6s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (40.5s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_environment` exited 101 at 2026-11-22T05:19:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes, last 40 of 42 lines:
+
+```text
+    |
+116 |         let session_id = session_owning_tab(&state.tree, tab_id);
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session_id`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/pane_environment.rs (target/debug/deps/pane_environment-59131389791f8161)
+
+running 9 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values ... FAILED
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+failures:
+
+---- a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values stdout ----
+
+thread 'a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values' (76329633) panicked at crates/server/tests/pane_environment.rs:235:5:
+expected "STEG_SESSION=00000001" in the pane's own captured lines, got:
+STEG_SESSION=00000000
+STEG_TAB=00000000
+STEG_PANE=00000000
+STEG_SERVER=/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/22197-0-a2adf0/s.sock
+
+
+
+failures:
+    a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+error: test failed, to rerun pass `-p steg-server --test pane_environment`
+```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_environment` exited 0 at 2026-11-22T05:19:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running tests/pane_environment.rs (target/debug/deps/pane_environment-59131389791f8161)
+
+running 9 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values ... ok
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_environment` exited 101 at 2026-11-22T05:19:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/pane_environment.rs (target/debug/deps/pane_environment-59131389791f8161)
+
+running 9 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values ... FAILED
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+failures:
+
+---- a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values stdout ----
+
+thread 'a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values' (76354127) panicked at crates/server/tests/pane_environment.rs:235:5:
+expected "STEG_SERVER=/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/25232-0-6119a0/s.sock" in the pane's own captured lines, got:
+STEG_SESSION=00000001
+STEG_TAB=00000002
+STEG_PANE=00000003
+STEG_SERVER=
+
+
+
+failures:
+    a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+error: test failed, to rerun pass `-p steg-server --test pane_environment`
+```
+
+Check passed: `just check` exited 0 at 2026-11-22T05:30:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+ok      format check (0.4s)
+ok      lint (2.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (115.1s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.8s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (0.6s)
+ok      test (steg-server) (104.3s)
+wait    test (steg-server, race-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, race-fixture) (67.2s)
+wait    test (steg-server, pty-race-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, pty-race-fixture) (99.9s)
+wait    test (steg-server, accept-backoff-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, accept-backoff-fixture) (87.6s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.5s)
+ok      test (steg, fixtures) (11.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-22T05:39:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 6b8cf04dc4a8:
+
+```text
+ok      format check (0.4s)
+ok      lint (2.2s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (76.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.5s)
+ok      test (steg-server) (65.9s)
+ok      test (steg-server, race-fixture) (86.1s)
+ok      test (steg-server, pty-race-fixture) (100.6s)
+ok      test (steg-server, accept-backoff-fixture) (89.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.5s)
+ok      test (steg, fixtures) (12.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.1s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

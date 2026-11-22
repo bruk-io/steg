@@ -1,11 +1,11 @@
 ---
 id: TASK-1.127
 title: 'App: the cursor dissolves and re-forms while it waits for a key'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T04:42:00Z'
+updated_date: '2026-11-22T05:43:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -13,6 +13,9 @@ dependencies:
   - TASK-1.126
   - TASK-1.121
   - TASK-1.136
+references:
+  - task-1.127-app-the-cursor-dissolves-and-re-forms
+  - https://github.com/bruk-io/steg/pull/95
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -683,6 +686,10 @@ ok      recipe names (0.1s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built to the approved plan, with the driver correction the orchestrator asked for before build started (one timer re-armed per real state change, not request_animation_frame). Departures from the plan, each noted: (1) the key-press/IME reset is a single CursorFadeState::show_whole() method called at on_key_down's own top and in replace_text_in_range, rather than a separate AttachedState::show_cursor_whole() wrapper - one fewer indirection, same effect. (2) AC5's own stills, originally planned as a separate no-window rendering script, are deferred per the build-phase instruction: the orchestrator is arranging the actual UI image and motion recording with the engineer's own live run; the PR says the recording is to follow. (3) No activation-change Subscription was added (on_focus_in/on_focus_out, named in the plan for forward-compatibility) - unnecessary once the implementation tracked each paint's own window-active-and-pane-focused state and compared it to the previous paint inside CursorFadeState itself (a simpler mechanism than a subscription, found while building, same correctness). Checks: cargo test -p steg-app (99 tests, including new tests for piece_states_at against the engineer's own keyframe table, cursor_piece_bounds's no-seam/no-gap property, should_show_cursor_fade's six isolated gates, next_wake's schedule and wake count, blend's RGB-space midpoint, grapheme_at, and CursorFadeState::show_whole), each with a recorded failing-then-passing control at this head, every failing run watched and confirmed failing for its own named mechanism before being recorded (the should_show_cursor_fade control was also checked against its six sibling tests to confirm isolation). just check recorded clean at the final, rebased head. CI green on PR 95. No contract change: Cursor.blinking was already on the wire; no sdk/kernel/server file touched.
+
+Hold, decided by the engineer on 22 November 2026: steg PR 95 is not to be merged until the cursor redraw bug (TASK-1.153: arrow keys and backspace move the cursor but it is not redrawn) is fixed and merged. Review may go ahead once the recording is on the pull request; a clean review does not lift this hold.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -702,6 +709,24 @@ created: 2026-11-21T19:55:00Z
 ---
 
 Plan approved by @bruk (e3032b0ac5e3, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-22T05:43:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.127: a same-machine review: it waited 48m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-22T05:43:00Z
+
+---
+
+@bruk.r1 released its review claim on TASK-1.127; another reviewer may claim it with asdlc review-next.
 
 ---
 <!-- COMMENTS:END -->

@@ -126,3 +126,9 @@ No file under `third_party/` is touched - the fix is entirely in how the kernel'
 
 No collisions with TASK-1.127 (crates/app/src/{terminal_element.rs,main.rs}, untouched here), TASK-1.146 (crates/server/src/runtime/*, listen.rs, untouched here), TASK-1.137 (test-module bare joins/recvs, including crates/server/src/{outbound.rs,pane.rs} - this task adds no server tests at all), or TASK-1.51 (connection.rs, dispatch/mod.rs, untouched here).
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked by @bruk.o, 22 November 2026: ok. One file of product code (crates/kernel/src/terminal.rs): the kernel remembers the cursor it last reported and, when nothing else changed but the cursor did, reports a Delta with no rows. No sdk shape change, so no public API change; every site that matches on ScreenUpdate was checked and the app's model already takes the cursor from a Delta. Covers position, visibility and shape (each confirmed failing today by a scratch test) and keeps the idle case Unchanged. Several clients: the pane's tick calls changes_since once and fans the result out, so the remembered cursor sits beside seq. For review: the remembered cursor must be updated on every path that reports a cursor (Full and Delta with rows too), not only the new arm.
+<!-- SECTION:NOTES:END -->

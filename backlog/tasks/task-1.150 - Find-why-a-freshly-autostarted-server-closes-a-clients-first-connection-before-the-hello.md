@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T05:28:00Z'
+updated_date: '2026-11-22T05:39:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -298,6 +298,59 @@ created: 2026-11-22T05:02:00Z
 ---
 
 Plan approved by @bruk (39ca1e575b3d, size-3): its worker may build it.
+
+---
+
+created: 2026-11-22T05:39:00Z
+
+---
+
+Build phase done. PR: https://github.com/bruk-io/steg/pull/96
+
+Fix: crates/steg/tests/cli_connection_arbitration.rs's spawn_hostile_listener now drops the listener before the accepted stream (was: stream, then listener). This closes, by construction rather than timing, the window where a client's own retry connect() could land in the still-open listener's backlog and be torn down when it finally closed, reproducing ClosedBeforeHello with no real server involved - the mechanism found in the planning phase. Doc comment on the function rewritten accordingly, citing listen.rs's own identical precedent.
+
+New permanent test: closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect, using a new spawn_hostile_listener_with_gap helper with an explicit 200ms adversarial pause placed exactly where the race lived, asserting the real CLI still exits 0.
+
+Control, both halves recorded via record-check, at the final committed code apart from one scratch flip: inside spawn_hostile_listener_with_gap's thread closure, the last two statements were temporarily `drop(stream); std::thread::sleep(gap); drop(listener);` instead of the committed `drop(listener); std::thread::sleep(gap); drop(stream);` - nothing else, including spawn_hostile_listener itself, was touched for this detour.
+- Old order: new test alone fails with ConnectError::ClosedBeforeHello, exit 101 (recorded).
+- Fixed order (final head): full test file passes, 15/15, exit 0 (recorded twice, byte-identical file state before and after the detour).
+
+the_hostile_listener_itself_accepts_and_closes_with_nothing_written confirmed still passing unchanged under the reorder.
+
+AC #3 proof: repeated a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding 300 times via a script (not inline, per instruction), recorded via record-check, result "passed 300 of 300", exit 0. Script (chmod +x, takes the worktree path as its one argument):
+
+#!/bin/sh
+# TASK-1.150: AC #3's "recorded run of many repetitions" - repeats the one
+# exact test N times against the already-built binary (no recompiling
+# between runs), stopping at the first failure. Each run's own output goes
+# to /dev/null so a failing run's own text never reaches this script's own
+# stdout/stderr or, from there, the board - only the pass count or the
+# number of the run that failed is ever printed.
+set -e
+
+N=300
+WORKTREE="${1:?usage: TASK-1.150-repeat-run.sh <worktree path>}"
+BIN="$(find "$WORKTREE/target/debug/deps" -maxdepth 1 -type f -perm -u+x -name 'cli_connection_arbitration-*' | grep -E '/cli_connection_arbitration-[0-9a-f]+$' | head -n 1)"
+
+if [ -z "$BIN" ]; then
+    echo "TASK-1.150: no built test binary found under $WORKTREE/target/debug/deps - build it first" >&2
+    exit 1
+fi
+
+i=1
+while [ "$i" -le "$N" ]; do
+    if ! "$BIN" a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding --exact >/dev/null 2>&1; then
+        echo "TASK-1.150: failed at run $i of $N"
+        exit 1
+    fi
+    i=$((i + 1))
+done
+
+echo "TASK-1.150: passed $N of $N"
+
+just check: recorded exit 0 (one earlier run hit a transient failure in crates/server/tests/attach.rs, a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream - unrelated file, passed instantly alone, traced to machine contention from two other concurrent builds; the clean recorded run shows STEG_CHECK_SLOTS wait lines for the same reason).
+
+CI is running on the PR now; will finish once green.
 
 ---
 <!-- COMMENTS:END -->

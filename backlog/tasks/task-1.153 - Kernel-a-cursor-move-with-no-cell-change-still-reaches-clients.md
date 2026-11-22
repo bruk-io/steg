@@ -1,15 +1,18 @@
 ---
 id: TASK-1.153
 title: 'Kernel: a cursor move with no cell change still reaches clients'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T20:31:00Z'
+updated_date: '2026-11-22T20:45:00Z'
 labels:
   - size-2
 milestone: m-4
 dependencies: []
+references:
+  - task-1.153-kernel-a-cursor-move-with-no-cell-change
+  - https://github.com/bruk-io/steg/pull/99
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -391,6 +394,8 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.1s)
 ```
+
+Built to the approved plan, with the one requirement added at plan-check: the remembered cursor is updated on every reporting path in changes_since (both Delta arms, both Full arms including the stale-caller one) via one line right after outcome is computed, covering all four uniformly. Rewrote the several-readers test to actually prove the stale-caller Full path updates last_reported_cursor, since checking only the Full's own cursor field (always fresh regardless) proved nothing - the revised test drives a third call, now current again, and checks it sees Unchanged rather than a spurious repeat; confirmed failing with the update scoped to is_current only, passing with the real fix. Checks: cargo test -p steg-kernel -p steg-app (336+100 passing), cargo fmt --check and cargo clippy --all-targets clean on both crates. Every control recorded failing-then-passing via asdlc record-check at the final head (5eb25574): the three cursor-only-Delta tests (position/visibility/shape, control: revert the Dirty::Clean guard), the two idle-stays-silent tests (control: drop the cursor-equality check), the stale-reader test (control: skip the update when not is_current), and the app-model test (control: gate the cursor assignment on rows being non-empty). just check recorded clean at the final head, once unrecorded to confirm and once recorded. CI green on PR 99 (12m21s), no retries needed. No sdk, server, or app production change needed beyond the one kernel field - checked every match on ScreenUpdate in the workspace. Live run (arrow keys and backspace, both erasing and non-erasing) still owed by the engineer before merge, named in the PR body.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

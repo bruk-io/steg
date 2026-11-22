@@ -1,9 +1,11 @@
 ---
 id: TASK-1.153
 title: 'Kernel: a cursor move with no cell change still reaches clients'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w3'
 created_date: '2026-11-22T04:58:00Z'
+updated_date: '2026-11-22T04:59:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -11,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.153-kernel-a-cursor-move-with-no-cell-change
 ---
 
 ## Description

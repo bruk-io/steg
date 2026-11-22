@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T07:18:00Z'
-updated_date: '2026-11-22T20:20:00Z'
+updated_date: '2026-11-22T20:28:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -151,6 +151,35 @@ release-tagged commit. Pin with `rev`, not `tag`: Cargo.toml names the commit
 - `crates/ui/src/foundations/mod.rs`, `crates/ui/src/foundations/
   generated.rs`: no source change (`Global`, `Hsla`, `Pixels`, `px` all
   confirmed present and public).
+- `tools/src/steg_tools/shipped_features.py` (new): AC#3's standing check.
+  Reads `cargo metadata --no-deps` (the shared `workspace.cargo_metadata`
+  helper), finds `steg-app`'s (and `steg-ui`'s) own package entry, and
+  fails if any of its *declared* dependency edges whose `kind` is `None`
+  (normal) or `"build"` - never `"dev"` - names `test-support` in that
+  edge's own `features` list. Declared, not resolved, same reason
+  `steg_tools.boundaries`'s own `deny-features` check already gives in its
+  module doc ("unaffected by Cargo's workspace-wide feature unification...
+  the point of this check is to catch a crate's own manifest asking for the
+  feature"): it is why this reads `kind`/`features` straight off
+  `cargo metadata`'s per-edge data, the same source `steg_tools.affected`
+  already trusts, rather than `cargo tree`'s resolved output (which cannot
+  be filtered this way without a pipe, and which this task's own exploring
+  of `cargo tree -e normal,build` found does NOT by itself distinguish a
+  declared ask from a unified one - see AC#3's proof below). A plain
+  function, no cargo call inside it, so it is unit-testable the same way
+  `steg_tools.boundaries.feature_violations` already is.
+- `tools/pyproject.toml`: add `steg-shipped-features =
+  "steg_tools.shipped_features:main"` under `[project.scripts]`.
+- `tools/tests/unit/test_shipped_features.py` (new): unit tests against
+  hand-built `cargo metadata` package dicts (a normal edge with the denied
+  feature fails; the same edge moved to `kind: "dev"` passes; no edge at
+  all passes) - no real `cargo` invocation, matching `test_boundaries.py`'s
+  own style.
+- `justfile`: a new recipe, `check-shipped-features` (verb `check`, already
+  on `steg-recipes`' allowed list - no change needed there), running
+  `uv run --quiet --project tools steg-shipped-features` through `{{quiet}}`
+  the same way `check-boundaries` does; added to `check:`'s own recipe
+  list, so it is part of `just check`, not a one-off command.
 
 ## Order of work
 
@@ -170,19 +199,25 @@ release-tagged commit. Pin with `rev`, not `tag`: Cargo.toml names the commit
    (`cargo run --example headless_smoke -p steg-app`) and confirm the
    captured pixels match the known colour, exactly as this task's own scratch
    spike already proved for the API shape.
-5. Run `cargo deny check licenses` for real, against the real workspace (not
+5. Write `tools/src/steg_tools/shipped_features.py`, its `pyproject.toml`
+   script entry, its unit tests (`tools/tests/unit/
+   test_shipped_features.py`), and the `check-shipped-features` recipe
+   (wired into `check:`). Run `just test-tools` and `just check-shipped-
+   features` against the real manifests from step 4 - must pass (the
+   `[dependencies]` edge has no `test-support`).
+6. Run `cargo deny check licenses` for real, against the real workspace (not
    this task's scratch probe). If anything outside the already-confirmed
    `gpui*`/font-kit-chain crates is rejected, resolve it by narrowing
    features first (never by widening `deny.toml`'s allow list without the
    same reasoning this plan gives for every existing entry). Re-check the
    `CC0-1.0` comment's `hexf-parse` attribution against the real resolve and
    correct it if stale.
-6. Run `just check` end to end (this change touches `Cargo.toml`,
+7. Run `just check` end to end (this change touches `Cargo.toml`,
    `Cargo.lock`, `boundaries.toml`, `deny.toml` - all in `steg-affected`'s
    `GLOBAL_FILES` - so `just test`'s own selection is `all`; say so plainly
    rather than claim a narrower one).
-7. Record the AC#3 proof pair (below) and the licence negative control
-   (below) at the final head.
+8. Record the AC#3 proof pair and the licence negative control (both below)
+   at the final head.
 
 ## Risks
 
@@ -211,7 +246,7 @@ release-tagged commit. Pin with `rev`, not `tag`: Cargo.toml names the commit
   `pathfinder_geometry`, `mach2`, `cbindgen`, `resvg`, `usvg`, `accesskit`,
   `etagere`, `derive_more`, `icu_segmenter`, `inventory`, `profiling`,
   `scheduler`, `seahash`) is permissive. The real build task's own run
-  against the full workspace (step 5) is still the actual proof, not this
+  against the full workspace (step 6) is still the actual proof, not this
   probe - carried forward as the honest caveat, same as TASK-1.151's spike
   stated for its own `gpui-pre` run.
 - `gpui`'s own `Cargo.toml` at this commit still declares `version = "0.2.2"`
@@ -250,27 +285,81 @@ release-tagged commit. Pin with `rev`, not `tag`: Cargo.toml names the commit
   https://github.com/zed-industries/zed?tag=v1.29.3", "kind": None}` with no
   `path` key - exactly how a registry dependency already looks to this tool
   today). For the licence half: recorded `cargo deny check licenses` at the
-  final head (passing), with its negative control - temporarily drop
-  `"Apache-2.0"` from `deny.toml`'s `allow` list, rerun the same command,
-  record the failure, restore the list - already rehearsed in this task's
-  own scratch probe: the failure names `gpui`, `gpui_apple`, `gpui_macos`,
+  final head (passing), proving more than "the handful of crates this task
+  happened to name are clean" - `deny.toml`'s own `[licenses] allow` list is
+  exactly `MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause,
+  BSD-3-Clause, ISC, Unicode-3.0, Zlib, CC0-1.0, CDLA-Permissive-2.0,
+  MPL-2.0` - no `GPL`/`AGPL`/`LGPL` identifier anywhere on it - and
+  cargo-deny's own `check licenses` rejects any crate in the resolved graph
+  whose own declared licence is not on that list, full stop, whatever crate
+  it is. So a passing run is, by the check's own construction (not by this
+  plan's assertion), proof nothing with a GPL/AGPL licence is in the graph
+  at all, Zed's own crates included. Rehearsed negative control, against
+  this exact pinned dependency: temporarily drop `"Apache-2.0"` from
+  `deny.toml`'s `allow` list, rerun the same command, record the failure,
+  restore the list - the failure names `gpui`, `gpui_apple`, `gpui_macos`,
   `gpui_platform` directly as the rejected packages, tracing to exactly the
   mechanism removed (no other branch or check on this path produces that
-  same failure).
+  same failure). A second, more direct control - adding a dependency on one
+  of Zed's own GPL crates from the same rev (`crates/zed` itself: its own
+  `Cargo.toml` declares `license = "GPL-3.0-or-later"`, confirmed directly)
+  and watching the same check reject it by name - was attempted in this
+  task's own scratch project and abandoned: resolving `zed` as a standalone
+  external dependency pulls in the whole editor application's own
+  dependency tree (language servers, extension host, the rest of a full
+  IDE), which did not finish resolving after several minutes of real wall
+  time on this machine (stalled, not merely slow - no new crates were being
+  fetched) while contending with other concurrent cargo work, and was
+  killed rather than pushed further, for the same reason the real headless
+  build itself is gated behind asking first. The allow-list argument above
+  does not depend on this control succeeding; it is left here as the honest
+  account of what was tried, not substituted for by assertion.
 - **AC#3** (off-screen drawing reachable only from a test or tool target;
-  the shipped binary shown not to carry `test-support`, by a check that
-  fails if it does): the mechanism is Cargo's own dependency-kind
-  separation - `gpui_platform`'s `test-support` feature is requested only by
-  `crates/app`'s new `[dev-dependencies]` edge, never its `[dependencies]`
-  edge, and only the new `[[example]]` target (`headless_smoke`) can see a
-  dev-dependency at all; `cargo build --bin steg-app` never compiles or
-  resolves features for anything outside `[dependencies]`. The check:
-  `cargo tree -p steg-app -e normal,build -f "{p} {f}"`, grepped for
-  `test-support` - expected empty. Its negative control: temporarily add
-  `features = ["test-support"]` to the *normal* `gpui_platform` entry in
-  `crates/app/Cargo.toml` (not the dev one), rerun the identical command,
-  record the now-nonempty match naming `gpui_platform`/`gpui`/`gpui_macos`,
-  then revert. Record both at the final head.
+  the shipped binary shown not to carry `test-support`, by a *check that
+  fails if it does*, i.e. a standing check, not a one-off recorded command):
+  `just check-shipped-features` (new recipe, backed by
+  `tools/src/steg_tools/shipped_features.py`, above) is that check, folded
+  into `just check` itself. It reads `crates/app`'s (and `crates/ui`'s) own
+  declared dependency edges from `cargo metadata --no-deps` and fails if a
+  `normal`/`build` edge names `test-support`; it never flags the
+  `[dev-dependencies]` edge `examples/headless_smoke.rs` is allowed to use
+  on purpose, since dev edges are excluded by `kind` before `features` is
+  even read. No pipe in the recorded command: the filtering happens inside
+  the Python tool, not in a shell pipeline, so `asdlc record-check` can run
+  it directly (unlike `cargo tree -p steg-app -e normal,build -f "{p} {f}"
+  | grep test-support`, which this task explored while designing the check
+  and which cannot be recorded as written). Negative control: temporarily
+  move `test-support` from `crates/app`'s `[dev-dependencies]` edge onto its
+  `[dependencies]` edge, rerun `just check-shipped-features`, record the
+  failure naming `gpui_platform` and the edge kind, then revert and record
+  the passing run again - both at the final head.
+
+  **What this check does and does not cover.** "The shipped binary" means
+  the two recipes that actually build and run what a person ships or runs -
+  `just run`'s `cargo run --package steg-app` and `just build`'s `cargo
+  build --workspace` (read from the justfile directly) - and neither passes
+  `--all-targets`/`--examples`/`--tests`, so neither selects anything wider
+  than each member's own lib+bin targets; Cargo does not resolve or compile
+  a `[dev-dependencies]` edge for a target selection that excludes examples
+  and tests, so `test-support` never reaches either invocation, full stop.
+  `just check`'s own `lint` step (`cargo clippy --workspace --all-targets
+  --all-features`) is different: `--all-targets` DOES select the new
+  `headless_smoke` example in that one invocation, so that invocation's own
+  unit graph does unify `test-support` into the same `gpui`/`gpui_platform`
+  instance clippy itself compiles there - Cargo's own documented feature
+  unification, working as designed, not a leak this check is meant to (or
+  able to) catch. That unification is scoped to `lint`'s own analysis pass:
+  it produces no shipped artefact, and does not change what a later,
+  separately invoked `cargo build -p steg-app`/`cargo run -p steg-app`
+  resolves - Cargo's fingerprinting keys each compiled unit on its own exact
+  feature set, so a unit built with `test-support` on and one with it off
+  are never the same cached artefact, and a plain `cargo build -p steg-app`
+  run after `lint` recompiles under its own, narrower feature resolution
+  rather than reusing `lint`'s. `just check-shipped-features` is therefore
+  the real, standing proof of the one thing AC#3 actually asks for -
+  `crates/app`'s own manifest never asks for `test-support` on a
+  normal/build edge - stated here as its limit, not left for a reviewer to
+  assume from the name alone.
 - **AC#4** (every forced source change in `crates/app`/`crates/ui`; anything
   that changes look or behaviour; the engineer's own live run before merge):
   the notes list exactly two forced source changes (`crates/app/src/
@@ -303,9 +392,12 @@ mergeable or independently useful without the others.
   task matched (`headless_app_context.rs`, now against two points in
   upstream's own history) - spot-checked, not an audit, same as TASK-1.151's
   own wording.
-- The real, full-workspace `cargo deny check licenses` run (step 5) - this
+- The real, full-workspace `cargo deny check licenses` run (step 6) - this
   task's own probe used a minimal two-crate dependency set, not steg's whole
   tree.
+- The direct GPL-crate licence control (adding `crates/zed` itself and
+  watching it fail) - attempted, not completed; abandoned as not cheap
+  (above). The allow-list argument stands without it.
 - Whether turning `font-kit` on changes anything visible enough to matter -
   flagged for the engineer's own live run (AC#4), not resolved by this plan.
 

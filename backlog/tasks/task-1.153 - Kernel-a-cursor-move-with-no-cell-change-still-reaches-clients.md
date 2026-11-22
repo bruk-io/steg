@@ -626,6 +626,23 @@ error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-app a_delta_with_no_rows_still_moves_the_cursor` exited 0 at 2026-11-22T21:12:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 2b6fec0fa18c:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_delta_with_no_rows_still_moves_the_cursor ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -399,6 +399,51 @@ test a_pane_whose_own_program_is_steg_resolves_pane_show_and_finds_its_own_serve
 
 test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
 ```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig ZIG_GLOBAL_CACHE_DIR=/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/target/zig-global-cache cargo test -p steg-sdk --lib --features local-socket` exited 0 at 2026-11-22T20:16:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51 on task-1.51-cli-act-on-the-terminal-it-runs-in at 55efff68d151 with uncommitted changes, last 40 of 195 lines:
+
+```text
+test wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare ... ok
+test wire::connection::tests::data_on_an_unregistered_stream_is_surfaced_as_unknown_stream ... ok
+test wire::connection::tests::poll_returns_none_when_more_bytes_are_needed ... ok
+test wire::connection::tests::send_data_refuses_an_unregistered_stream ... ok
+test wire::control::tests::a_reply_carries_the_error_matched_by_id ... ok
+test wire::control::tests::a_reply_carries_the_result_matched_by_id ... ok
+test screen::tests::a_screen_with_every_cell_style_round_trips ... ok
+test screen::tests::every_cell_style_combination_round_trips ... ok
+test wire::control::tests::a_request_round_trips_through_its_payload ... ok
+test wire::control::tests::an_event_carries_no_id ... ok
+test wire::frame::tests::a_declared_length_of_five_decodes_fed_a_byte_at_a_time ... ok
+test wire::frame::tests::a_declared_length_of_five_the_smallest_accepted_decodes_an_empty_payload_fed_whole ... ok
+test wire::frame::tests::a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time ... ok
+test wire::frame::tests::a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole ... ok
+test screen::tests::screen_update_full_round_trips ... ok
+test wire::frame::tests::a_declared_length_of_zero_is_malformed_fed_a_byte_at_a_time ... ok
+test wire::frame::tests::a_declared_length_of_zero_is_malformed_fed_whole ... ok
+test wire::frame::tests::a_frame_round_trips_through_encode_and_decode ... ok
+test wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection ... ok
+test wire::frame::tests::an_oversized_declared_length_is_refused_before_anything_past_it_is_read ... ok
+test wire::frame::tests::an_unknown_kind_tag_is_malformed ... ok
+test wire::frame::tests::decode_waits_for_more_bytes_a_byte_at_a_time ... ok
+test wire::frame::tests::encode_refuses_a_payload_over_the_cap ... ok
+test wire::frame::tests::frame_constructors_set_the_expected_kind_and_stream ... ok
+test wire::frame::tests::two_frames_back_to_back_decode_in_order ... ok
+test wire::handshake::tests::a_client_newer_than_the_server_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_first_frame_that_is_not_json_is_malformed ... ok
+test wire::handshake::tests::a_matching_version_is_accepted ... ok
+test wire::handshake::tests::a_missing_required_field_is_malformed ... ok
+test wire::handshake::tests::a_server_newer_than_the_client_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_wrong_magic_is_malformed_naming_the_server_version ... ok
+test wire::handshake::tests::an_unknown_field_is_ignored ... ok
+test wire::handshake::tests::kind_and_label_round_trip_through_the_hello ... ok
+test wire::handshake::tests::parse_server_hello_reads_an_accepted_hello ... ok
+test wire::handshake::tests::session_tab_and_pane_are_none_when_the_client_sends_no_context ... ok
+test wire::handshake::tests::parse_server_hello_surfaces_a_refusals_message ... ok
+test wire::handshake::tests::session_tab_and_pane_round_trip_through_the_hello_when_the_client_sends_them ... ok
+test screen::tests::pane_attached_round_trips_and_carries_both_fields_in_one_object ... ok
+
+test result: ok. 189 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

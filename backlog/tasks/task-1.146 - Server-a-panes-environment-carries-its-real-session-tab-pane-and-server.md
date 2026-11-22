@@ -1,9 +1,11 @@
 ---
 id: TASK-1.146
 title: 'Server: a pane''s environment carries its real session, tab, pane and server'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-21T20:20:00Z'
+updated_date: '2026-11-22T03:56:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -11,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.146-server-a-pane-s-environment-carries-its
 ---
 
 ## Description

@@ -175,6 +175,46 @@ test terminal::tests::a_stale_callers_full_also_updates_last_reported_cursor ...
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 335 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-kernel changes_since_reports_a_cursor_only` exited 101 at 2026-11-22T20:06:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 8e720fcfaf1a with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_kernel-9b3ea2512004541f)
+
+running 3 tests
+test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibility_changed ... FAILED
+test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved ... FAILED
+test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed ... FAILED
+
+failures:
+
+---- terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibility_changed stdout ----
+
+thread 'terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibility_changed' (79245935) panicked at crates/kernel/src/terminal.rs:1791:17:
+expected a cursor-only Delta, got Unchanged
+
+---- terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved stdout ----
+
+thread 'terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved' (79245933) panicked at crates/kernel/src/terminal.rs:1770:17:
+expected a cursor-only Delta, got Unchanged
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed stdout ----
+
+thread 'terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed' (79245934) panicked at crates/kernel/src/terminal.rs:1822:17:
+expected a cursor-only Delta, got Unchanged
+
+
+failures:
+    terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved
+    terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed
+    terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibility_changed
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 333 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

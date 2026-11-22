@@ -1,9 +1,9 @@
 ---
-id: DRAFT-2
+id: TASK-1.152
 title: >-
   The cursor blinks by default: a pane's cursor dissolves unless its program
   asks for a steady one
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-22T04:53:00Z'
 labels:
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.127
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

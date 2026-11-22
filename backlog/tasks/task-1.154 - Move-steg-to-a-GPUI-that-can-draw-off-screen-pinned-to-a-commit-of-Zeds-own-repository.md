@@ -1,9 +1,9 @@
 ---
-id: DRAFT-3
+id: TASK-1.154
 title: >-
   Move steg to a GPUI that can draw off screen, pinned to a commit of Zed's own
   repository
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-22T07:18:00Z'
 labels:
@@ -12,6 +12,7 @@ milestone: m-4
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-3
 ---
 
 ## Description

@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T06:15:00Z'
+updated_date: '2026-11-22T06:16:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -21,6 +21,8 @@ asdlc_branch: task-1.137-server-and-cli-tests-every-remaining
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '33d5d39c8d80'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -613,6 +615,15 @@ created: 2026-11-22T05:50:00Z
 ---
 
 Confirmed, not assumed: attach.rs::start_server's own ServerConfig only sets socket_path/handshake_timeout/login explicitly, with `..ServerConfig::default()` for the rest - and ServerConfig::default()'s own force_grace field is literally `crate::runtime::FORCE_GRACE_DEFAULT` (2s, crates/server/src/config.rs:157), the real production default, not a shortened test-only one. The 90s bound's own derivation holds.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T06:16:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.137: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

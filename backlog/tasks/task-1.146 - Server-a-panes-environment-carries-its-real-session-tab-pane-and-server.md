@@ -1,15 +1,18 @@
 ---
 id: TASK-1.146
 title: 'Server: a pane''s environment carries its real session, tab, pane and server'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-21T20:20:00Z'
-updated_date: '2026-11-22T05:39:00Z'
+updated_date: '2026-11-22T05:54:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.146-server-a-pane-s-environment-carries-its
+  - https://github.com/bruk-io/steg/pull/97
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -581,6 +584,18 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Built to the approved plan (bbbd420b5776), no departures. launch_spec now takes server/session/tab/pane as real data from its one caller: Runtime::bind_server_address (new, called once by listen::run with its own socket_path) records the address on State next to the existing stopper field; start_and_dispatch lifts tab_id/session_id into local bindings under the same lock that minted the pane and reads server_address the same way, replacing the old empty-string/from_raw(0) placeholders.
+
+Proof: new crates/server/tests/pane_environment.rs - a real server over a real socket, an explicit pane program that prints only its own four STEG_* lines (never a full env dump), read once after pane.wait --for exit resolves (no polling). Checked, and verified to print nothing from the real environment before each recorded run (SAFETY).
+
+Two negative controls, each recorded failing then passing at the final head:
+- (a) identifiers restored to from_raw(0): failed only the three STEG_SESSION/TAB/PANE lines (00000000), STEG_SERVER still correct.
+- (b) server address restored to "": failed only STEG_SERVER (empty), identifiers still correct.
+
+just check green at the final head and at the pushed/rebased commit (6b8cf04dc4a8) - one known timing flake under heavy concurrent machine load, attach.rs's an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane, confirmed passing in isolation and on a full rerun; unrelated to any file this task touches. CI on PR #97 passed.
+
+No other open task's files touched (checked TASK-1.51's and TASK-1.140's own file lists against this diff). crates/steg/tests/login_environment.rs and start.rs's own steg_vars_and_term_always_win... test verified unaffected, as flagged in the plan's Risks.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

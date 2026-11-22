@@ -22,7 +22,7 @@ use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
 #[path = "support/mod.rs"]
 mod support;
-use support::{ScopedTempDir, scoped_socket_path};
+use support::{ScopedTempDir, run_bounded, scoped_socket_path};
 
 /// Same reasoning as `routing.rs`'s own `test_login`: a working `PATH` is
 /// required (TASK-1.87) for any test here that starts a real program.
@@ -67,7 +67,9 @@ fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<(
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
     stop.stop();
-    handle.join().expect("the server thread should not panic");
+    run_bounded("the server thread to end after stop()", READ_DEADLINE, move || {
+        handle.join().expect("the server thread should not panic");
+    });
 }
 
 /// Same shape as `routing.rs`'s own `connect_and_handshake`.
@@ -955,7 +957,11 @@ fn the_snapshots_reply_always_precedes_any_event_under_a_real_race() {
             }
         };
 
-        let new_session_id = ok_id(mutator.join().unwrap());
+        let new_session_id = ok_id(run_bounded(
+            "the mutator thread to finish creating the racing session",
+            READ_DEADLINE,
+            move || mutator.join().unwrap(),
+        ));
 
         // Exactly once: either the race's own session (with its own tab
         // and pane - `session.new` mints all three atomically, so either

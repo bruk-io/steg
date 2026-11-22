@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T20:05:00Z'
+updated_date: '2026-11-22T20:07:00Z'
 labels:
   - size-3
   - changes-requested
@@ -697,6 +697,8 @@ Built to the approved plan, with the driver correction the orchestrator asked fo
 Hold, decided by the engineer on 22 November 2026: steg PR 95 is not to be merged until the cursor redraw bug (TASK-1.153: arrow keys and backspace move the cursor but it is not redrawn) is fixed and merged. Review may go ahead once the recording is on the pull request; a clean review does not lift this hold.
 
 22 Nov 2026 (@bruk.o): steg PR 95 was merged by the engineer at e7dc7a1d before its review and before TASK-1.153 (arrow-key and backspace redraw), which the earlier hold note named as the condition. Review by bruk.r1 started after the merge, against the merge commit's diff; Important findings become follow-up work. The recording and stills are still owed.
+
+22 Nov 2026 (@bruk.o): review by bruk.r1 returned changes (3 Important, 2 nits) on the already-merged diff. The fixes (a test that each closed gate schedules no further frame; the pattern test reading the real foundations values; the stale was_in_focus flag) go on this task's branch after merging origin/main, as a new pull request, by bruk.w4 once TASK-1.153 is In Review - TASK-1.153 comes first because its bugs are live on main. The recording and stills are the engineer's to make, or come from the capture tool (TASK-1.151, TASK-1.155) when it exists.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

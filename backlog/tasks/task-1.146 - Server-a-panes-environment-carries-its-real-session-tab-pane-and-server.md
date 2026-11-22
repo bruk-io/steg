@@ -216,3 +216,9 @@ goes through `launch_spec`/`Runtime` at all, so it is untouched by this task.
   end-to-end chain is TASK-1.51's own job and its own plan already names the
   test for it.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-2 (section 4, R33) by @bruk.o: ok. Builds only this task's part (no wire, dispatch-context or CLI change), touches none of TASK-1.51's files, and its proof covers each criterion: one real-pane test with an explicit program for #1 and #2, and two separate recorded controls (identifiers, server address) for #3. The test writes only the four STEG_ lines, never a whole environment dump.
+<!-- SECTION:NOTES:END -->

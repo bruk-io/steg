@@ -502,6 +502,53 @@ def test_the_minimal_fixture_itself_matches_schema_exactly() -> None:
     assert validate(MINIMAL_DATA, SCHEMA) == ()
 
 
+def test_a_second_motion_entry_with_the_cursor_fades_own_fields_matches_schema_exactly() -> None:
+    # TASK-1.136: a second `motion` entry carrying cycle/order/step_fraction/
+    # medium_shade_strength/phase_* beside motion.status-fade's duration-only shape -
+    # the whole point of `_MOTION_ENTRY`'s `optional` set is that neither entry's own
+    # fields are required of the other.
+    data = {
+        **MINIMAL_DATA,
+        "motion": [
+            *MINIMAL_DATA["motion"],
+            {
+                "name": "motion.cursor-fade.shaded-dissolve",
+                "unit": "ms",
+                "use": "x",
+                "cycle": 1400,
+                "order": [3, 0, 4, 2, 1, 5],
+                "step_fraction": 0.03,
+                "medium_shade_strength": 0.5,
+                "phase_whole": 0.43,
+                "phase_going": 0.18,
+                "phase_empty": 0.21,
+                "phase_returning": 0.18,
+            },
+        ],
+    }
+    assert validate(data, SCHEMA) == ()
+
+
+def test_an_unrecognised_field_on_the_cursor_fade_entry_is_still_refused() -> None:
+    # The widened _MOTION_ENTRY is closed, not opened up wholesale: a field neither
+    # entry's shape names is still "not described by the schema".
+    data = {
+        **MINIMAL_DATA,
+        "motion": [
+            *MINIMAL_DATA["motion"],
+            {
+                "name": "motion.cursor-fade.shaded-dissolve",
+                "unit": "ms",
+                "use": "x",
+                "cycle": 1400,
+                "pieces": 6,
+            },
+        ],
+    }
+    found = schema_violations(data)
+    assert any(violation.startswith("motion.motion.cursor-fade.shaded-dissolve.pieces:") for violation in found)
+
+
 def test_schema_violations_formats_a_problem_as_path_colon_reason() -> None:
     data = {**MINIMAL_DATA, "glow_colour": "#fff"}
     assert schema_violations(data) == ("glow_colour: not described by the schema",)

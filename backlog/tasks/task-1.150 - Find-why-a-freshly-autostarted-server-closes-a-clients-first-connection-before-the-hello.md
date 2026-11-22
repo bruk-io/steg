@@ -3,14 +3,13 @@ id: TASK-1.150
 title: >-
   Find why a freshly autostarted server closes a client's first connection
   before the hello
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T06:16:00Z'
+updated_date: '2026-11-22T06:28:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -433,6 +432,8 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 29, 28 without the Asdlc-Worker trailer.
+
+Review findings fixed: (1) the first 300-run's 'failed at run 1' was the script's find pattern non-deterministically picking a .rcgu.o object file, not the test binary - confirmed by reproduction, not guessed; also found two distinct valid executable hashes could coexist, so the earlier pass may have been correct only by chance. Rewrote the script to run through cargo test each iteration, eliminating manual binary discovery entirely. (2) spawn_hostile_listener now takes the gap directly (Duration::ZERO for its ordinary callers), so the new test drives the exact function the others use, not a parallel copy; control re-confirmed on this one function (fails with ClosedBeforeHello when flipped, passes at the fix). (3) All checks (control pair, 300-run, just check) re-recorded strictly after the last commit, at the true final head (post-merge of origin/main, no code conflicts). All green, pushed, CI passed (10m52s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

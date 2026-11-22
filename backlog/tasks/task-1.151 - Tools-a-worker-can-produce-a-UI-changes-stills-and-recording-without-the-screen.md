@@ -3,9 +3,11 @@ id: TASK-1.151
 title: >-
   Tools: a worker can produce a UI change's stills and recording without the
   screen
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w3'
 created_date: '2026-11-22T04:52:00Z'
+updated_date: '2026-11-22T07:00:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -13,6 +15,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.151-tools-a-worker-can-produce-a-ui-change-s
 ---
 
 ## Description

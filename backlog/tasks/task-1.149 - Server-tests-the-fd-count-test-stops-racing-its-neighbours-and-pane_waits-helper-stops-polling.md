@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-22T04:12:00Z'
-updated_date: '2026-11-22T05:39:00Z'
+updated_date: '2026-11-22T05:55:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -33,4 +33,6 @@ Split out of TASK-1.137 by its plan (22 November 2026). Two sighted problems tha
 
 <!-- SECTION:NOTES:BEGIN -->
 Sighting for whoever plans this, 22 November 2026 (not in this task's scope unless the plan takes it): crates/server/tests/attach.rs a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream failed once in a local just check on TASK-1.150's branch while two other builds ran on the machine; it passed alone and in the next full run. Reported by @bruk.w5 as contention, cause not established.
+
+Second contention sighting in crates/server/tests/attach.rs, 22 November 2026: its unresponsive-pane test failed once in a local just check on TASK-1.146's branch while other builds ran; it passed alone and on a full re-run. Reported by @bruk.w2; cause not established. With the pane-size test above, that is two different attach.rs tests failing under load in one day.
 <!-- SECTION:NOTES:END -->

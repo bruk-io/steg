@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T04:47:00Z'
+updated_date: '2026-11-22T04:57:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -349,6 +349,41 @@ From the review of TASK-1.140 (nit, 2026-11-21): crates/server/tests/pane_wait.r
 Sighting, 22 November 2026: crates/steg/tests/cli_connection_arbitration.rs a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding failed again in CI, this time on main at 4ccc8344 (the merge of steg PR 91, which touches only crates/ui and tools). Assertion at line 101; the client reported that the server accepted the connection and closed it before a hello arrived, twice. Second sighting of this test; re-run once by @bruk.o.
 
 Plan checked by @bruk.o, 22 November 2026: ok for the narrowed scope (the mechanical sweep; DRAFT-1 and DRAFT-2 hold the sighted problems). Covers each criterion; criterion 4 read as the files other in-flight tasks edit (listen.rs, login_environment.rs for TASK-1.146). Three things for the build, which the brief will carry: bring main in by merging, never by rebasing a pushed branch; narrow test runs go through the pinned Zig, and the final proof is just check; and since a control per site is not practical, record one representative control (one wrapped join made to outlive its bound, failing with its named message, then passing).
+
+Check passed: `just check` exited 0 at 2026-11-22T04:57:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137 on task-1.137-server-and-cli-tests-every-remaining at 98ca618e9202:
+
+```text
+ok      format check (0.4s)
+ok      lint (87.9s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.7s)
+ok      test (steg-sdk) (2.6s)
+ok      test (steg-sdk, local-socket) (2.9s)
+ok      build (steg-kernel) (43.0s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (44.0s)
+ok      test (steg-server) (61.2s)
+ok      test (steg-server, race-fixture) (63.5s)
+ok      test (steg-server, pty-race-fixture) (68.8s)
+ok      test (steg-server, accept-backoff-fixture) (67.0s)
+ok      build (steg) (2.9s)
+ok      test (steg) (4.5s)
+ok      test (steg, fixtures) (9.3s)
+ok      build (steg-ui) (21.0s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (2.8s)
+ok      test (steg-app) (2.2s)
+ok      tool tests (41.2s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

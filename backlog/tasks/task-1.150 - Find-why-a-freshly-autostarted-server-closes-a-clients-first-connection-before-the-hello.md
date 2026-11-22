@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T05:02:00Z'
+updated_date: '2026-11-22T05:05:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -70,6 +70,32 @@ Not splitting: this is one fixture reorder, one new deterministic test, and one 
 From TASK-1.137's planner, 22 November 2026, after reading both failed CI logs (same panic both times, ConnectError::ClosedBeforeHello). Two candidates, neither proven. H1 (better supported, needs no new mechanism): the test's own fixture. spawn_hostile_listener accepts one connection, drops it, then drops the listener; while the listening socket is still open the kernel queues further connections in its backlog, so the client's retry can land there between the two drops and is discarded when the listener closes - the same end-of-file as the first attempt, with autostart never run and no real server involved. That would make this a test-fixture race, not a product fault. H2: a real autostarted server closed its first connection early, which needs a second, unconfirmed race with no other symptom in the suite. Neither log records whether the autostart spawn ran in the failing case. Start by instrumenting the fixture to tell the two apart (did the spawn run), before writing any fix.
 
 Plan checked by @bruk.o, 22 November 2026: ok. It names the cause with a reproduction (1 failure in 150 unmodified runs; 20 of 20 with the gap widened; the autostart spawn is unreachable when both connects succeed), fixes only the test fixture by closing the listener before the stream so the close precedes the client's retry by cause and not by timing, and proves it with a test that fails without the reorder plus a 300-repetition run. One thing for review: the new test places a deliberate delay where the race lived; that is an adversary, not a wait on an event, and the notes must say so.
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_connection_arbitration` exited 0 at 2026-11-22T05:05:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.150 on task-1.150-find-why-a-freshly-autostarted-server at 48b88c74cb52 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/cli_connection_arbitration.rs (target/debug/deps/cli_connection_arbitration-dfa156c3f3528d90)
+
+running 15 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::run_bounded_returns_the_bodys_value_when_it_finishes_in_time ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::one_scoped_temp_dir_can_hand_out_two_different_paths ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test the_hostile_listener_itself_accepts_and_closes_with_nothing_written ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::wait_for_socket_returns_once_something_is_listening ... ok
+test support::tests::wait_for_socket_panics_when_nothing_ever_answers - should panic ... ok
+test support::tests::run_bounded_panics_when_the_body_does_not_finish_in_time - should panic ... ok
+test a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding ... ok
+test closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

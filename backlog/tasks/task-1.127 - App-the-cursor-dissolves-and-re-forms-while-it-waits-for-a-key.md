@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T04:27:00Z'
+updated_date: '2026-11-22T04:28:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -291,6 +291,36 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
 failures:
     terminal_element::tests::the_bottom_right_piece_reaches_the_cells_own_true_far_edge
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Check FAILED: `cargo test -p steg-app adjacent_pieces_share_an_exact_edge_at_an_odd_cell_size` exited 101 at 2026-11-22T04:28:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::adjacent_pieces_share_an_exact_edge_at_an_odd_cell_size ... FAILED
+
+failures:
+
+---- terminal_element::tests::adjacent_pieces_share_an_exact_edge_at_an_odd_cell_size stdout ----
+
+thread 'terminal_element::tests::adjacent_pieces_share_an_exact_edge_at_an_odd_cell_size' (74928003) panicked at crates/app/src/terminal_element.rs:1357:9:
+assertion `left == right` failed
+  left: 114.0
+ right: 133.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::adjacent_pieces_share_an_exact_edge_at_an_odd_cell_size
 
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
 

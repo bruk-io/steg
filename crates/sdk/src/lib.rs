@@ -46,7 +46,7 @@ pub use pane_kind::PaneKind;
 pub use program::{Program, ProgramStatus};
 pub use record::{
     ClientRecord, PaneRecord, ServerRecord, SessionRecord, SessionTree, SettingRecord, TabRecord,
-    TabTree, TreeSnapshot,
+    TabTree, TreeSnapshot, WaitResult,
 };
 pub use screen::{
     CellStyle, Cursor, CursorShape, EndReason, Page, PaneAttached, Rgb, Row, RowId, Run, Screen,

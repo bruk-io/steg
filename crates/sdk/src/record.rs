@@ -20,6 +20,10 @@
 //! `Client` tracks it yet, and this record never polls for one to appear
 //! (the same reasoning [`PaneRecord::title`]/[`TabRecord::title`] already
 //! give for the same shape).
+//!
+//! `WaitResult` (TASK-1.140) is the fifth: `pane.wait`'s own reply, exactly
+//! its one declared field (`exit_code`) - a typed record rather than an
+//! inline JSON object, the same reason every record above is typed.
 
 use serde::{Deserialize, Serialize};
 
@@ -121,6 +125,15 @@ pub struct PaneRecord {
     /// one for its tab (R91; `Tree::tab_layout`/`Tab::size`) - `None`
     /// before any client has.
     pub size: Option<Size>,
+}
+
+/// `pane.wait`'s own reply (TASK-1.140), with the same one field
+/// `description::methods::pane.rs`'s own `pane.wait` declares -
+/// `exit_code`, the program's own exit code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WaitResult {
+    /// The program's own exit code.
+    pub exit_code: i32,
 }
 
 /// One tab, as `tab.list`/`tab.show` return it (TASK-1.89), with the same
@@ -486,6 +499,49 @@ mod tests {
                 "{dotted}'s declared fields and PaneRecord's own keys must match"
             );
         }
+    }
+
+    use super::WaitResult;
+
+    #[test]
+    fn wait_result_serde_round_trips() {
+        let record = WaitResult { exit_code: 7 };
+        let json = serde_json::to_string(&record).unwrap();
+        assert_eq!(serde_json::from_str::<WaitResult>(&json).unwrap(), record);
+    }
+
+    /// Ties `WaitResult`'s own shape to the description's, the same way
+    /// `matches_the_fields_session_show_and_session_list_declare` does for
+    /// `SessionRecord` above.
+    #[test]
+    fn matches_the_fields_pane_wait_declares() {
+        use std::collections::HashSet;
+
+        let api = crate::description::description();
+        let value = serde_json::to_value(WaitResult { exit_code: 7 }).unwrap();
+        let record_keys: HashSet<&str> = value
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+
+        let method = api.method("pane.wait").unwrap();
+        let fields = match &method.returns {
+            crate::description::Returns::Record { fields }
+            | crate::description::Returns::Records { fields } => fields,
+            other @ (crate::description::Returns::Nothing
+            | crate::description::Returns::Identifier { .. }
+            | crate::description::Returns::Text
+            | crate::description::Returns::Nested { .. }) => {
+                panic!("pane.wait's returns is not a record: {other:?}")
+            }
+        };
+        let declared: HashSet<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(
+            declared, record_keys,
+            "pane.wait's declared fields and WaitResult's own keys must match"
+        );
     }
 
     use super::TabRecord;

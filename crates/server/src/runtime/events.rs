@@ -139,6 +139,12 @@ pub(super) fn apply_event_locked(state: &mut State, event: PaneEvent) {
                 .map(|tab| session_owning_tab(&state.tree, tab));
             match state.tree.record_exit(pane, exit_code, now) {
                 Ok(outcome) => {
+                    // TASK-1.140: every `pane.wait` pending on `pane`
+                    // resolves with this exact exit code, regardless of
+                    // whether `outcome` is `Stayed` or `Closed` below - a
+                    // wait only ever cares about the exit code, never the
+                    // cascade.
+                    super::wait::resolve_pane_waits_locked(state, pane, Ok(exit_code));
                     if let Some(scope) = scope {
                         broadcast(
                             state,

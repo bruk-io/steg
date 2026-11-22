@@ -352,6 +352,11 @@ impl Drop for ConnectionCleanup<'_> {
         for (&pane, &(attachment_id, _stream)) in self.pane_streams.borrow().iter() {
             self.runtime.forget_attachment(pane, attachment_id);
         }
+        // TASK-1.140, AC #3: every `pane.wait` this connection still has
+        // pending is cancelled now - no reply (the connection is already
+        // gone), and any timer thread one of them owns wakes via its own
+        // gate and exits within its own bounded wait, never past it.
+        self.runtime.cancel_waits(self.client_id);
         // Before `disconnect_client`: a subscriber entry keyed by this
         // same `client_id` must not linger past the id itself being
         // freed for reuse (TASK-1.46 §7) - deregistering first, while the
@@ -606,15 +611,17 @@ fn finish_attach(
 
 /// Handles one decoded request, replying on `state.outbound` - `false`
 /// means the connection should end (the reply queue is closed or full),
-/// `true` to keep reading. `pane.attach`/`pane.detach` (TASK-1.47) and
-/// `tab.declare-size` (TASK-1.114) are intercepted here, *before* falling
-/// through to `runtime.handle`'s own, unchanged generic path, for the same
-/// structural reason TASK-1.46 intercepts `event.watch` the same way:
-/// neither `dispatch::dispatch` nor `Runtime::handle` can reach a
-/// connection's own `Arc<Outbound>`/attachment bookkeeping (`pane.attach`/
-/// `pane.detach`'s own reason) or even a `ClientId` at all (`tab.declare
-/// -size`'s - `Context` carries no client identity, only session/tab/pane
-/// defaults), both only ever available here, after the handshake.
+/// `true` to keep reading. `pane.attach`/`pane.detach` (TASK-1.47),
+/// `tab.declare-size` (TASK-1.114) and `pane.wait` (TASK-1.140) are
+/// intercepted here, *before* falling through to `runtime.handle`'s own,
+/// unchanged generic path, for the same structural reason TASK-1.46
+/// intercepts `event.watch` the same way: neither `dispatch::dispatch` nor
+/// `Runtime::handle` can reach a connection's own `Arc<Outbound>`/
+/// attachment bookkeeping (`pane.attach`/`pane.detach`'s own reason), a
+/// `ClientId` at all (`tab.declare-size`'s - `Context` carries no client
+/// identity, only session/tab/pane defaults), or the server's pending-wait
+/// state (`pane.wait`'s own reason, alongside the same `Arc<Outbound>`) -
+/// all only ever available here, after the handshake.
 ///
 /// A client reaching either method *through* `api.call` is still routed
 /// here, resolved first - the same cheap, harmless second resolution
@@ -781,6 +788,26 @@ fn handle_request(
             };
             let bytes = Connection::reply(id, response);
             outbound.enqueue_control(bytes).is_ok()
+        }
+        // `pane.wait` (TASK-1.140): intercepted here, like `pane.attach`/
+        // `pane.detach`/`tab.declare-size`/`server.stop` above, because
+        // answering it needs this connection's own `Arc<Outbound>` and the
+        // server's pending-wait state, neither reachable from `dispatch`'s
+        // plain signature. `register_wait` already enqueues its own reply
+        // (immediately) or registers and spawns its own timer thread
+        // (deferred) - there is nothing left here to build.
+        "pane.wait" => {
+            runtime.register_wait(
+                description,
+                context,
+                &resolved,
+                crate::runtime::Waiting {
+                    client: client_id,
+                    id,
+                },
+                outbound,
+            );
+            true
         }
         // `event.watch` (TASK-1.46 §4), reached directly or through
         // `api.call` (already resolved above, the same way `pane.attach`/
@@ -976,7 +1003,7 @@ mod tests {
     use crate::dispatch::Context;
     use crate::outbound::spawn_writer;
     use crate::pty::RealLauncher;
-    use crate::runtime::{Attaching, LoginShell};
+    use crate::runtime::{Attaching, LoginShell, Waiting};
     use steg_sdk::{ClientKind, ErrorCode, Frame, Incoming, Request, Response};
 
     const TEST_GRACE: Duration = Duration::from_millis(30);
@@ -1553,6 +1580,161 @@ mod tests {
             ),
             Response::Error(error) => panic!("expected Ok(null), got {error:?}"),
         }
+    }
+
+    // --- `pane.wait`'s own interception (TASK-1.140) -------------------
+
+    fn wait_request(target: &str, timeout_secs: Option<i64>) -> Request {
+        let mut params = serde_json::Map::new();
+        params.insert("target".to_string(), serde_json::json!(target));
+        params.insert("for".to_string(), serde_json::json!("exit"));
+        if let Some(secs) = timeout_secs {
+            params.insert("timeout".to_string(), serde_json::json!(secs));
+        }
+        Request {
+            method: "pane.wait".to_string(),
+            params,
+        }
+    }
+
+    /// AC #3: a client that disconnects while a `pane.wait` is pending
+    /// leaves no thread, timer or registration behind - proven the same
+    /// way `connection_cleanups_drop_sweeps_every_attachment_it_still_
+    /// holds` already proves it for an attachment: build a
+    /// `ConnectionCleanup` around a real, registered pending wait (a
+    /// short but positive timeout, so a real timer thread exists), drop
+    /// it, and check the registration is gone at once - no polling
+    /// needed, since `cancel_waits` removes it synchronously, under the
+    /// same lock acquisition `ConnectionCleanup::drop` makes. A second,
+    /// fresh wait against the same, still-running pane then proves the
+    /// cancelled entry did not leave anything that would wedge a later
+    /// wait, not merely that nothing crashed - by actually resolving it,
+    /// through a real `pane.close --force`, and reading the real reply
+    /// back off a real socket.
+    #[test]
+    fn connection_cleanups_drop_cancels_every_pending_wait_it_still_holds() {
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
+        let description = steg_sdk::description();
+        let context = Context::none();
+        let path = new_pane_path(&runtime, &description, &context);
+        let pane: steg_sdk::PaneId = path.rsplit('/').next().unwrap().parse().unwrap();
+
+        let (client_writer, _server_reader) = UnixStream::pair().unwrap();
+        let outbound = Arc::new(Outbound::new());
+        let writer = spawn_writer(Arc::clone(&outbound), client_writer);
+
+        let client_id = runtime.connect_client(ClientKind::Cli, None);
+        runtime.register_wait(
+            &description,
+            &context,
+            &wait_request(&path, Some(30)),
+            Waiting {
+                client: client_id,
+                id: 1,
+            },
+            &outbound,
+        );
+
+        assert_eq!(
+            runtime.pending_wait_count_for_test(pane),
+            1,
+            "register_wait must have registered exactly one pending wait before this test's \
+             own drop runs"
+        );
+
+        let pane_streams = RefCell::new(HashMap::new());
+        let (_shutdown_a, shutdown_b) = UnixStream::pair().unwrap();
+        {
+            let _cleanup = ConnectionCleanup {
+                outbound,
+                writer: Some(writer),
+                shutdown_handle: shutdown_b,
+                runtime: &runtime,
+                client_id,
+                pane_streams: &pane_streams,
+                events: None,
+            };
+            // `_cleanup` drops here, running `cancel_waits` - the one
+            // thing this test is about.
+        }
+
+        assert_eq!(
+            runtime.pending_wait_count_for_test(pane),
+            0,
+            "ConnectionCleanup::drop must cancel every pending wait it still holds"
+        );
+
+        // A fresh wait against the same, still-running pane still works
+        // correctly afterward.
+        let (second_writer, mut second_reader) = UnixStream::pair().unwrap();
+        let second_outbound = Arc::new(Outbound::new());
+        let _second_writer_thread = spawn_writer(Arc::clone(&second_outbound), second_writer);
+        let second_client = runtime.connect_client(ClientKind::Cli, None);
+        runtime.register_wait(
+            &description,
+            &context,
+            &wait_request(&path, None),
+            Waiting {
+                client: second_client,
+                id: 2,
+            },
+            &second_outbound,
+        );
+        assert_eq!(runtime.pending_wait_count_for_test(pane), 1);
+
+        // Ends the pane's own program for real, through a real
+        // `pane.close --force` - the second wait must actually resolve,
+        // not merely have registered. The full three-segment `path`, not
+        // the bare pane id: `resolve_pane_str`'s own single-segment branch
+        // needs a default session this test's plain `Context::none()`
+        // deliberately has none of (the same reasoning that function's own
+        // doc gives) - a full path reads no default at all.
+        let close_response = runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "pane.close".to_string(),
+                params: serde_json::json!({"target": path, "force": true})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        );
+        assert!(
+            matches!(close_response, Response::Ok(_)),
+            "{close_response:?}"
+        );
+
+        second_reader
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut client_side = Connection::new(Role::Client, steg_sdk::description());
+        let response = loop {
+            match client_side.poll() {
+                Some(Incoming::Reply { id: 2, response }) => break response,
+                Some(_) => continue,
+                None => {
+                    let mut buf = [0_u8; 4096];
+                    let n = second_reader
+                        .read(&mut buf)
+                        .expect("reading the second wait's reply");
+                    assert!(n > 0, "the writer thread closed before replying");
+                    client_side.receive(&buf[..n]);
+                }
+            }
+        };
+        let Response::Error(error) = response else {
+            panic!(
+                "expected the second wait to answer NoSuchTarget once the pane closed, \
+                 got {response:?}"
+            );
+        };
+        assert_eq!(error.code, ErrorCode::NoSuchTarget);
     }
 
     /// `Instant::now()` is read exactly once here, as a base - every

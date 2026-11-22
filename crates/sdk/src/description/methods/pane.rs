@@ -369,6 +369,7 @@ pub(super) fn pane_methods() -> Vec<Method> {
                 ErrorCode::BadRequest,
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
+                ErrorCode::TimedOut,
             ],
             follows: Follows::Nothing,
             since: VERSION,

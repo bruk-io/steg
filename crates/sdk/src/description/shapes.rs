@@ -352,6 +352,9 @@ pub enum ErrorCode {
     /// The program could not be started: the OS refused to spawn it (for
     /// instance, the command does not exist).
     ProgramFailed,
+    /// A wait reached its own timeout before the condition was met
+    /// (TASK-1.140 - `pane.wait`'s own `--timeout`).
+    TimedOut,
 }
 
 #[cfg(test)]

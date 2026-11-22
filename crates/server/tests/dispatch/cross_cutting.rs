@@ -86,8 +86,16 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
             "Tab::size",
         ),
         // `pane.capture` is a real `dispatch` arm now (a sibling task) -
-        // not in this list any more.
-        ("pane.wait", vec![("for", json!("exit"))], "TASK-1.140"),
+        // not in this list any more. `pane.wait` stays: it is intercepted
+        // in `connection.rs` (TASK-1.140), never reached through `dispatch`
+        // in the real system, the same reason `pane.attach`/`pane.detach`/
+        // `tab.declare-size`/`server.stop` are not real `dispatch` arms
+        // either.
+        (
+            "pane.wait",
+            vec![("for", json!("exit"))],
+            "connection.rs's own interception",
+        ),
         // `server.show`/`server.start` are real `dispatch` arms now
         // (TASK-1.88) - not in this list any more. `server.stop` stays:
         // it is intercepted in `connection.rs`, never reached through

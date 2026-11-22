@@ -36,12 +36,14 @@ mod start;
 #[cfg(test)]
 mod testing;
 mod tree;
+mod wait;
 
 use events::{apply_event_locked, broadcast, emit_focus_event};
 use input::{apply_size_changed_locked, reapply_every_sized_tab};
 
 pub(crate) use attach::Attaching;
 pub use login::{LoginShell, build_login_shell};
+pub(crate) use wait::Waiting;
 
 /// The kernel's tree, and every pane's real runtime, held together under
 /// one lock (TASK-1.76 §1): many operations need both atomically (a
@@ -97,6 +99,12 @@ struct State {
     /// before it can accept a connection at all - see `set_stopper`'s own
     /// doc (`lifecycle.rs`).
     stopper: Option<crate::listen::Stopper>,
+    /// Every pane's own outstanding `pane.wait` calls (TASK-1.140), kept
+    /// here for the same reason `panes`/`subscribers` are: every site that
+    /// can resolve one already holds this lock when it needs to (a real
+    /// exit, a close, a client disconnecting) - see `wait.rs`'s own module
+    /// doc.
+    pending_waits: wait::PendingWaits,
     /// How many `PaneEvent::CommandOutputStarted`/`CommandEnded` events
     /// `apply_event_locked` has applied for each pane (TASK-1.84 review):
     /// test-only, since nothing outside a test needs it. A mark the
@@ -198,6 +206,7 @@ impl Runtime {
             subscribers: HashMap::new(),
             notify_session_count_changed: None,
             stopper: None,
+            pending_waits: HashMap::new(),
             #[cfg(test)]
             applied_marks: HashMap::new(),
         }));

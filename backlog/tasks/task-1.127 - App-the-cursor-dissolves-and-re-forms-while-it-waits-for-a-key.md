@@ -523,6 +523,34 @@ test terminal_element::tests::blend_at_zero_strength_leaves_the_base_colour_unch
 
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 97 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `cargo test -p steg-app grapheme_at_finds_a_grapheme_at_a_non_zero_run_start_column` exited 101 at 2026-11-22T04:30:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::grapheme_at_finds_a_grapheme_at_a_non_zero_run_start_column ... FAILED
+
+failures:
+
+---- terminal_element::tests::grapheme_at_finds_a_grapheme_at_a_non_zero_run_start_column stdout ----
+
+thread 'terminal_element::tests::grapheme_at_finds_a_grapheme_at_a_non_zero_run_start_column' (74949569) panicked at crates/app/src/terminal_element.rs:1616:87:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::grapheme_at_finds_a_grapheme_at_a_non_zero_run_start_column
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

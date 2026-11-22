@@ -6,6 +6,7 @@ title: >-
 status: Draft
 assignee: []
 created_date: '2026-11-22T04:13:00Z'
+updated_date: '2026-11-22T04:16:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -26,3 +27,9 @@ Found by TASK-1.137's planner (22 November 2026). The test has failed twice in C
 - [ ] #2 Either the fix is made with a test that fails without it, or a follow-up task states the fix and why it was not made here
 - [ ] #3 crates/steg/tests/cli_connection_arbitration.rs a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding passes in a recorded run of many repetitions
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-1.137's planner, 22 November 2026, after reading both failed CI logs (same panic both times, ConnectError::ClosedBeforeHello). Two candidates, neither proven. H1 (better supported, needs no new mechanism): the test's own fixture. spawn_hostile_listener accepts one connection, drops it, then drops the listener; while the listening socket is still open the kernel queues further connections in its backlog, so the client's retry can land there between the two drops and is discarded when the listener closes - the same end-of-file as the first attempt, with autostart never run and no real server involved. That would make this a test-fixture race, not a product fault. H2: a real autostarted server closed its first connection early, which needs a second, unconfirmed race with no other symptom in the suite. Neither log records whether the autostart spawn ran in the failing case. Start by instrumenting the fixture to tell the two apart (did the spawn run), before writing any fix.
+<!-- SECTION:NOTES:END -->

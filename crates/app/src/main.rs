@@ -2,6 +2,7 @@
 //! resizing and the IME, TASK-1.121; the latency budget, TASK-1.122). A client of the
 //! server like any other, through the sdk and the public API, with no private channel.
 
+mod accessibility;
 mod client;
 mod ime;
 mod keys;
@@ -31,7 +32,7 @@ use crate::metrics::CellMetrics;
 use crate::model::{Model, describe_end};
 use crate::size::GridSize;
 use crate::startup::{Attached, ShutdownSlot, StartupError};
-use crate::terminal_element::RowCache;
+use crate::terminal_element::{CursorFadeState, RowCache};
 
 /// Everything this window holds once attached: the model a background thread feeds, the
 /// metrics and row cache painting needs, the client whose own `stop` ends the reader
@@ -42,6 +43,9 @@ struct AttachedState {
     model: Rc<RefCell<Model>>,
     metrics: CellMetrics,
     row_cache: Rc<RefCell<RowCache>>,
+    /// TASK-1.127's own addition: when the cursor's fade cycle started and whatever wake
+    /// is currently scheduled for it (`terminal_element::CursorFadeState`'s own doc).
+    cursor_fade: Rc<RefCell<CursorFadeState>>,
     client: Client,
     _receive_task: Task<()>,
     writer: Writer,
@@ -152,6 +156,7 @@ impl AppWindow {
         let metrics = CellMetrics::measure(window);
         let model = Rc::new(RefCell::new(Model::from_snapshot(attached.snapshot)));
         let row_cache = terminal_element::row_cache();
+        let cursor_fade = terminal_element::cursor_fade_state();
 
         // One shared event channel for both threads (review finding 1): the reader's own
         // `Disconnected` and the writer thread's own now travel the exact same path to the
@@ -214,6 +219,7 @@ impl AppWindow {
             model,
             metrics,
             row_cache,
+            cursor_fade,
             client,
             writer,
             declared_size: Cell::new(declared_size),
@@ -341,6 +347,17 @@ impl AppWindow {
     /// `replace_text_in_range` (`keys.rs`'s own doc comment on the dedup rule GPUI's own
     /// macOS backend already enforces).
     fn on_key_down(&mut self, event: &KeyDownEvent, _window: &mut Window, cx: &mut Context<Self>) {
+        // TASK-1.127, AC#2: a key press shows the cursor whole at once and restarts the
+        // fade cycle - every key reaching this handler, the paste gesture included, not
+        // only the ones `key_to_bytes` maps to something; `cx.notify()` is what actually
+        // paints the whole cursor this frame rather than waiting for whatever the key
+        // itself does next (a server round trip, or nothing at all for an unbound key).
+        if let Phase::Attached(state) = &self.phase
+            && state.ended.is_none()
+        {
+            state.cursor_fade.borrow_mut().show_whole();
+            cx.notify();
+        }
         let keystroke = &event.keystroke;
         if is_paste_keystroke(keystroke) {
             // The one line that reads the real clipboard - `send_pasted_text` is the
@@ -450,6 +467,13 @@ impl EntityInputHandler for AppWindow {
         cx: &mut Context<Self>,
     ) {
         let bytes = self.ime.commit(text);
+        // TASK-1.127, AC#2: a committed IME composition is a key press too - the same
+        // whole-cursor, restarted-cycle treatment `on_key_down`'s own raw key path gets.
+        if let Phase::Attached(state) = &self.phase
+            && state.ended.is_none()
+        {
+            state.cursor_fade.borrow_mut().show_whole();
+        }
         self.send_bytes(bytes);
         cx.notify();
     }
@@ -545,6 +569,8 @@ impl Render for AppWindow {
                             self.focus_handle.clone(),
                             cx.entity(),
                             Rc::clone(&state.last_bounds),
+                            Rc::clone(&state.cursor_fade),
+                            state.ended.is_some(),
                         )))
                         .child(
                             div()
@@ -566,6 +592,8 @@ impl Render for AppWindow {
                             self.focus_handle.clone(),
                             cx.entity(),
                             Rc::clone(&state.last_bounds),
+                            Rc::clone(&state.cursor_fade),
+                            state.ended.is_some(),
                         ))
                 }
             }

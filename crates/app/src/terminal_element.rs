@@ -43,17 +43,20 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash as _, Hasher as _};
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 use gpui::{
-    App, Bounds, ElementInputHandler, Entity, FocusHandle, FontStyle, FontWeight, Hsla,
-    IntoElement, ParentElement as _, Pixels, Point, ShapedLine, SharedString, StrikethroughStyle,
-    Styled as _, TextRun, UnderlineStyle, Window, canvas, div, fill, point, px,
+    App, AsyncWindowContext, Bounds, ContentMask, ElementInputHandler, Entity, FocusHandle,
+    FontStyle, FontWeight, Hsla, IntoElement, ParentElement as _, Pixels, Point, ShapedLine,
+    SharedString, StrikethroughStyle, Styled as _, Task, TextRun, UnderlineStyle, Window, canvas,
+    div, fill, point, px,
 };
-use steg_sdk::{CellStyle, Cursor, CursorShape, Rgb, Run, Underline, Wide};
+use steg_sdk::{CellStyle, Cursor, CursorShape, Rgb, Row, Run, Underline, Wide};
 use steg_ui::foundations::TerminalTheme;
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use crate::AppWindow;
+use crate::accessibility::reduce_motion_enabled;
 use crate::metrics::CellMetrics;
 use crate::model::{Model, run_columns};
 
@@ -110,6 +113,15 @@ impl RowCache {
 /// guarantee). `last_bounds` is this element's own last-painted bounds, read back by
 /// `AppWindow::bounds_for_range` to anchor the IME's candidate window at the terminal's own
 /// cursor cell - `None` only before the first paint.
+/// `cursor_fade`/`ended` are TASK-1.127's own addition - `cursor_fade` is this window's own
+/// fade state (below), `ended` is whether the pane has ended (TASK-1.129), one of the
+/// fade's own gates.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct, named input the grid, the input handler and the \
+              cursor fade each need; bundling them would not make any of them optional or \
+              grouped by a real relationship between them"
+)]
 pub fn terminal(
     model: Rc<RefCell<Model>>,
     metrics: CellMetrics,
@@ -118,6 +130,8 @@ pub fn terminal(
     focus_handle: FocusHandle,
     entity: Entity<AppWindow>,
     last_bounds: Rc<std::cell::Cell<Option<Bounds<Pixels>>>>,
+    cursor_fade: Rc<RefCell<CursorFadeState>>,
+    ended: bool,
 ) -> impl IntoElement {
     div().size_full().bg(theme.bg).child(
         canvas(
@@ -138,6 +152,19 @@ pub fn terminal(
                     window,
                     cx,
                 );
+                paint_cursor(
+                    &model.borrow(),
+                    &metrics,
+                    &theme,
+                    bounds,
+                    window,
+                    cx,
+                    &row_cache,
+                    &cursor_fade,
+                    &focus_handle,
+                    ended,
+                    &entity,
+                );
             },
         )
         // `Canvas` carries its own `StyleRefinement`, empty by default (confirmed from
@@ -152,6 +179,11 @@ pub fn terminal(
 /// `terminal_element.rs` owns this cache's type).
 pub fn row_cache() -> Rc<RefCell<RowCache>> {
     Rc::new(RefCell::new(RowCache::default()))
+}
+
+/// A fresh cursor-fade state - one per window, created once, alongside [`row_cache`].
+pub fn cursor_fade_state() -> Rc<RefCell<CursorFadeState>> {
+    Rc::new(RefCell::new(CursorFadeState::default()))
 }
 
 fn paint_grid(
@@ -211,8 +243,6 @@ fn paint_grid(
             column = column.saturating_add(width);
         }
     }
-
-    paint_cursor(model.cursor(), metrics, theme, bounds, window);
 }
 
 /// How many columns one grapheme of `run` spans - `run_columns`'s own per-run total
@@ -243,11 +273,244 @@ fn cell_origin(
     )
 }
 
+/// The state of one of the cursor's six cell pieces at a point in its fade cycle
+/// (TASK-1.127's plan, "Painting"; the design's own Cursor atom, option 2B,
+/// `steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PieceState {
+    /// The cursor's own colour.
+    Whole,
+    /// The flat colour half way between the cursor colour and the ground (the engineer's
+    /// own wording: "not a dither") - one step on the way out, one on the way back.
+    Shade,
+    /// Nothing painted for this piece - the character under it, if any, shows through in
+    /// its own colour (module doc, "Painting").
+    Empty,
+}
+
+/// The state of all six of the cursor's cell pieces at `fraction_through_cycle` (`0.0` to
+/// `1.0`, already reduced mod 1 by the caller). Pieces are row-major, `0` top-left to `5`
+/// bottom-right; `order` (`MOTION_CURSOR_FADE_SHADED_DISSOLVE.order`) names which piece
+/// goes out at which rank, `0` first, and returns in the reverse order. Every boundary is
+/// derived from `order`, `step_fraction`, `phase_whole` and `phase_returning` - never six
+/// literal percentages written here - so a second variant (a different order, step or
+/// phase) is new data, not a rewrite of this function (TASK-1.127's plan, "hold the
+/// animation as data").
+///
+/// For the piece of rank `r` (`0` to `order.len() - 1`): whole until
+/// `phase_whole + r*step_fraction`; shade for one `step_fraction`; empty until
+/// `(1 - phase_returning) + (order.len() - 1 - r)*step_fraction`; shade for one more
+/// `step_fraction`; whole again from there. Table-tested against the engineer's own
+/// table (every boundary, both edges of each half-open interval).
+#[must_use]
+fn piece_states_at(
+    fraction_through_cycle: f32,
+    order: &[i32; 6],
+    step_fraction: f32,
+    phase_whole: f32,
+    phase_returning: f32,
+) -> [PieceState; 6] {
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "six pieces, nowhere near f32's precision limit"
+    )]
+    let piece_count = order.len() as f32;
+    let return_start = 1.0 - phase_returning;
+    let mut states = [PieceState::Whole; 6];
+    for piece in 0_i32..6 {
+        // `order` not naming every piece from 0 to 5 exactly once is a data error outside
+        // this function's own reach (the exported constant's own shape, not something it
+        // re-validates) - left `Whole`, the least surprising default, rather than panic.
+        let Some(rank) = order.iter().position(|&p| p == piece) else {
+            continue;
+        };
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "rank is 0..=5, nowhere near f32's precision limit"
+        )]
+        let rank = rank as f32;
+        let shade_out_start = phase_whole + rank * step_fraction;
+        let shade_out_end = shade_out_start + step_fraction;
+        let shade_back_start = return_start + (piece_count - 1.0 - rank) * step_fraction;
+        let shade_back_end = return_start + (piece_count - rank) * step_fraction;
+        let state = if fraction_through_cycle < shade_out_start {
+            PieceState::Whole
+        } else if fraction_through_cycle < shade_out_end {
+            PieceState::Shade
+        } else if fraction_through_cycle < shade_back_start {
+            PieceState::Empty
+        } else if fraction_through_cycle < shade_back_end {
+            PieceState::Shade
+        } else {
+            PieceState::Whole
+        };
+        #[expect(
+            clippy::cast_sign_loss,
+            reason = "piece is always 0..6, built from that exact range above"
+        )]
+        let piece_index = piece as usize;
+        states[piece_index] = state;
+    }
+    states
+}
+
+/// The six rectangles the cursor's own cell is divided into for the fade (TASK-1.127's
+/// plan, "Painting"): two columns, three rows, row-major `0` top-left to `5` bottom-right.
+/// Every column/row edge is computed once and rounded once (`floor`, matching
+/// [`cell_origin`]'s own convention of whole-pixel placement), and every rectangle is built
+/// from two of those already-rounded, adjacent edges - never a rounded half-width or
+/// third-height doubled or tripled, which is exactly the kind of arithmetic that leaves a
+/// seam or a gap when `cell_width`/`line_height` do not divide evenly by 2 or 3 (true at
+/// the design's own 20px line height: `20.0 / 3.0 = 6.667`).
+#[must_use]
+fn cursor_piece_bounds(
+    origin: Point<Pixels>,
+    cell_width: Pixels,
+    line_height: Pixels,
+) -> [Bounds<Pixels>; 6] {
+    let x0 = origin.x;
+    let x_mid = (origin.x + cell_width / 2.0).floor();
+    let x1 = origin.x + cell_width;
+    let y0 = origin.y;
+    let y_third = (origin.y + line_height / 3.0).floor();
+    let y_two_thirds = (origin.y + line_height * 2.0 / 3.0).floor();
+    let y1 = origin.y + line_height;
+
+    let rect = |left: Pixels, top: Pixels, right: Pixels, bottom: Pixels| {
+        Bounds::new(point(left, top), gpui::size(right - left, bottom - top))
+    };
+    [
+        rect(x0, y0, x_mid, y_third),           // 0: top-left
+        rect(x_mid, y0, x1, y_third),           // 1: top-right
+        rect(x0, y_third, x_mid, y_two_thirds), // 2: middle-left
+        rect(x_mid, y_third, x1, y_two_thirds), // 3: middle-right
+        rect(x0, y_two_thirds, x_mid, y1),      // 4: bottom-left
+        rect(x_mid, y_two_thirds, x1, y1),      // 5: bottom-right
+    ]
+}
+
+/// Whether the cursor's six-piece fade should be shown at all (TASK-1.127's plan, "The
+/// animation gate") - every one of AC#3's own cases, isolated: the active pane (`window_
+/// active && pane_focused`) of the focused window, a visible cursor, a program that has
+/// asked for blinking, Reduce Motion off, and the pane not ended. No duration, no `Instant`
+/// - this only answers "should the fade run right now", never "when".
+#[must_use]
+fn should_show_cursor_fade(
+    window_active: bool,
+    pane_focused: bool,
+    cursor_visible: bool,
+    blink_requested: bool,
+    reduce_motion: bool,
+    ended: bool,
+) -> bool {
+    window_active && pane_focused && cursor_visible && blink_requested && !reduce_motion && !ended
+}
+
+/// The duration from `fraction_through_cycle` to the next of the cycle's own boundaries,
+/// built generically from `order_len`/`step_fraction`/`phase_whole`/`phase_returning`,
+/// never six (or fourteen) literals (TASK-1.127's plan, "The driver"): the going-out
+/// steps, the all-empty plateau's own start and end, and the returning steps.
+/// `2*order_len + 2` boundaries in all (14 at the design's own six pieces): `phase_whole`,
+/// then `phase_whole + i*step_fraction` for `i` in `1..=order_len` (reaching the all-empty
+/// plateau's own start); `1 - phase_returning`, then `1 - phase_returning +
+/// i*step_fraction` for `i` in `1..=order_len` (reaching `1.0`, which wraps to the next
+/// cycle's `0.0`).
+///
+/// Pure - no `Instant`, no gpui type - so the caller supplies `fraction_through_cycle`
+/// freshly computed from elapsed time every time, never from accumulating this function's
+/// own previous answer (so a late wake never drifts).
+#[must_use]
+fn next_wake(
+    fraction_through_cycle: f32,
+    order_len: usize,
+    step_fraction: f32,
+    phase_whole: f32,
+    phase_returning: f32,
+    cycle: Duration,
+) -> Duration {
+    let return_start = 1.0 - phase_returning;
+    let mut boundaries: Vec<f32> = Vec::with_capacity(2 * order_len + 2);
+    boundaries.push(phase_whole);
+    for i in 1..=order_len {
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "a handful of pieces, nowhere near f32's precision limit"
+        )]
+        let i = i as f32;
+        boundaries.push(phase_whole + i * step_fraction);
+    }
+    boundaries.push(return_start);
+    for i in 1..=order_len {
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "a handful of pieces, nowhere near f32's precision limit"
+        )]
+        let i = i as f32;
+        boundaries.push(return_start + i * step_fraction);
+    }
+    debug_assert_eq!(boundaries.len(), 2 * order_len + 2);
+
+    let next_boundary = boundaries
+        .iter()
+        .copied()
+        .filter(|&boundary| boundary > fraction_through_cycle)
+        .fold(None, |closest: Option<f32>, boundary| {
+            Some(closest.map_or(boundary, |closest| closest.min(boundary)))
+        })
+        // Nothing strictly ahead in this cycle - the next boundary is the first one of the
+        // next cycle, one full turn away.
+        .unwrap_or(boundaries[0] + 1.0);
+
+    cycle.mul_f32(next_boundary - fraction_through_cycle)
+}
+
+/// A flat blend of `toward` into `base`, by `strength` (`0.0` leaves `base` unchanged,
+/// `1.0` is `toward`) - reuses gpui's own `Hsla::blend` (`color.rs`'s own doc: blends
+/// `other` on top of `self` based on `other`'s own alpha, converting through `Rgba` rather
+/// than lerping across the hue wheel) by giving `toward` the requested `strength` as its
+/// alpha. This is what makes "flat colour, not a dither" (the engineer's own wording for
+/// medium shade) hold: one blended colour, painted as a single fill, never a two-colour
+/// pattern.
+#[must_use]
+fn blend(base: Hsla, toward: Hsla, strength: f32) -> Hsla {
+    base.blend(Hsla {
+        a: strength,
+        ..toward
+    })
+}
+
+/// The grapheme sitting at `(column)` on `row`, if any, with its own style, the column its
+/// own run starts at, and how many columns each of its graphemes spans - the same run-walk
+/// [`paint_grid`]'s own loop already does, pulled out so the cursor's own ground-coloured
+/// glyph reveal (AC#4) has one grapheme to shape, not a whole run. `None` past the last
+/// character on the line (nothing to redraw there - the cursor's own pieces paint directly
+/// over the background, already correct with no glyph beneath them).
+#[must_use]
+fn grapheme_at(row: &Row, column: u16) -> Option<(&str, &CellStyle, u16, u16)> {
+    let mut run_start_column = 0_u16;
+    for run in row {
+        let width = run_columns(run);
+        if column < run_start_column.saturating_add(width) {
+            let per_grapheme = columns_per_grapheme(run);
+            if per_grapheme == 0 {
+                return None;
+            }
+            let grapheme_rank = (column - run_start_column) / per_grapheme;
+            let grapheme = run.text.graphemes(true).nth(usize::from(grapheme_rank))?;
+            return Some((grapheme, &run.style, run_start_column, per_grapheme));
+        }
+        run_start_column = run_start_column.saturating_add(width);
+    }
+    None
+}
+
 /// Shapes `text` once, then checks whether every glyph it produced already sits on the
-/// column its own grapheme owns (module doc). `run_start_column` is where this run's own
-/// first cell sits on its row; `columns_per_grapheme` is [`columns_per_grapheme`]'s own
-/// result for the run being shaped. Returns the single shaped line when the check passes,
-/// or re-shapes `text` one grapheme at a time and returns that instead.
+/// column its own grapheme owns (module doc). `columns_per_grapheme` is
+/// [`columns_per_grapheme`]'s own result for the run being shaped - this function takes no
+/// row-column parameter at all: the row's absolute column is [`cell_origin`]'s job alone,
+/// applied separately when painting (second review finding, TASK-1.126). Returns the
+/// single shaped line when the check passes, or re-shapes `text` one grapheme at a time
+/// and returns that instead.
 fn shape_and_check_run(
     window: &mut Window,
     text: &str,
@@ -526,16 +789,93 @@ fn run_key(row: usize, column: u16, run: &Run) -> u64 {
     hasher.finish()
 }
 
+/// This window's own cursor-fade state (TASK-1.127's plan): when the current fade cycle
+/// started, whatever wake is currently scheduled for it (dropping it cancels it outright -
+/// "if you drop a task it will be cancelled immediately", `gpui-0.2.2/src/executor.rs:54`,
+/// the doc comment directly on `Task`), and whether the *previous* paint found the window
+/// active and this pane focused - compared against the current paint so a transition into
+/// focus can be told apart from an ordinary repaint while already focused, with no gpui
+/// subscription at all (0.2.2 exposes no public one for window activation; TASK-1.127's
+/// plan). One per window, held alongside [`RowCache`] for the same reason: it must survive
+/// across repaints, never rebuilt per paint.
+pub(crate) struct CursorFadeState {
+    cycle_started_at: Instant,
+    scheduled_wake: Option<Task<()>>,
+    was_in_focus: bool,
+}
+
+impl Default for CursorFadeState {
+    fn default() -> Self {
+        Self {
+            cycle_started_at: Instant::now(),
+            scheduled_wake: None,
+            was_in_focus: false,
+        }
+    }
+}
+
+impl CursorFadeState {
+    /// A key press (or a committed IME composition) shows the cursor whole at once and
+    /// restarts the cycle (AC#2) - drops whatever wake was pending (it was targeting a
+    /// boundary of a cycle that no longer applies) and starts a fresh one from now; the
+    /// next paint, triggered by the caller's own `cx.notify()`, re-arms a wake for the new
+    /// cycle if the gate is still open.
+    pub(crate) fn show_whole(&mut self) {
+        self.cycle_started_at = Instant::now();
+        self.scheduled_wake = None;
+    }
+}
+
+/// Drives TASK-1.127's own cursor fade and paints the cursor - the six-piece dissolve for
+/// a focused, visible, blinking block cursor with Reduce Motion off, or the steady shape
+/// this function has always drawn otherwise (module doc, "Painting"). `fade`/`entity` are
+/// this task's own addition: `fade` is this window's own state, above; `entity` is this
+/// window's own handle, needed so the timer's own async task (`schedule_fade_wake`, below)
+/// can notify it once it fires.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct, named input the fade's own gate and painting \
+              need; bundling them into one struct would not make any of them optional or \
+              grouped by a real relationship"
+)]
 fn paint_cursor(
-    cursor: Cursor,
+    model: &Model,
     metrics: &CellMetrics,
     theme: &TerminalTheme,
     bounds: Bounds<Pixels>,
     window: &mut Window,
+    cx: &mut App,
+    row_cache: &Rc<RefCell<RowCache>>,
+    fade: &Rc<RefCell<CursorFadeState>>,
+    focus_handle: &FocusHandle,
+    ended: bool,
+    entity: &Entity<AppWindow>,
 ) {
+    let cursor = model.cursor();
     if !cursor.visible {
+        fade.borrow_mut().scheduled_wake = None;
         return;
     }
+
+    let window_active = window.is_window_active();
+    let pane_focused = focus_handle.is_focused(window);
+    let now_in_focus = window_active && pane_focused;
+    {
+        let mut fade_state = fade.borrow_mut();
+        // A transition into focus - the window regaining activation, or (once a later
+        // task adds a second focusable pane) this one gaining it - restarts the cycle
+        // from whole: decided by the orchestrator against the engineer's own "stops,
+        // whole, when the window loses focus" (regained focus starts fresh, never
+        // resumes a frozen mid-fade phase). Seen by comparing against the *previous*
+        // paint's own state, not a gpui subscription (`CursorFadeState`'s own doc) -
+        // so this is noticed on whichever paint happens to run next, not at the exact
+        // instant of the OS event.
+        if now_in_focus && !fade_state.was_in_focus {
+            fade_state.cycle_started_at = Instant::now();
+        }
+        fade_state.was_in_focus = now_in_focus;
+    }
+
     let origin = cell_origin(
         bounds.origin,
         metrics.cell_width,
@@ -545,6 +885,24 @@ fn paint_cursor(
     );
     let size = gpui::size(metrics.cell_width, metrics.line_height);
     let colour = theme.cursor;
+
+    let gate = should_show_cursor_fade(
+        window_active,
+        pane_focused,
+        cursor.visible,
+        cursor.blinking,
+        reduce_motion_enabled(),
+        ended,
+    );
+
+    if cursor.shape == CursorShape::Block && gate {
+        paint_cursor_fade(
+            model, metrics, theme, origin, cursor, window, cx, row_cache, fade, entity,
+        );
+        return;
+    }
+
+    fade.borrow_mut().scheduled_wake = None;
     match cursor.shape {
         CursorShape::Block => window.paint_quad(fill(Bounds::new(origin, size), colour)),
         CursorShape::BlockHollow => {
@@ -570,6 +928,186 @@ fn paint_cursor(
             ));
         }
     }
+}
+
+/// The six-piece dissolve itself, once [`paint_cursor`] has decided the gate is open and
+/// the shape is a block: computes the fraction through the cycle from elapsed time (the
+/// clock read once, here, in the imperative shell - everything downstream is a plain
+/// `f32`/`Duration` through the pure functions above), paints the six pieces, reveals the
+/// character beneath them in the ground colour (AC#4), and schedules the next wake.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct, named input the pieces, the glyph reveal and \
+              the schedule each need"
+)]
+fn paint_cursor_fade(
+    model: &Model,
+    metrics: &CellMetrics,
+    theme: &TerminalTheme,
+    origin: Point<Pixels>,
+    cursor: Cursor,
+    window: &mut Window,
+    cx: &mut App,
+    row_cache: &Rc<RefCell<RowCache>>,
+    fade: &Rc<RefCell<CursorFadeState>>,
+    entity: &Entity<AppWindow>,
+) {
+    let pattern = steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE;
+    let cycle_started_at = fade.borrow().cycle_started_at;
+    let elapsed_seconds = cycle_started_at.elapsed().as_secs_f32();
+    let cycle_seconds = pattern.cycle.as_secs_f32();
+    let fraction = if cycle_seconds > 0.0 {
+        (elapsed_seconds / cycle_seconds).rem_euclid(1.0)
+    } else {
+        0.0
+    };
+
+    let states = piece_states_at(
+        fraction,
+        &pattern.order,
+        pattern.step_fraction,
+        pattern.phase_whole,
+        pattern.phase_returning,
+    );
+    let piece_bounds = cursor_piece_bounds(origin, metrics.cell_width, metrics.line_height);
+    let shade_colour = blend(theme.cursor, theme.bg, pattern.medium_shade_strength);
+
+    for (index, state) in states.iter().enumerate() {
+        match state {
+            PieceState::Empty => {}
+            PieceState::Whole => window.paint_quad(fill(piece_bounds[index], theme.cursor)),
+            PieceState::Shade => window.paint_quad(fill(piece_bounds[index], shade_colour)),
+        }
+    }
+
+    paint_cursor_glyph_reveal(
+        model,
+        metrics,
+        theme,
+        origin,
+        cursor,
+        &states,
+        &piece_bounds,
+        window,
+        cx,
+        row_cache,
+    );
+
+    let next = next_wake(
+        fraction,
+        pattern.order.len(),
+        pattern.step_fraction,
+        pattern.phase_whole,
+        pattern.phase_returning,
+        pattern.cycle,
+    );
+    schedule_fade_wake(entity, window, cx, next, fade);
+}
+
+/// Over the cursor's own cell, the character is drawn in the ground colour where the
+/// cursor's pieces cover it and in its own colour elsewhere (AC#4). The character under
+/// the cursor, if any, was already painted in its own colour by [`paint_grid`]'s ordinary
+/// pass; this only re-paints the covered portion, clipped to each covered (`Whole`/
+/// `Shade`, never `Empty`) piece's own rectangle in turn, so every `Empty` piece leaves
+/// what was already there showing through untouched. Shaped once into the shared
+/// [`RowCache`] (keyed by [`cursor_glyph_key`], never [`run_key`]'s own key space), so the
+/// many wakes within one unchanged character cost no reshaping - only the clipped paint
+/// calls repeat.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct, named input this needs; bundling them would not \
+              make any of them optional or grouped by a real relationship"
+)]
+fn paint_cursor_glyph_reveal(
+    model: &Model,
+    metrics: &CellMetrics,
+    theme: &TerminalTheme,
+    origin: Point<Pixels>,
+    cursor: Cursor,
+    states: &[PieceState; 6],
+    piece_bounds: &[Bounds<Pixels>; 6],
+    window: &mut Window,
+    cx: &mut App,
+    row_cache: &Rc<RefCell<RowCache>>,
+) {
+    let Some(row) = model.rows().get(usize::from(cursor.y)) else {
+        return;
+    };
+    let Some((grapheme, style, _run_start_column, _columns_per_grapheme)) =
+        grapheme_at(row, cursor.x)
+    else {
+        return;
+    };
+
+    let text_run = TextRun {
+        len: grapheme.len(),
+        font: terminal_font(style, &metrics.family),
+        color: theme.bg,
+        background_color: None,
+        underline: None,
+        strikethrough: None,
+    };
+    let key = cursor_glyph_key(cursor.y, cursor.x, grapheme);
+    let cached = row_cache.borrow_mut().painted(key, || {
+        CachedRun::Whole(Box::new(shape_text(window, grapheme, text_run)))
+    });
+    let CachedRun::Whole(shaped) = cached else {
+        // `shape_and_check_run`'s own per-grapheme path never mints a key through
+        // `cursor_glyph_key` - this function always builds `CachedRun::Whole` above, so
+        // reaching here would mean a collision with an ordinary run's own key, the same
+        // risk every entry in this shared, un-namespaced `u64` cache already accepts
+        // (`run_key`'s own doc). Nothing to paint rather than painting the wrong thing.
+        return;
+    };
+
+    for (index, state) in states.iter().enumerate() {
+        if matches!(state, PieceState::Empty) {
+            continue;
+        }
+        let mask = ContentMask {
+            bounds: piece_bounds[index],
+        };
+        window.with_content_mask(Some(mask), |window| {
+            let _ = shaped.paint(origin, metrics.line_height, window, cx);
+        });
+    }
+}
+
+/// A cache key for the cursor's own ground-coloured glyph reveal (AC#4) - distinct from
+/// [`run_key`]'s own hashing (no style fields: the colour painted here is always the
+/// ground, never the run's own), salted so it cannot land in the same part of the key
+/// space as an ordinary run by construction, rather than by the same luck every other
+/// entry in this shared cache already relies on.
+fn cursor_glyph_key(row: u16, column: u16, grapheme: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    "cursor-glyph-reveal".hash(&mut hasher);
+    row.hash(&mut hasher);
+    column.hash(&mut hasher);
+    grapheme.hash(&mut hasher);
+    hasher.finish()
+}
+
+/// Replaces whatever wake was pending with a fresh one targeting `duration` from now.
+/// Dropping the old `Task` (by overwriting `fade`'s own field) cancels it outright
+/// (`CursorFadeState`'s own doc), so a paint that re-targets the schedule - because it ran
+/// for some other reason, such as a model update, while a wake was already pending - never
+/// races a timer that was about to fire for the old phase. The timer itself is gpui's own
+/// `BackgroundExecutor::timer` (`executor.rs:357`), not a display-frame request: it sleeps
+/// for exactly `duration` and nothing in between, then notifies this window's own entity so
+/// the next paint re-evaluates the gate and either re-arms or stops.
+fn schedule_fade_wake(
+    entity: &Entity<AppWindow>,
+    window: &mut Window,
+    cx: &mut App,
+    duration: Duration,
+    fade: &Rc<RefCell<CursorFadeState>>,
+) {
+    let weak = entity.downgrade();
+    let task = window.spawn(cx, async move |cx: &mut AsyncWindowContext| {
+        cx.background_executor().timer(duration).await;
+        let _ = weak.update(cx, |_, cx| cx.notify());
+    });
+    fade.borrow_mut().scheduled_wake = Some(task);
 }
 
 #[cfg(test)]
@@ -725,4 +1263,410 @@ mod tests {
     // keep their unit tests above; `every_glyph_sits_on_its_own_column` itself is verified
     // by the live run instead - a real attached terminal's text actually lines up, and the
     // PR's own screenshots (AC#4) are the recorded evidence of it, not a unit test.
+
+    // --- piece_states_at (AC#1, AC#5): the pure step function, against the engineer's
+    // --- own table (TASK-1.127's plan, "The pure core") ---------------------------------
+
+    use PieceState::{Empty as E, Shade as S, Whole as W};
+
+    const ORDER: [i32; 6] = [3, 0, 4, 2, 1, 5];
+    const STEP: f32 = 0.03;
+    const PHASE_WHOLE: f32 = 0.43;
+    const PHASE_RETURNING: f32 = 0.18;
+
+    #[test]
+    fn piece_states_at_matches_the_engineers_own_table() {
+        // Each row is a fraction at one of the cycle's own 14 boundaries, and the state
+        // of pieces 0 through 5 at that instant - worked out independently from the
+        // engineer's own per-rank table (TASK-1.127's plan), not from this function's own
+        // formula, so this is a real check against the design, not the function checking
+        // itself.
+        let cases: &[(f32, [PieceState; 6])] = &[
+            (0.00, [W, W, W, W, W, W]),
+            (0.43, [W, W, W, S, W, W]),
+            (0.46, [S, W, W, E, W, W]),
+            (0.49, [E, W, W, E, S, W]),
+            (0.52, [E, W, S, E, E, W]),
+            (0.55, [E, S, E, E, E, W]),
+            (0.58, [E, E, E, E, E, S]),
+            (0.61, [E, E, E, E, E, E]),
+            (0.82, [E, E, E, E, E, S]),
+            (0.85, [E, S, E, E, E, W]),
+            (0.88, [E, W, S, E, E, W]),
+            (0.91, [E, W, W, E, S, W]),
+            (0.94, [S, W, W, E, W, W]),
+            (0.97, [W, W, W, S, W, W]),
+        ];
+        for (fraction, expected) in cases {
+            assert_eq!(
+                piece_states_at(*fraction, &ORDER, STEP, PHASE_WHOLE, PHASE_RETURNING),
+                *expected,
+                "at fraction {fraction}"
+            );
+        }
+    }
+
+    #[test]
+    fn piece_states_at_boundaries_move_with_phase_whole_not_with_a_fixed_literal() {
+        // Control: at the real `PHASE_WHOLE` (0.43), piece 3 (rank 0) is already shading
+        // by 0.43. A smaller `phase_whole` must move that boundary earlier, proving the
+        // 0.43 in the table above came from the parameter, not a literal written into
+        // this function.
+        let real = piece_states_at(0.43, &ORDER, STEP, PHASE_WHOLE, PHASE_RETURNING);
+        assert_eq!(real[3], S);
+
+        let moved = piece_states_at(0.43, &ORDER, STEP, 0.40, PHASE_RETURNING);
+        assert_eq!(
+            moved[3], E,
+            "with phase_whole moved to 0.40, piece 3 should already be empty by 0.43, not \
+             still shading at the old boundary"
+        );
+    }
+
+    // --- cursor_piece_bounds (AC#1): the six-piece geometry, no seam or gap -------------
+
+    #[test]
+    fn adjacent_pieces_share_an_exact_edge_at_an_odd_cell_size() {
+        let origin = point(px(0.0), px(0.0));
+        let cell_width = px(7.0);
+        let line_height = px(19.0);
+        let bounds = cursor_piece_bounds(origin, cell_width, line_height);
+
+        for (left, right) in [(0, 1), (2, 3), (4, 5)] {
+            assert_eq!(
+                bounds[left].origin.x + bounds[left].size.width,
+                bounds[right].origin.x,
+                "piece {left} and piece {right} should share an exact column edge"
+            );
+        }
+        for (top, bottom) in [(0, 2), (2, 4), (1, 3), (3, 5)] {
+            assert_eq!(
+                bounds[top].origin.y + bounds[top].size.height,
+                bounds[bottom].origin.y,
+                "piece {top} and piece {bottom} should share an exact row edge"
+            );
+        }
+
+        // The six pieces' own total area equals the cell's own area exactly - no gap, no
+        // overlap, even though 7px/19px divide unevenly by 2 and 3.
+        let total_area: f32 = bounds
+            .iter()
+            .map(|b| f32::from(b.size.width) * f32::from(b.size.height))
+            .sum();
+        assert_eq!(total_area, f32::from(cell_width) * f32::from(line_height));
+    }
+
+    #[test]
+    fn the_bottom_right_piece_reaches_the_cells_own_true_far_edge() {
+        let origin = point(px(100.0), px(50.0));
+        let cell_width = px(19.0);
+        let line_height = px(20.0);
+        let bounds = cursor_piece_bounds(origin, cell_width, line_height);
+        let far_corner = point(
+            bounds[5].origin.x + bounds[5].size.width,
+            bounds[5].origin.y + bounds[5].size.height,
+        );
+        assert_eq!(
+            far_corner,
+            point(origin.x + cell_width, origin.y + line_height)
+        );
+    }
+
+    #[test]
+    fn independently_rounded_piece_sizes_would_leave_a_gap_at_the_cells_own_far_edge() {
+        // The control `cursor_piece_bounds` itself avoids: if the bottom-right piece's own
+        // far corner were built from `origin + rounded_size * index` rather than the
+        // bounds' own true `x1`/`y1`, an odd cell size leaves a gap.
+        let origin = point(px(0.0), px(0.0));
+        let cell_width = px(19.0);
+        let line_height = px(20.0);
+        let half_width = (cell_width / 2.0).floor();
+        let third_height = (line_height / 3.0).floor();
+        let buggy_bottom_right_origin = point(origin.x + half_width, origin.y + third_height * 2.0);
+        let buggy_far_corner = point(
+            buggy_bottom_right_origin.x + half_width,
+            buggy_bottom_right_origin.y + third_height,
+        );
+        assert_ne!(
+            buggy_far_corner,
+            point(origin.x + cell_width, origin.y + line_height),
+            "this control should miss the cell's own true far edge - if it doesn't, it no \
+             longer demonstrates the bug cursor_piece_bounds avoids"
+        );
+    }
+
+    // --- should_show_cursor_fade (AC#3): the gate, one isolated case per test ----------
+
+    #[test]
+    fn the_fade_shows_when_every_gate_is_open() {
+        assert!(should_show_cursor_fade(
+            true, true, true, true, false, false
+        ));
+    }
+
+    #[test]
+    fn the_fade_does_not_show_when_the_window_is_not_active() {
+        assert!(!should_show_cursor_fade(
+            false, true, true, true, false, false
+        ));
+    }
+
+    #[test]
+    fn the_fade_does_not_show_when_the_pane_is_not_focused() {
+        assert!(!should_show_cursor_fade(
+            true, false, true, true, false, false
+        ));
+    }
+
+    #[test]
+    fn the_fade_does_not_show_when_the_cursor_is_hidden() {
+        assert!(!should_show_cursor_fade(
+            true, true, false, true, false, false
+        ));
+    }
+
+    #[test]
+    fn the_fade_does_not_show_when_the_program_has_not_asked_for_blinking() {
+        assert!(!should_show_cursor_fade(
+            true, true, true, false, false, false
+        ));
+    }
+
+    #[test]
+    fn the_fade_does_not_show_when_reduce_motion_is_on() {
+        assert!(!should_show_cursor_fade(
+            true, true, true, true, true, false
+        ));
+    }
+
+    #[test]
+    fn the_fade_does_not_show_once_the_pane_has_ended() {
+        assert!(!should_show_cursor_fade(
+            true, true, true, true, false, true
+        ));
+    }
+
+    // --- next_wake (AC#3): the schedule itself, pure, no window -------------------------
+
+    #[test]
+    fn next_wake_lands_exactly_on_the_next_boundary() {
+        let cycle = Duration::from_millis(1400);
+        // From fraction 0.40 (within the whole region), the next boundary is
+        // `PHASE_WHOLE` (0.43) - 0.03 of the cycle away.
+        let duration = next_wake(0.40, 6, STEP, PHASE_WHOLE, PHASE_RETURNING, cycle);
+        let expected_seconds = 0.03 * cycle.as_secs_f32();
+        assert!(
+            (duration.as_secs_f32() - expected_seconds).abs() < 1e-4,
+            "expected ~{expected_seconds}s, got {}s",
+            duration.as_secs_f32()
+        );
+    }
+
+    #[test]
+    fn next_wake_from_just_before_the_wrap_lands_on_the_cycles_own_last_boundary() {
+        let cycle = Duration::from_millis(1400);
+        // `1.0` itself is always in the boundary set (`return_start + order_len*step`,
+        // 0.82 + 6*0.03 = 1.00 at the design's own values) - the wrap is already an
+        // ordinary boundary, not a special case, so from 0.99 the next wake is simply
+        // 0.01 of the cycle away, landing exactly on it.
+        let duration = next_wake(0.99, 6, STEP, PHASE_WHOLE, PHASE_RETURNING, cycle);
+        let expected_seconds = 0.01 * cycle.as_secs_f32();
+        assert!(
+            (duration.as_secs_f32() - expected_seconds).abs() < 1e-3,
+            "expected ~{expected_seconds}s, got {}s",
+            duration.as_secs_f32()
+        );
+    }
+
+    #[test]
+    fn next_wake_falls_back_to_one_full_turn_when_nothing_is_strictly_ahead() {
+        // Defensive, not expected from real elapsed-time input (always reduced into
+        // `0.0..1.0` by `rem_euclid`, so always strictly below the cycle's own `1.0`
+        // boundary): a `fraction_through_cycle` already at or past every real boundary
+        // still returns a sane, forward-only answer - one full turn to the first
+        // boundary of the cycle after this one - rather than panicking or returning a
+        // non-positive duration.
+        let cycle = Duration::from_millis(1400);
+        let duration = next_wake(1.0, 6, STEP, PHASE_WHOLE, PHASE_RETURNING, cycle);
+        let expected_seconds = PHASE_WHOLE * cycle.as_secs_f32();
+        assert!(
+            (duration.as_secs_f32() - expected_seconds).abs() < 1e-3,
+            "expected ~{expected_seconds}s, got {}s",
+            duration.as_secs_f32()
+        );
+    }
+
+    /// Walks a full cycle by repeatedly calling `next_wake` from wherever the previous
+    /// wake landed, counting how many wakes it takes to reach the cycle's own end -
+    /// `next_wake`'s own schedule, not an assumed constant. `phase_returning` is taken as
+    /// a parameter, not fixed at the real `PHASE_RETURNING`: a self-consistent cycle needs
+    /// `phase_returning == order_len * step_fraction` (the returning region's own total
+    /// width), which only holds for `order_len = 6` at the design's own `PHASE_RETURNING`
+    /// (0.18 = 6*0.03) - the control below uses a different, still self-consistent, pair.
+    fn count_wakes_across_a_full_cycle(
+        order_len: usize,
+        phase_returning: f32,
+        cycle: Duration,
+    ) -> u32 {
+        let mut fraction = 0.0_f32;
+        let mut wakes = 0_u32;
+        loop {
+            let duration = next_wake(
+                fraction,
+                order_len,
+                STEP,
+                PHASE_WHOLE,
+                phase_returning,
+                cycle,
+            );
+            fraction += duration.as_secs_f32() / cycle.as_secs_f32();
+            wakes += 1;
+            if fraction >= 1.0 - 1e-6 {
+                break;
+            }
+            assert!(
+                wakes <= 100,
+                "did not converge - next_wake is not landing on real boundaries"
+            );
+        }
+        wakes
+    }
+
+    #[test]
+    fn a_full_traversal_of_the_cycle_yields_exactly_the_expected_number_of_wakes() {
+        let cycle = Duration::from_millis(1400);
+        assert_eq!(
+            count_wakes_across_a_full_cycle(6, PHASE_RETURNING, cycle),
+            2 * 6 + 2
+        );
+    }
+
+    #[test]
+    fn the_wake_count_follows_order_len_not_a_fixed_constant() {
+        // Control: a different (still self-consistent: phase_returning = order_len*step)
+        // piece count must change the boundary count too, proving `2*order_len + 2` is
+        // not a hardcoded "14" this function happens to return.
+        let cycle = Duration::from_millis(1400);
+        let order_len = 5;
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "a handful of pieces, nowhere near f32's precision limit"
+        )]
+        let phase_returning = order_len as f32 * STEP;
+        assert_eq!(
+            count_wakes_across_a_full_cycle(order_len, phase_returning, cycle),
+            2 * order_len as u32 + 2
+        );
+    }
+
+    // --- blend (AC#1): a flat colour, never a dither ------------------------------------
+
+    #[test]
+    fn blend_at_half_strength_is_the_rgb_midpoint() {
+        let red: Hsla = gpui::rgb(0xff_00_00).into();
+        let blue: Hsla = gpui::rgb(0x00_00_ff).into();
+        let result = blend(red, blue, 0.5);
+        let rgba = gpui::Rgba::from(result);
+        assert!((rgba.r - 0.5).abs() < 1e-3, "r was {}", rgba.r);
+        assert!((rgba.g - 0.0).abs() < 1e-3, "g was {}", rgba.g);
+        assert!((rgba.b - 0.5).abs() < 1e-3, "b was {}", rgba.b);
+    }
+
+    #[test]
+    fn blend_at_zero_strength_leaves_the_base_colour_unchanged() {
+        let base: Hsla = gpui::rgb(0x33_66_99).into();
+        let toward: Hsla = gpui::rgb(0xff_ff_ff).into();
+        assert_eq!(blend(base, toward, 0.0), base);
+    }
+
+    // --- grapheme_at (AC#4): the cursor's own ground-coloured glyph reveal -------------
+
+    fn narrow_run(text: &str) -> Run {
+        Run {
+            text: text.to_owned(),
+            style: style(),
+        }
+    }
+
+    fn wide_run(text: &str) -> Run {
+        Run {
+            text: text.to_owned(),
+            style: CellStyle {
+                wide: Wide::Wide,
+                ..style()
+            },
+        }
+    }
+
+    #[test]
+    fn grapheme_at_finds_the_grapheme_in_a_single_run_row() {
+        let row: Row = vec![narrow_run("hello")];
+        let (grapheme, _style, run_start_column, per_grapheme) = grapheme_at(&row, 1).unwrap();
+        assert_eq!(grapheme, "e");
+        assert_eq!(run_start_column, 0);
+        assert_eq!(per_grapheme, 1);
+    }
+
+    #[test]
+    fn grapheme_at_finds_a_grapheme_at_a_non_zero_run_start_column() {
+        // Two runs, same style shape: the second run's own grapheme must be found at its
+        // own column, never the first run's (the same coordinate-space care TASK-1.126's
+        // own review round took for `every_glyph_position_is_safe`).
+        let row: Row = vec![narrow_run("abc"), narrow_run("xyz")];
+        let (grapheme, _style, run_start_column, per_grapheme) = grapheme_at(&row, 4).unwrap();
+        assert_eq!(grapheme, "y");
+        assert_eq!(run_start_column, 3);
+        assert_eq!(per_grapheme, 1);
+    }
+
+    #[test]
+    fn grapheme_at_a_wide_character_reports_two_columns_per_grapheme() {
+        let row: Row = vec![wide_run("\u{4f60}\u{597d}")];
+        let (grapheme, _style, run_start_column, per_grapheme) = grapheme_at(&row, 0).unwrap();
+        assert_eq!(grapheme, "\u{4f60}");
+        assert_eq!(run_start_column, 0);
+        assert_eq!(per_grapheme, 2);
+    }
+
+    #[test]
+    fn grapheme_at_past_the_lines_own_end_is_none() {
+        let row: Row = vec![narrow_run("hi")];
+        assert!(grapheme_at(&row, 5).is_none());
+    }
+
+    #[test]
+    fn grapheme_at_an_empty_row_is_none() {
+        let row: Row = Vec::new();
+        assert!(grapheme_at(&row, 0).is_none());
+    }
+
+    // --- cursor_glyph_key (AC#4): distinct from run_key's own key space -----------------
+
+    #[test]
+    fn cursor_glyph_key_differs_from_an_ordinary_runs_key_for_the_same_text() {
+        let run = Run {
+            text: "e".to_owned(),
+            style: style(),
+        };
+        assert_ne!(cursor_glyph_key(0, 1, "e"), run_key(0, 1, &run));
+    }
+
+    // --- CursorFadeState::show_whole (AC#2): no window at all ---------------------------
+
+    #[test]
+    fn show_whole_resets_the_cycle_and_drops_any_pending_wake() {
+        let mut state = CursorFadeState::default();
+        let before = state.cycle_started_at;
+        // `Task::ready` needs no window or executor (gpui's own public constructor) -
+        // standing in for a real wake that was pending, so clearing it is actually
+        // exercised, not merely still `None` from `default()`.
+        state.scheduled_wake = Some(Task::ready(()));
+        state.show_whole();
+        assert!(
+            state.cycle_started_at >= before,
+            "the cycle's own origin should move forward (or stay, on a low-resolution \
+             clock), never backward"
+        );
+        assert!(state.scheduled_wake.is_none());
+    }
 }

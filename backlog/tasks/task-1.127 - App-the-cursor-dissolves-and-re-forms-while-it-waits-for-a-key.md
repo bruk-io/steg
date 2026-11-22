@@ -28,6 +28,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=2'
 asdlc_review_policies: ["review", "app"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1286,6 +1287,15 @@ Nits (2):
 Evidence pass, repeated myself: reproduced the blend_at_half_strength_is_the_rgb_midpoint control in a scratch edit at d9e49be3 (own worktree, reverted after) - replaced blend's RGB-space alpha-blend (base.blend with toward's alpha set to strength) with a naive per-field Hsla lerp (the "dither"/hue-wheel alternative the engineer's own wording rules out) and reran it: it failed with the exact recorded message ("r was 0"), consistent with crossing the hue wheel (red h=0 toward blue h=0.667 at 0.5 lands near h=0.33, green, r=0). Its sibling blend_at_zero_strength_leaves_the_base_colour_unchanged stayed green throughout (strength=0 is an identity in both formulations), confirming the failure isolates blend's own RGB-space mechanism rather than some other path. Restored the file and reconfirmed the real test passes before finishing.
 
 Checks: the two full `just check` runs are recorded on this branch, the second at the final head d9e49be388f0, after the last commit - satisfies the Evidence pass for the suite as a whole; the per-test failing-then-passing controls themselves predate that (see nit above).
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T21:42:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.127: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

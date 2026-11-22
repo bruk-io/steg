@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T21:13:00Z'
+updated_date: '2026-11-22T21:14:00Z'
 labels:
   - size-2
   - changes-requested
@@ -690,6 +690,14 @@ created: 2026-11-22T21:13:00Z
 Correction to this task's own Implementation Notes: "Every control recorded failing-then-passing via asdlc record-check at the final head (5eb25574)" was wrong - the review's own forensic reading was right. Every one of the seven negative-control pairs was recorded before the commit, at the board-only commit 8e720fcfaf1a with the fix still uncommitted; only the two just check runs (one of them at the true final head) were attested there. The mechanisms themselves were never in doubt (the reviewer's own independent reproduction of the stale-caller control already confirmed that), only the recordings' own provenance.
 
 Fixed: added the plan's own requested one-line comment at last_reported_cursor's declaration (new commit 2b6fec0f), then re-recorded all seven pairs against that exact commit - each failing run confirmed via `git rev-parse HEAD` immediately before recording, each reverted and confirmed `git status` clean before recording the passing run. All fourteen new recordings on this task now name 2b6fec0fa18c.
+
+---
+
+created: 2026-11-22T21:14:00Z
+
+---
+
+Correction to my own previous correction: "all fourteen new recordings" was wrong - there are ten (five failing, five passing), covering all seven tests (the three cursor-only-Delta tests share one command, recorded together). All ten name 2b6fec0fa18c.
 
 ---
 <!-- COMMENTS:END -->

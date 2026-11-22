@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-22T20:16:00Z'
+updated_date: '2026-11-22T20:32:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -541,6 +541,51 @@ Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bi
     Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/crates/server)
     Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/crates/steg)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.69s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig ZIG_GLOBAL_CACHE_DIR=/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/target/zig-global-cache cargo test -p steg --test cli_terminal_context` exited 101 at 2026-11-22T20:32:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51 on task-1.51-cli-act-on-the-terminal-it-runs-in at 275addc46e4b with uncommitted changes, last 40 of 76 lines:
+
+```text
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test support::tests::run_bounded_panics_when_the_body_does_not_finish_in_time - should panic ... ok
+test support::tests::wait_for_socket_panics_when_nothing_ever_answers - should panic ... ok
+test pane_show_with_no_target_outside_a_pane_is_status_2_and_says_so ... ok
+test a_pane_whose_own_program_is_steg_resolves_pane_show_and_finds_its_own_server ... FAILED
+test session_show_with_no_target_inside_a_pane_resolves_to_that_panes_own_session ... FAILED
+test pane_list_with_no_target_inside_a_pane_resolves_to_that_panes_own_tab ... FAILED
+
+failures:
+
+---- a_pane_whose_own_program_is_steg_resolves_pane_show_and_finds_its_own_server stdout ----
+
+thread 'a_pane_whose_own_program_is_steg_resolves_pane_show_and_finds_its_own_server' (80754607) panicked at crates/steg/tests/cli_terminal_context.rs:407:31:
+pane show --json should print JSON: EOF while parsing a value at line 1 column 0; got "BIN=/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/target/debug/steg\n"
+
+---- session_show_with_no_target_inside_a_pane_resolves_to_that_panes_own_session stdout ----
+
+thread 'session_show_with_no_target_inside_a_pane_resolves_to_that_panes_own_session' (80754610) panicked at crates/steg/tests/cli_terminal_context.rs:337:5:
+assertion `left == right` failed: stderr was steg: no target given, and this connection has no session context to fall back on
+
+  left: Some(2)
+ right: Some(0)
+
+---- pane_list_with_no_target_inside_a_pane_resolves_to_that_panes_own_tab stdout ----
+
+thread 'pane_list_with_no_target_inside_a_pane_resolves_to_that_panes_own_tab' (80754608) panicked at crates/steg/tests/cli_terminal_context.rs:299:5:
+assertion `left == right` failed: stderr was steg: no target given, and this connection has no tab context to fall back on
+
+  left: Some(2)
+ right: Some(0)
+
+
+failures:
+    a_pane_whose_own_program_is_steg_resolves_pane_show_and_finds_its_own_server
+    pane_list_with_no_target_inside_a_pane_resolves_to_that_panes_own_tab
+    session_show_with_no_target_inside_a_pane_resolves_to_that_panes_own_session
+
+test result: FAILED. 13 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+error: test failed, to rerun pass `-p steg --test cli_terminal_context`
 ```
 <!-- SECTION:NOTES:END -->
 

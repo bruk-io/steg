@@ -3,9 +3,11 @@ id: TASK-1.154
 title: >-
   Move steg to a GPUI that can draw off screen, pinned to a commit of Zed's own
   repository
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-22T07:18:00Z'
+updated_date: '2026-11-22T19:57:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -13,6 +15,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
+asdlc_branch: task-1.154-move-steg-to-a-gpui-that-can-draw-off
 ---
 
 ## Description

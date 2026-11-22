@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T05:00:00Z'
+updated_date: '2026-11-22T05:02:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.150-find-why-a-freshly-autostarted-server
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '39ca1e575b3d'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -68,3 +71,16 @@ From TASK-1.137's planner, 22 November 2026, after reading both failed CI logs (
 
 Plan checked by @bruk.o, 22 November 2026: ok. It names the cause with a reproduction (1 failure in 150 unmodified runs; 20 of 20 with the gap widened; the autostart spawn is unreachable when both connects succeed), fixes only the test fixture by closing the listener before the stream so the close precedes the client's retry by cause and not by timing, and proves it with a test that fails without the reorder plus a 300-repetition run. One thing for review: the new test places a deliberate delay where the race lived; that is an adversary, not a wait on an event, and the notes must say so.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-22T05:02:00Z
+
+---
+
+Plan approved by @bruk (39ca1e575b3d, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

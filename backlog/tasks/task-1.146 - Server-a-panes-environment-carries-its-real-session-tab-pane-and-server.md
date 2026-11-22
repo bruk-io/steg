@@ -1,11 +1,11 @@
 ---
 id: TASK-1.146
 title: 'Server: a pane''s environment carries its real session, tab, pane and server'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-21T20:20:00Z'
-updated_date: '2026-11-22T06:03:00Z'
+updated_date: '2026-11-22T19:56:00Z'
 labels:
   - size-2
   - review-passed

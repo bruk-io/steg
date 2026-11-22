@@ -286,6 +286,19 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 335 filtered out
 
 error: test failed, to rerun pass `-p steg-kernel --lib`
 ```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-kernel changes_since_reports_unchanged_when_nothing_happened` exited 0 at 2026-11-22T20:07:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 8e720fcfaf1a with uncommitted changes:
+
+```text
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153/crates/kernel)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.56s
+     Running unittests src/lib.rs (target/debug/deps/steg_kernel-9b3ea2512004541f)
+
+running 1 test
+test terminal::tests::changes_since_reports_unchanged_when_nothing_happened_since_the_last_call ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 335 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

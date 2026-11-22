@@ -6,7 +6,10 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use steg_kernel::{Moment, Tree};
-use steg_sdk::{ApiError, Description, ErrorCode, PaneId, Program, Request, Response, validate};
+use steg_sdk::{
+    ApiError, Description, ErrorCode, PaneId, Program, Request, Response, SessionId, TabId,
+    validate,
+};
 
 use super::tree::session_owning_tab;
 use super::{State, broadcast, reapply_every_sized_tab};
@@ -98,14 +101,23 @@ impl super::Runtime {
             .start_program(new_pane, program.clone())
             .expect("just minted this pane; nothing else has run since (§1)");
 
+        // Looked up here, under the same lock that minted `new_pane` just
+        // above (TASK-1.146) - this pane's real identifiers, handed to
+        // `launch_spec` below in place of the `SessionId`/`TabId`/`PaneId`
+        // placeholders it used to invent. `tab_id` was already computed,
+        // inline, only for the size lookup; `session_owning_tab` is
+        // already imported and used later in this same file
+        // (`emit_creation_events`) - both lifted into bindings here, no
+        // new lookup logic.
+        let tab_id = state
+            .tree
+            .tab_of_pane(new_pane)
+            .expect("just started this pane's program; its tab still holds it");
+        let session_id = session_owning_tab(&state.tree, tab_id);
+
         let size = state
             .tree
-            .tab_sizes_now(
-                state
-                    .tree
-                    .tab_of_pane(new_pane)
-                    .expect("just started this pane's program; its tab still holds it"),
-            )
+            .tab_sizes_now(tab_id)
             .and_then(|change| {
                 change
                     .panes
@@ -115,7 +127,21 @@ impl super::Runtime {
             })
             .unwrap_or(DEFAULT_PANE_SIZE);
 
-        let spec = self.launch_spec(&program, size);
+        // This server's own real bound address (TASK-1.146) - `""` for a
+        // `Runtime` nothing has called `bind_server_address` on (every
+        // existing test `Runtime::new` site), which `steg_sdk::paths::
+        // socket_path` already treats as absent (TASK-1.147), never as a
+        // real override.
+        let server_address = state.server_address.clone().unwrap_or_default();
+
+        let spec = self.launch_spec(
+            &program,
+            size,
+            &server_address,
+            session_id,
+            tab_id,
+            new_pane,
+        );
 
         match pane::start(
             spec,
@@ -180,12 +206,16 @@ impl super::Runtime {
 
     /// Builds the real spawn request for `program`, resolving
     /// `Program::Shell`'s own `argv0` (never decided by `dispatch`, which
-    /// only ever sees the *shape*) and today's placeholder environment -
-    /// `STEG_SERVER`/`STEG_BIN_DIR` have no real source yet (TASK-1.44/
-    /// 1.45 build the socket and the server's own binary location this
-    /// reads from instead, the same gap `pane_environment`'s own doc
-    /// already names), so this reads this process's own binary location
-    /// and an empty server address rather than inventing either.
+    /// only ever sees the *shape*) and the pane's real environment.
+    /// `server`/`session`/`tab`/`pane` are this pane's real identifiers
+    /// and this server's real bound address (TASK-1.146) - computed by
+    /// this function's one caller, `start_and_dispatch`, under the same
+    /// lock that minted the pane, and handed in as plain data rather than
+    /// read here. **This function must never call `self.lock()`**: its
+    /// caller already holds that guard for the whole surrounding call, so
+    /// a second acquisition here would self-deadlock. `bin_dir` (this
+    /// process's own binary location, for `STEG_BIN_DIR` and `PATH`) is
+    /// still read directly - nothing mints that value under any lock.
     ///
     /// **The environment composition (TASK-1.87, doc-8 R99/AC #3): the
     /// captured login shell's own environment first, then
@@ -199,7 +229,15 @@ impl super::Runtime {
     /// that reads *this server process's own* `PATH`, itself inherited
     /// from whatever client happened to start it), always
     /// `self.login.base_env`'s own captured `PATH`.
-    fn launch_spec(&self, program: &Program, size: (u16, u16)) -> LaunchSpec {
+    fn launch_spec(
+        &self,
+        program: &Program,
+        size: (u16, u16),
+        server: &str,
+        session: SessionId,
+        tab: TabId,
+        pane: PaneId,
+    ) -> LaunchSpec {
         let argv = match program {
             Program::Shell { .. } => vec![self.login.argv0.clone()],
             Program::Command { argv, .. } => argv.clone(),
@@ -214,14 +252,7 @@ impl super::Runtime {
             .iter()
             .find(|(key, _)| key == "PATH")
             .map(|(_, value)| value.as_os_str());
-        let overrides = pane_environment(
-            "",
-            steg_sdk::SessionId::from_raw(0),
-            steg_sdk::TabId::from_raw(0),
-            steg_sdk::PaneId::from_raw(0),
-            &bin_dir,
-            current_path,
-        );
+        let overrides = pane_environment(server, session, tab, pane, &bin_dir, current_path);
 
         let mut env = self.login.base_env.clone();
         env.extend(overrides);

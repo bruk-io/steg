@@ -93,6 +93,25 @@ impl Runtime {
         self.lock().stopper = Some(stopper);
     }
 
+    /// Records the real address this server's socket is reachable at
+    /// (TASK-1.146, doc-2 section 4's `STEG_SERVER`) - called once,
+    /// unconditionally, by `listen::run`, for every server (explicit or
+    /// on-demand), with the same `socket_path` its own listener is
+    /// already bound to (`arbiter::attempt`'s own caller resolves that
+    /// path once, in `listen::serve`, and hands the identical value to
+    /// both). `runtime/start.rs::launch_spec`'s own caller reads this
+    /// under the same lock that minted the pane, so a pane's own
+    /// `STEG_SERVER` is never a placeholder once this has run.
+    ///
+    /// `to_string_lossy().into_owned()`, the same conversion `runtime/
+    /// login.rs` already uses for a login shell's own `shell`/`home` -
+    /// `pane_environment`'s own `server` parameter is a plain `&str`
+    /// (`.claude/rules/architecture.md`: no new type for a value nothing
+    /// downstream parses back).
+    pub(crate) fn bind_server_address(&self, address: &std::path::Path) {
+        self.lock().server_address = Some(address.to_string_lossy().into_owned());
+    }
+
     /// How many sessions this server holds right now (TASK-1.88): the
     /// refusal check `server.stop` makes before anything else - a plain,
     /// one-off read, not [`Runtime::session_counter`]'s long-lived

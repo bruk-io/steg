@@ -390,6 +390,15 @@ pub fn run(
     // already builds one and passes it in.
     runtime.set_stopper(stop.clone());
 
+    // `socket_path` is, by contract, the exact path `arbiter::attempt`
+    // just bound this process's real listener to (`listen::serve`
+    // resolves it once and hands the identical value to both) - the
+    // same unconditional, before-the-accept-loop shape `set_stopper` just
+    // above already has, so every pane this `Runtime` ever starts gets a
+    // real `STEG_SERVER` (TASK-1.146), never the placeholder empty
+    // string `launch_spec` used to hand `pane_environment`.
+    runtime.bind_server_address(socket_path);
+
     // Built before the loop, same reasoning as `runtime` above - only
     // `Some` when `config.idle_timeout` is (TASK-1.86); `None` for an
     // explicit start spawns nothing and costs nothing.

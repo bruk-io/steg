@@ -184,7 +184,7 @@ impl Drop for ReapOnDrop {
 fn spawn_fixture(socket_path: &std::path::Path, extra_env: &[(&str, &str)]) -> ReapOnDrop {
     let mut command = Command::new(fixture_binary());
     command
-        .env("STEG_SOCKET_PATH", socket_path)
+        .env("STEG_SERVER", socket_path)
         .env("FIXTURE_RLIMIT_NOFILE", FIXTURE_RLIMIT_NOFILE.to_string())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

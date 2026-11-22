@@ -75,9 +75,17 @@
 //! marker - every variable this fixture chain sets that the pane could
 //! never legitimately inherit (`STEG_TEST_LEAK_MARKER` itself, plus the
 //! fixture's own plumbing: `STEG_TEST_LOGIN_SHELL`/`_HOME`/`_USER`,
-//! `STEG_TEST_BINARY`, `STEG_TEST_OUTPUT_PATH`, `STEG_SOCKET_PATH`) is
-//! asserted absent by *name*, not by searching for one value that might
-//! coincidentally not appear elsewhere.
+//! `STEG_TEST_BINARY`, `STEG_TEST_OUTPUT_PATH`) is asserted absent by
+//! *name*, not by searching for one value that might coincidentally not
+//! appear elsewhere. `STEG_SERVER` itself was on this list once, under
+//! the code-only name it grew up with before TASK-1.147 unified it with
+//! doc-2's own name for the same concept, and was only ever this
+//! fixture's own override on `env_leak_client`'s launching environment -
+//! it was dropped from the list the same task, because by its one name
+//! now it is no longer something a pane could never legitimately
+//! inherit: `pane_environment` sets `STEG_SERVER` on every pane (doc-2
+//! section 4), so asserting its absence here would assert something
+//! that is never true, not a real leak check.
 //!
 //! The marker is still set where a leak would actually come from: on
 //! `env_leak_client`'s own environment, inherited by the real server it
@@ -266,7 +274,7 @@ fn a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_client
 
     let mut client = KillOnDrop::new(
         Command::new(env_leak_client_binary())
-            .env("STEG_SOCKET_PATH", &socket_path)
+            .env("STEG_SERVER", &socket_path)
             .env("STEG_TEST_BINARY", fixture_server_binary())
             .env("STEG_TEST_OUTPUT_PATH", &output_path)
             .env("STEG_TEST_LEAK_MARKER", &marker_value)
@@ -306,13 +314,22 @@ fn a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_client
     // something the pane could legitimately inherit from a real login
     // shell's own profile, so every one of these absences is a real,
     // independent check, not a restatement of the one above.
+    //
+    // This list once also named `STEG_SERVER`, under the code-only name
+    // it grew up with (TASK-1.147's own rename) - this fixture's own
+    // override on `env_leak_client`'s launching environment, set above.
+    // It is dropped here, not renamed in place: `pane_environment` sets
+    // `STEG_SERVER` on every real pane (doc-2 section 4), so by its one
+    // name now it is no longer something a pane could never legitimately
+    // inherit, and asserting its absence would assert something that is
+    // never true - a check on a name, not on a leak, once the two names
+    // became one.
     for plumbing_var in [
         "STEG_TEST_LOGIN_SHELL",
         "STEG_TEST_LOGIN_HOME",
         "STEG_TEST_LOGIN_USER",
         "STEG_TEST_BINARY",
         "STEG_TEST_OUTPUT_PATH",
-        "STEG_SOCKET_PATH",
     ] {
         assert_var_absent(&text, plumbing_var);
     }

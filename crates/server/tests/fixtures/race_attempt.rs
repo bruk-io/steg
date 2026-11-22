@@ -1,5 +1,5 @@
 //! `crates/server/tests/race.rs`'s own fixture (AC #2): calls
-//! `steg_server::attempt` directly against `STEG_SOCKET_PATH`, prints
+//! `steg_server::attempt` directly against `STEG_SERVER`, prints
 //! which `Arbitration` it got - flushed before it would otherwise block
 //! in `run` - and, only if it became the server, calls `run` and blocks
 //! until killed. Its own argv is unused; everything it needs comes from
@@ -15,7 +15,7 @@ use steg_server::{Arbitration, ServerConfig, Stopper, attempt, run};
 
 fn main() {
     let socket_path = PathBuf::from(
-        std::env::var_os("STEG_SOCKET_PATH").expect("race-attempt: STEG_SOCKET_PATH must be set"),
+        std::env::var_os("STEG_SERVER").expect("race-attempt: STEG_SERVER must be set"),
     );
     let arbitration_timeout = std::env::var("STEG_ARBITRATION_TIMEOUT_MS")
         .ok()

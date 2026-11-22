@@ -94,7 +94,7 @@ fn spawn_steg_server_start_on_demand(socket_path: &std::path::Path) -> Child {
         .args(["server", "start", "--on-demand"])
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
-        .env("STEG_SOCKET_PATH", socket_path)
+        .env("STEG_SERVER", socket_path)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -110,7 +110,7 @@ fn run_steg(args: &[&str], socket: &std::path::Path) -> Output {
         .args(args)
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
-        .env("STEG_SOCKET_PATH", socket)
+        .env("STEG_SERVER", socket)
         .output()
         .expect("the real steg binary should run to completion")
 }

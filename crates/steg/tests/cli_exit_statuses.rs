@@ -116,7 +116,7 @@ fn wait_bounded(child: &mut Child, timeout: Duration) -> std::process::ExitStatu
 
 /// Runs the real binary to completion against `socket`, with a minimal
 /// explicit environment: `PATH` (so `/bin/cat` and the binary's own
-/// dynamic loading resolve) and `STEG_SOCKET_PATH`, nothing inherited -
+/// dynamic loading resolve) and `STEG_SERVER`, nothing inherited -
 /// this test's own process environment is never handed to a child
 /// (SAFETY: this machine holds real credentials).
 fn run_steg(args: &[&str], socket: &std::path::Path) -> Output {
@@ -124,7 +124,7 @@ fn run_steg(args: &[&str], socket: &std::path::Path) -> Output {
         .args(args)
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
-        .env("STEG_SOCKET_PATH", socket)
+        .env("STEG_SERVER", socket)
         .output()
         .expect("the real steg binary should run to completion")
 }
@@ -134,7 +134,7 @@ fn run_steg_with_stdin(args: &[&str], socket: &std::path::Path, stdin: &str) -> 
         .args(args)
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
-        .env("STEG_SOCKET_PATH", socket)
+        .env("STEG_SERVER", socket)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -555,7 +555,7 @@ fn sigint_during_a_hung_call_ends_the_process_by_signal() {
             .args(["session", "list"])
             .env_clear()
             .env("PATH", "/usr/bin:/bin")
-            .env("STEG_SOCKET_PATH", &socket)
+            .env("STEG_SERVER", &socket)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())

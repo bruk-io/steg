@@ -579,7 +579,7 @@ pub fn run(
 
 /// Resolves `config.socket_path` against the real environment when it is
 /// `None` - the same preference order the sdk's own `local_socket`
-/// provider uses (`STEG_SOCKET_PATH`, `XDG_RUNTIME_DIR`, `TMPDIR`, the
+/// provider uses (`STEG_SERVER`, `XDG_RUNTIME_DIR`, `TMPDIR`, the
 /// `USER` fallback), read here and fed into the sdk's own pure
 /// `steg_sdk::socket_path` rather than duplicated. Every one of this
 /// task's own tests sets `config.socket_path` explicitly instead, so
@@ -595,7 +595,7 @@ pub fn resolve_socket_path(config: &ServerConfig) -> std::path::PathBuf {
     if let Some(path) = &config.socket_path {
         return path.clone();
     }
-    let explicit = std::env::var_os("STEG_SOCKET_PATH").map(std::path::PathBuf::from);
+    let explicit = std::env::var_os("STEG_SERVER").map(std::path::PathBuf::from);
     let xdg_runtime_dir = std::env::var_os("XDG_RUNTIME_DIR").map(std::path::PathBuf::from);
     let tmp_dir = std::env::var_os("TMPDIR").map(std::path::PathBuf::from);
     let user = std::env::var("USER").ok();

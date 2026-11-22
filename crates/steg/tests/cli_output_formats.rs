@@ -87,7 +87,7 @@ fn run_steg(args: &[&str], socket: &std::path::Path) -> Output {
                     .args(&args)
                     .env_clear()
                     .env("PATH", "/usr/bin:/bin")
-                    .env("STEG_SOCKET_PATH", &socket)
+                    .env("STEG_SERVER", &socket)
                     .output()
                     .expect("the real steg binary should run to completion")
             }
@@ -697,7 +697,7 @@ fn run_steg_via_pty(args: &[&str], socket: &std::path::Path, dir: &ScopedTempDir
                     .args(&script_args)
                     .env_clear()
                     .env("PATH", "/usr/bin:/bin")
-                    .env("STEG_SOCKET_PATH", &socket)
+                    .env("STEG_SERVER", &socket)
                     .stdin(Stdio::null())
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())

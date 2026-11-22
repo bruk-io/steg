@@ -88,7 +88,7 @@ fn an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterwar
     let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut server = KillOnDrop::new(
         Command::new(fixture_server_binary())
-            .env("STEG_SOCKET_PATH", &socket_path)
+            .env("STEG_SERVER", &socket_path)
             .env("STEG_TEST_IDLE_TIMEOUT_MS", IDLE_TIMEOUT_MS.to_string())
             .env("STEG_TEST_LOGIN_SHELL", "/bin/zsh")
             .env("STEG_TEST_LOGIN_HOME", std::env::temp_dir())
@@ -131,7 +131,7 @@ fn an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterwar
     let mut second = KillOnDrop::new(
         Command::new(steg_binary())
             .args(["server", "start", "--on-demand"])
-            .env("STEG_SOCKET_PATH", &socket_path)
+            .env("STEG_SERVER", &socket_path)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

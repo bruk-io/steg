@@ -204,7 +204,7 @@ fn spawn_steg_server_start(socket_path: &std::path::Path, on_demand: bool) -> Ch
     }
     Command::new(steg_binary())
         .args(&args)
-        .env("STEG_SOCKET_PATH", socket_path)
+        .env("STEG_SERVER", socket_path)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -222,7 +222,7 @@ fn spawn_steg_server_start_capturing_stdout(
     }
     Command::new(steg_binary())
         .args(&args)
-        .env("STEG_SOCKET_PATH", socket_path)
+        .env("STEG_SERVER", socket_path)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -352,7 +352,7 @@ fn an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason() {
 
     let output = Command::new(steg_binary())
         .args(["server", "start"])
-        .env("STEG_SOCKET_PATH", &not_a_socket)
+        .env("STEG_SERVER", &not_a_socket)
         .output()
         .expect("the real steg binary should run to completion");
 
@@ -546,7 +546,7 @@ fn surviving_descriptor_exhaustion_still_serves_existing_connections_and_recover
                 "ulimit -n {RLIMIT_NOFILE}; exec {} server start",
                 steg_binary().display()
             ))
-            .env("STEG_SOCKET_PATH", &socket_path)
+            .env("STEG_SERVER", &socket_path)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -835,7 +835,7 @@ fn the_client_being_sigkilled_does_not_end_the_server() {
     let _server_guard = ServerAtSocket(socket_path.clone());
     let mut client = KillOnDrop::new(
         Command::new(PathBuf::from(env!("CARGO_BIN_EXE_autostart_client")))
-            .env("STEG_SOCKET_PATH", &socket_path)
+            .env("STEG_SERVER", &socket_path)
             .env("STEG_TEST_BINARY", steg_binary())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -878,7 +878,7 @@ fn the_clients_process_group_being_sighupd_does_not_end_the_server() {
     let _server_guard = ServerAtSocket(socket_path.clone());
     let mut client = KillOnDrop::new(
         Command::new(PathBuf::from(env!("CARGO_BIN_EXE_autostart_client")))
-            .env("STEG_SOCKET_PATH", &socket_path)
+            .env("STEG_SERVER", &socket_path)
             .env("STEG_TEST_BINARY", steg_binary())
             .process_group(0) // its own group, so SIGHUP to -pgid cannot hit this test
             .stdin(Stdio::null())
@@ -936,7 +936,7 @@ fn typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message() {
     let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut fixture = KillOnDrop::new(
         Command::new(PathBuf::from(env!("CARGO_BIN_EXE_already_a_group_leader")))
-            .env("STEG_SOCKET_PATH", &socket_path)
+            .env("STEG_SERVER", &socket_path)
             .env("STEG_TEST_BINARY", steg_binary())
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -978,7 +978,7 @@ fn spawn_already_a_group_leader(socket_path: &Path, flags: &[&str]) -> KillOnDro
     KillOnDrop::new(
         Command::new(PathBuf::from(env!("CARGO_BIN_EXE_already_a_group_leader")))
             .args(flags)
-            .env("STEG_SOCKET_PATH", socket_path)
+            .env("STEG_SERVER", socket_path)
             .env("STEG_TEST_BINARY", steg_binary())
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -1094,7 +1094,7 @@ fn server_start_help_prints_the_generated_help_and_starts_nothing() {
     let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let output = Command::new(steg_binary())
         .args(["server", "start", "--help"])
-        .env("STEG_SOCKET_PATH", &socket_path)
+        .env("STEG_SERVER", &socket_path)
         .output()
         .expect("the real steg binary should run to completion");
 

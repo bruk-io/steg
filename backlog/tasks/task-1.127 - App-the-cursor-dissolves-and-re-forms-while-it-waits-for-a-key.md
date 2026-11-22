@@ -1,13 +1,14 @@
 ---
 id: TASK-1.127
 title: 'App: the cursor dissolves and re-forms while it waits for a key'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T19:56:00Z'
+updated_date: '2026-11-22T20:05:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.126
@@ -23,8 +24,10 @@ asdlc_branch: task-1.127-app-the-cursor-dissolves-and-re-forms
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e3032b0ac5e3'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=2'
+asdlc_review_policies: ["review", "app"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -812,6 +815,35 @@ created: 2026-11-22T19:56:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.127: a same-machine review: it waited 15h 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-22T20:05:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 2 nit. Cites: review, app. The diff does not match the plan.
+
+Reviewed as a diff of the already-merged PR 95 (git diff e7dc7a1d^1 e7dc7a1d, equal to the PR's own diff; merge commit e7dc7a1d). The task's own Implementation Notes record the engineer's 22 Nov hold: PR 95 is not to be merged until TASK-1.153 (the kernel redraw bug) is fixed and merged, and "a clean review does not lift this hold" - stating this as fact, not as part of the verdict below, which rests only on this diff.
+
+Important findings:
+
+[Evidence, Important] Pull request / AC#4, AC#5: PR 95 carries no recording of the fade and no stills over real text. The PR's own test-plan checkbox ("A short recording of the motion and a still over real text are still needed") is still unchecked, and `gh pr view 95` shows no comments or added media since. Both the team policy's Evidence pass ("no recording where the change is motion... is an Important finding") and plugins/bruk-io-steg/rules/app.md ("a recording when the change is motion or a sequence") require this; AC#5 names it explicitly, and AC#4's live-run still is equally absent. The engineer's verbal "I ran it live and it works" is not evidence on the PR.
+
+[Compliance/Evidence, Important] crates/app/src/terminal_element.rs, paint_cursor (~855-930): AC#3's own clause "a test proves each case schedules no further frame" has nothing behind it. Only should_show_cursor_fade's six boolean-gate tests exist; the worker's own plan/notes concede "that a closed gate arms nothing is argued from structure... not shown by a test of the scheduling itself." No test exercises paint_cursor/schedule_fade_wake to show a closed gate actually leaves scheduled_wake at None.
+
+[Compliance, Important] crates/app/src/terminal_element.rs:1272-1307 (piece_states_at_matches_the_engineers_own_table): the approved plan's own AC#1 proof promised a test that "reads MOTION_CURSOR_FADE_PATTERN.order/step_fraction/hold_fraction directly (not literals in the test)". As built, the test asserts against local hardcoded consts (ORDER/STEP/PHASE_WHOLE/PHASE_RETURNING); nothing reads the real steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE except the one production call site (line 955). A wrong exported value would animate incorrectly with every test still green. This departure from the approved plan's proof design is not among the three departures the build notes disclose.
+
+Nits (2):
+[Bugs, Nit] terminal_element.rs:855-858: paint_cursor's early return on !cursor.visible skips updating was_in_focus, so a focus loss/regain while the cursor happens to be hidden leaves that flag stale and can skip the intended refocus-restarts-the-cycle behaviour once the cursor becomes visible again.
+[Evidence, Nit] Implementation Notes: every recorded failing-then-passing control is timestamped at 8ad1a1bd9cf4 "with uncommitted changes," not the final head d9e49be388f0; only the two full `just check` runs reach the final head. Harmless here (the final just check reruns and passes all of them at the true final head), but worth recording controls at the commit they actually describe.
+
+Evidence pass, repeated myself: reproduced the blend_at_half_strength_is_the_rgb_midpoint control in a scratch edit at d9e49be3 (own worktree, reverted after) - replaced blend's RGB-space alpha-blend (base.blend with toward's alpha set to strength) with a naive per-field Hsla lerp (the "dither"/hue-wheel alternative the engineer's own wording rules out) and reran it: it failed with the exact recorded message ("r was 0"), consistent with crossing the hue wheel (red h=0 toward blue h=0.667 at 0.5 lands near h=0.33, green, r=0). Its sibling blend_at_zero_strength_leaves_the_base_colour_unchanged stayed green throughout (strength=0 is an identity in both formulations), confirming the failure isolates blend's own RGB-space mechanism rather than some other path. Restored the file and reconfirmed the real test passes before finishing.
+
+Checks: the two full `just check` runs are recorded on this branch, the second at the final head d9e49be388f0, after the last commit - satisfies the Evidence pass for the suite as a whole; the per-test failing-then-passing controls themselves predate that (see nit above).
 
 ---
 <!-- COMMENTS:END -->

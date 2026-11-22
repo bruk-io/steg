@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T05:48:00Z'
+updated_date: '2026-11-22T05:50:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -516,6 +516,14 @@ attach.rs's stop_server bound, revised: the first version (60s) was picked from 
 The `just check` recorded earlier is now stale (a commit landed after it, and it did not cover listen.rs either way) - will record a fresh one at the final head once listen.rs is resolved, not before, to avoid recording it twice for the same reason.
 
 Also: found and removed a stray /tmp/attach.rs.bak this worktree's own earlier diagnostic step left behind (should have gone in the scratchpad) - confirmed gone, confirmed nothing else landed outside the worktree or the scratchpad.
+
+---
+
+created: 2026-11-22T05:50:00Z
+
+---
+
+Confirmed, not assumed: attach.rs::start_server's own ServerConfig only sets socket_path/handshake_timeout/login explicitly, with `..ServerConfig::default()` for the rest - and ServerConfig::default()'s own force_grace field is literally `crate::runtime::FORCE_GRACE_DEFAULT` (2s, crates/server/src/config.rs:157), the real production default, not a shortened test-only one. The 90s bound's own derivation holds.
 
 ---
 <!-- COMMENTS:END -->

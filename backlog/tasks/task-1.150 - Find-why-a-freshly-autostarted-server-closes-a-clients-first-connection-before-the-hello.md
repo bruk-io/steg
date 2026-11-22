@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T06:36:00Z'
+updated_date: '2026-11-22T06:41:00Z'
 labels:
   - size-3
   - changes-requested
@@ -435,6 +435,37 @@ ok      ui colours (0.1s)
 Commits since the review: 29, 28 without the Asdlc-Worker trailer.
 
 Review findings fixed: (1) the first 300-run's 'failed at run 1' was the script's find pattern non-deterministically picking a .rcgu.o object file, not the test binary - confirmed by reproduction, not guessed; also found two distinct valid executable hashes could coexist, so the earlier pass may have been correct only by chance. Rewrote the script to run through cargo test each iteration, eliminating manual binary discovery entirely. (2) spawn_hostile_listener now takes the gap directly (Duration::ZERO for its ordinary callers), so the new test drives the exact function the others use, not a parallel copy; control re-confirmed on this one function (fails with ClosedBeforeHello when flipped, passes at the fix). (3) All checks (control pair, 300-run, just check) re-recorded strictly after the last commit, at the true final head (post-merge of origin/main, no code conflicts). All green, pushed, CI passed (10m52s).
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_connection_arbitration -- closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect --exact` exited 101 at 2026-11-22T06:41:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.150 on task-1.150-find-why-a-freshly-autostarted-server at d915004dbd68 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_connection_arbitration.rs (target/debug/deps/cli_connection_arbitration-dfa156c3f3528d90)
+
+running 1 test
+test closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect ... FAILED
+
+failures:
+
+---- closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect stdout ----
+
+thread 'closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect' (78039972) panicked at crates/steg/tests/cli_connection_arbitration.rs:193:5:
+assertion `left == right` failed: stderr: steg: the steg server accepted the connection and closed it before a hello arrived, twice
+
+  left: Some(4)
+ right: Some(0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.48s
+
+error: test failed, to rerun pass `-p steg --test cli_connection_arbitration`
+```
+
+Commits since the review: 18, 17 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -856,10 +856,25 @@ fn update_focus_tracking(fade: &Rc<RefCell<CursorFadeState>>, now_in_focus: bool
 /// construction is needed to prove this from a test: `Task::ready(())` (gpui's own
 /// context-free constructor) stands in for a real pending wake, and this function treats
 /// it the same either way - only whether `scheduled_wake` ends up `None` is observed.
-fn apply_fade_schedule_decision(fade: &Rc<RefCell<CursorFadeState>>, should_run: bool) {
+///
+/// Returns `should_run` unchanged - review finding, continued: this is also what
+/// [`paint_cursor`] branches on to decide whether to call [`paint_cursor_fade`], the one
+/// function that ever calls [`schedule_fade_wake`] (the only place `scheduled_wake` is
+/// ever set to `Some`). By making the branch use *this call's own return value*, rather
+/// than a second, separately-computed `should_run` that merely happens to agree with it,
+/// the two conditions cannot drift apart - there is exactly one decision, read twice, not
+/// two decisions that could disagree. A test cannot drive `paint_cursor_fade`/
+/// `schedule_fade_wake` themselves without a real gpui `Window` (the same limitation
+/// `every_glyph_sits_on_its_own_column` already has, TASK-1.126) - verified by the live
+/// run instead, not a unit test - but this return value, asserted on directly below, is
+/// what makes "the arm-a-new-wake path is only reachable when this returns `true`" a
+/// property of the code's own structure, not an argument about it.
+#[must_use]
+fn apply_fade_schedule_decision(fade: &Rc<RefCell<CursorFadeState>>, should_run: bool) -> bool {
     if !should_run {
         fade.borrow_mut().scheduled_wake = None;
     }
+    should_run
 }
 
 /// Drives TASK-1.127's own cursor fade and paints the cursor - the six-piece dissolve for
@@ -901,7 +916,7 @@ fn paint_cursor(
     update_focus_tracking(fade, now_in_focus);
 
     if !cursor.visible {
-        apply_fade_schedule_decision(fade, false);
+        let _ = apply_fade_schedule_decision(fade, false);
         return;
     }
 
@@ -923,8 +938,11 @@ fn paint_cursor(
         reduce_motion_enabled(),
         ended,
     );
-    let should_run = cursor.shape == CursorShape::Block && gate;
-    apply_fade_schedule_decision(fade, should_run);
+    // The one call that decides whether to arm a new wake - `paint_cursor_fade` (the
+    // only function that ever calls `schedule_fade_wake`) is reached only through this
+    // exact return value, below, never a second, separately-computed condition that
+    // could disagree with it (`apply_fade_schedule_decision`'s own doc).
+    let should_run = apply_fade_schedule_decision(fade, cursor.shape == CursorShape::Block && gate);
 
     if should_run {
         paint_cursor_fade(
@@ -960,6 +978,18 @@ fn paint_cursor(
     }
 }
 
+/// The animation [`paint_cursor_fade`] actually paints with (review finding 3, continued):
+/// a named indirection with exactly one production caller, so a test can assert against
+/// *this function's own return value* and know it is asserting against what production
+/// uses - not a second, independent read of the same constant that merely happens to
+/// agree with it today. Still the real, generated `steg_ui::foundations::MOTION_CURSOR_
+/// FADE_SHADED_DISSOLVE` (doc-17 R121; TASK-1.136's own export) - this adds no logic, only
+/// one name both the production call site and the table test go through.
+#[must_use]
+fn active_cursor_fade_pattern() -> steg_ui::foundations::MotionCursorFadeShadedDissolve {
+    steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE
+}
+
 /// The six-piece dissolve itself, once [`paint_cursor`] has decided the gate is open and
 /// the shape is a block: computes the fraction through the cycle from elapsed time (the
 /// clock read once, here, in the imperative shell - everything downstream is a plain
@@ -982,7 +1012,7 @@ fn paint_cursor_fade(
     fade: &Rc<RefCell<CursorFadeState>>,
     entity: &Entity<AppWindow>,
 ) {
-    let pattern = steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE;
+    let pattern = active_cursor_fade_pattern();
     let cycle_started_at = fade.borrow().cycle_started_at;
     let elapsed_seconds = cycle_started_at.elapsed().as_secs_f32();
     let cycle_seconds = pattern.cycle.as_secs_f32();
@@ -1310,9 +1340,15 @@ mod tests {
         // `steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE` directly, "not
         // literals in the test" - as first built this read the local `ORDER`/`STEP`/
         // `PHASE_WHOLE`/`PHASE_RETURNING` consts instead, so a wrong exported value
-        // would animate incorrectly with this test still green. Fixed: the real,
-        // generated production constant, the one `paint_cursor_fade` itself reads.
-        let pattern = steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE;
+        // would animate incorrectly with this test still green. Fixed, and tightened
+        // further at review: calling `active_cursor_fade_pattern()` - the one function
+        // `paint_cursor_fade` itself calls for this - rather than re-reading the same
+        // named constant independently. Two separate reads of one global would still
+        // agree today by construction (there is only one constant), which proves the
+        // table against *a* value, not against what production is actually wired to;
+        // going through the one production call site instead means a corruption of
+        // that call site is what this test would catch, not a second copy of it.
+        let pattern = active_cursor_fade_pattern();
 
         // Each row is a fraction at one of the cycle's own 14 boundaries, and the state
         // of pieces 0 through 5 at that instant - worked out independently from the
@@ -1538,7 +1574,18 @@ mod tests {
             // alone is already closed, so `should_run` is `false` regardless of shape
             // (`paint_cursor`'s own `cursor.shape == CursorShape::Block && gate`).
             let fade = fade_state_with_a_pending_wake();
-            apply_fade_schedule_decision(&fade, gate);
+            let should_run = apply_fade_schedule_decision(&fade, gate);
+            // The return value, not only the side effect: `paint_cursor` branches to
+            // `paint_cursor_fade` (the only caller of `schedule_fade_wake`, the only
+            // place that ever arms a new wake) on this exact value - asserting it is
+            // `false` here is what proves that branch is not reachable for this case,
+            // not merely that the field this call also touches ended up `None`.
+            assert!(
+                !should_run,
+                "a closed gate must never decide to run, case {gate:?} \
+                 ({window_active}, {pane_focused}, {cursor_visible}, {blink_requested}, \
+                 {reduce_motion}, {ended})"
+            );
             assert!(
                 fade.borrow().scheduled_wake.is_none(),
                 "a closed gate must clear any pending wake, case {gate:?} \
@@ -1555,7 +1602,11 @@ mod tests {
         // not this function's job) - an open decision must leave whatever was already
         // pending untouched.
         let fade = fade_state_with_a_pending_wake();
-        apply_fade_schedule_decision(&fade, true);
+        let should_run = apply_fade_schedule_decision(&fade, true);
+        assert!(
+            should_run,
+            "an open decision must say so in its own return value"
+        );
         assert!(fade.borrow().scheduled_wake.is_some());
     }
 

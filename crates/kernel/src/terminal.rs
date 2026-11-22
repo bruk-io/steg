@@ -63,6 +63,20 @@ pub struct Terminal {
     /// at least `1`), so a caller claiming `0` is always treated the same
     /// as a caller with no point at all.
     seq: u64,
+    /// The cursor [`Terminal::changes_since`] last actually reported - read
+    /// and written only there (TASK-1.153), the same scope `seq` already
+    /// has: `changes_since` is the one caller the server's own `run_tick`
+    /// ever makes per pane per tick (`crates/server/src/pane.rs`, one
+    /// pane-wide `tracked_seq`, not one per attachment, confirmed by
+    /// reading it), so there is exactly one place "did the cursor change"
+    /// needs an answer. `None` until the first call that reports anything;
+    /// invariant, kept by every arm that sets it: `seq != 0` implies this
+    /// is `Some`. [`Terminal::screen`] never touches it - it has no "last
+    /// reported" state of its own to get wrong, since it always returns
+    /// the cursor fresh and unconditionally, every time it is called (the
+    /// stale/just-armed attachment's own catch-up path in `pane.rs`), so
+    /// there is nothing here for it to consult or update.
+    last_reported_cursor: Option<Cursor>,
     /// Every [`CommandMark`] queued since the last [`Terminal::
     /// take_command_marks`] (doc-9 R14, OSC 133; TASK-1.79). Drained by
     /// `crates/server/src/pane.rs`'s own worker thread after every
@@ -136,6 +150,7 @@ impl Terminal {
             rows_scrolled_off: 0,
             epoch: 0,
             seq: 0,
+            last_reported_cursor: None,
             command_marks: Vec::new(),
         })
     }
@@ -223,8 +238,11 @@ impl Terminal {
         Ok(Size::new(self.cols()?, self.rows()?))
     }
 
-    /// The rows that changed since `seen`, or a whole screen when `seen`
-    /// cannot be resumed from (AC #4, #5).
+    /// The rows that changed since `seen`, the cursor if only it changed
+    /// (position, visibility or shape - TASK-1.153: the engine's own
+    /// dirty flag tracks cell content only, so a cursor-only change is
+    /// its own, separate case, a [`ScreenUpdate::Delta`] with no rows),
+    /// or a whole screen when `seen` cannot be resumed from (AC #4, #5).
     ///
     /// `seen` is the `seq` a previous [`ScreenUpdate::Delta`] or
     /// [`ScreenUpdate::Full`] carried; `None` for a caller that has never
@@ -241,14 +259,17 @@ impl Terminal {
     ///
     /// Calling this twice with nothing written in between returns
     /// [`ScreenUpdate::Unchanged`] the second time: the first call already
-    /// consumed whatever the engine had marked dirty. Several callers
-    /// sharing one terminal must not each call this expecting their own
-    /// independent view - TASK-1.47 is where several attachments to one
-    /// pane are built, and its job is to call this once per tick and fan
-    /// the one result out, each attachment tracking its own delivery
-    /// progress on top; nothing here assumes there is only ever one
-    /// caller, only that calling this is itself the single point of
-    /// truth for "what has this terminal not yet reported."
+    /// consumed whatever the engine had marked dirty, and already told
+    /// this terminal's own [`Terminal::last_reported_cursor`] what it just
+    /// reported, so a cursor that has not moved since does not look like
+    /// a fresh change either. Several callers sharing one terminal must
+    /// not each call this expecting their own independent view -
+    /// TASK-1.47 is where several attachments to one pane are built, and
+    /// its job is to call this once per tick and fan the one result out,
+    /// each attachment tracking its own delivery progress on top; nothing
+    /// here assumes there is only ever one caller, only that calling this
+    /// is itself the single point of truth for "what has this terminal
+    /// not yet reported" - cursor included.
     ///
     /// # Errors
     ///
@@ -266,6 +287,15 @@ impl Terminal {
 
         let outcome = if is_current {
             match dirty {
+                // TASK-1.153: the engine's own dirty flag tracks cell
+                // content only, never the cursor (confirmed by test: a
+                // pure cursor move, DECTCEM, and DECSCUSR all leave this
+                // `Clean`) - so a cursor that has moved since the last
+                // report is its own, separate reason to answer with
+                // something, even when no cell did.
+                Dirty::Clean if Some(cursor) != self.last_reported_cursor => {
+                    Some(Outcome::Delta(Vec::new()))
+                }
                 Dirty::Clean => None,
                 Dirty::Partial => Some(Outcome::Delta(dirty_rows(&snapshot, &palette)?)),
                 Dirty::Full => Some(Outcome::Full(all_rows(&snapshot, &palette)?)),
@@ -273,6 +303,17 @@ impl Terminal {
         } else {
             Some(Outcome::Full(all_rows(&snapshot, &palette)?))
         };
+
+        // Every path that is about to report anything (both `Delta` arms
+        // and both `Full` arms - the ordinary current-and-dirty one and
+        // the stale/foreign-caller one) reports this call's own `cursor`,
+        // so this is where "the cursor we last told someone about" is
+        // updated too - keeping the `seq != 0` implies `last_reported_
+        // cursor.is_some()` invariant (the field's own doc) regardless of
+        // which of the four reporting arms actually ran.
+        if outcome.is_some() {
+            self.last_reported_cursor = Some(cursor);
+        }
 
         snapshot.clean().map_err(Error::Engine)?;
 
@@ -1704,6 +1745,144 @@ mod tests {
         assert!(
             changed.contains(&2),
             "row 2 (\"third\") should be in the delta: {changed:?}"
+        );
+    }
+
+    // --- TASK-1.153: a cursor-only change (position, visibility, shape) ---------------
+
+    #[test]
+    fn changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+        let (_, seq) = expect_full(term.changes_since(None).unwrap());
+
+        term.write(b"\x1b[C"); // CSI cursor-forward, no cell write
+
+        match term.changes_since(Some(seq)).unwrap() {
+            ScreenUpdate::Delta { rows, cursor, .. } => {
+                assert!(
+                    rows.is_empty(),
+                    "no cell changed, so no row should be in the delta"
+                );
+                assert_eq!(cursor.x, 3, "the cursor should have moved one column right");
+            }
+            other @ (ScreenUpdate::Unchanged
+            | ScreenUpdate::Full { .. }
+            | ScreenUpdate::Ended { .. }) => {
+                panic!("expected a cursor-only Delta, got {other:?}")
+            }
+        }
+    }
+
+    #[test]
+    fn changes_since_reports_a_cursor_only_delta_when_only_visibility_changed() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+        let (_, seq) = expect_full(term.changes_since(None).unwrap());
+
+        term.write(b"\x1b[?25l"); // DECTCEM: hide the cursor, no cell write
+
+        match term.changes_since(Some(seq)).unwrap() {
+            ScreenUpdate::Delta { rows, cursor, .. } => {
+                assert!(rows.is_empty());
+                assert!(!cursor.visible, "the cursor should now be hidden");
+            }
+            other @ (ScreenUpdate::Unchanged
+            | ScreenUpdate::Full { .. }
+            | ScreenUpdate::Ended { .. }) => {
+                panic!("expected a cursor-only Delta, got {other:?}")
+            }
+        }
+    }
+
+    #[test]
+    fn changes_since_reports_a_cursor_only_delta_when_only_the_shape_changed() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        // Establish a known baseline (steady block) before the first read,
+        // so the one change under test is unambiguous - the engine's own
+        // default cursor style is not assumed.
+        term.write(b"hi\x1b[2 q");
+        let (baseline, seq) = expect_full(term.changes_since(None).unwrap());
+        assert!(
+            !baseline.cursor.blinking && baseline.cursor.shape == CursorShape::Block,
+            "the baseline must be steady block for this test's own transition to mean \
+             anything: got {:?}",
+            baseline.cursor
+        );
+
+        term.write(b"\x1b[1 q"); // DECSCUSR: blinking block - no cell write
+
+        match term.changes_since(Some(seq)).unwrap() {
+            ScreenUpdate::Delta { rows, cursor, .. } => {
+                assert!(rows.is_empty());
+                assert_eq!(cursor.shape, CursorShape::Block);
+                assert!(cursor.blinking, "DECSCUSR 1 is blinking");
+            }
+            other @ (ScreenUpdate::Unchanged
+            | ScreenUpdate::Full { .. }
+            | ScreenUpdate::Ended { .. }) => {
+                panic!("expected a cursor-only Delta, got {other:?}")
+            }
+        }
+    }
+
+    #[test]
+    fn a_cursor_only_delta_is_reported_once_then_idle_stays_silent() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+        let (_, seq) = expect_full(term.changes_since(None).unwrap());
+
+        term.write(b"\x1b[C");
+        let ScreenUpdate::Delta { seq: new_seq, .. } = term.changes_since(Some(seq)).unwrap()
+        else {
+            panic!("expected the cursor-only Delta this is built on top of");
+        };
+
+        // Nothing written since - an idle tick right after the cursor-only
+        // report must still see Unchanged, not report the same, unmoved
+        // cursor again (AC #2).
+        assert_eq!(
+            term.changes_since(Some(new_seq)).unwrap(),
+            ScreenUpdate::Unchanged
+        );
+    }
+
+    /// A stale/behind caller's own `Full` must update `last_reported_cursor` too
+    /// (TASK-1.153, "mind several attached clients reading at different
+    /// sequences") - not provable by the `Full`'s own cursor field alone (that
+    /// is always fresh, whether or not `last_reported_cursor` is updated), so
+    /// this drives a *third* call, now current again, and checks it correctly
+    /// sees `Unchanged` rather than wrongly repeating the same cursor as a
+    /// fresh change - which is exactly what would happen if the stale caller's
+    /// own `Full` arm left `last_reported_cursor` behind.
+    #[test]
+    fn a_stale_callers_full_also_updates_last_reported_cursor() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+        let (_, seq_after_hi) = expect_full(term.changes_since(None).unwrap());
+
+        term.write(b"\x1b[C"); // cursor -> column 3
+        // The "current" caller sees the cursor-only Delta, bumping `seq`.
+        let ScreenUpdate::Delta { .. } = term.changes_since(Some(seq_after_hi)).unwrap() else {
+            panic!("expected the cursor-only Delta");
+        };
+
+        term.write(b"\x1b[C"); // cursor -> column 4, still no cell write
+        // A second, behind caller - still holding the *old* seq from before
+        // either cursor move - gets a Full instead (it is stale on content
+        // too, not only on the cursor), carrying the real, current cursor.
+        let (screen, seq_after_stale_full) =
+            expect_full(term.changes_since(Some(seq_after_hi)).unwrap());
+        assert_eq!(screen.cursor.x, 4);
+
+        // Nothing written since that stale Full - a caller now current
+        // (holding its own fresh seq) must see Unchanged, not another
+        // cursor-only Delta repeating the same, unmoved cursor. This is
+        // exactly what would fail if the stale caller's own Full had not
+        // also updated `last_reported_cursor`.
+        assert_eq!(
+            term.changes_since(Some(seq_after_stale_full)).unwrap(),
+            ScreenUpdate::Unchanged
         );
     }
 

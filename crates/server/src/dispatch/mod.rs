@@ -5,10 +5,9 @@
 //! [`Context`] to a [`steg_sdk::Response`], over a [`steg_kernel::Tree`]
 //! and the server's remembered [`steg_kernel::Settings`] (R80, decision-9;
 //! TASK-1.48) — no socket, no I/O, in its signature: both are already in
-//! memory, and the request is already parsed. The server's own remaining
-//! job (TASK-1.44/1.45) is building a `Context` from a connection's
-//! `STEG_SESSION`/`STEG_TAB`/`STEG_PANE` and calling this function
-//! unchanged.
+//! memory, and the request is already parsed. `crate::connection::handle`
+//! builds a `Context` from a connection's own hello (TASK-1.51's
+//! [`Context::from_hello`]) and calls this function unchanged.
 
 mod api;
 mod client;
@@ -41,16 +40,20 @@ use steg_sdk::{
 /// The defaults a request's target falls back to when its own `target`
 /// parameter is left out (doc-2 section 4's context fallback), passed in
 /// explicitly rather than read off a connection. `None` means this
-/// connection has no default of that kind at all (TASK-1.45 §1): nothing
-/// on the wire supplies a session, tab or pane today - the hello (decision-2
-/// §7, doc-14 "Clients") carries only `kind`/`label`, and `STEG_SESSION`/
-/// `TAB`/`PANE` (doc-2 §4) are environment variables the server puts into a
-/// *pane's own program's* environment, never sent by a client. A `Context`
-/// naming a real-looking id nobody gave would be a false statement, so
-/// absence is represented, not filled with a placeholder id - see
-/// [`Context::none`] and `dispatch/lookup.rs`'s `target_session`/
+/// connection has no default of that kind at all (TASK-1.45 §1) - a
+/// `Context` naming a real-looking id nobody gave would be a false
+/// statement, so absence is represented, not filled with a placeholder id -
+/// see [`Context::none`] and `dispatch/lookup.rs`'s `target_session`/
 /// `target_tab`/`target_pane`, which refuse rather than guess when a
 /// default is needed and missing.
+///
+/// Built from a connection's own hello by [`Context::from_hello`]
+/// (TASK-1.51): a CLI run inside a pane carries its own `STEG_SESSION`/
+/// `STEG_TAB`/`STEG_PANE` (doc-2 section 4) back to the server on the wire
+/// (`steg_sdk::ClientHello`'s own `session`/`tab`/`pane` fields), so a
+/// pane's own commands act on that pane by default (AC #1). Every other
+/// client (the app, a CLI run outside any pane, a plugin) has none of
+/// these, and gets [`Context::none`] exactly as before.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Context {
     /// The session a request with no session part of its target acts on,
@@ -75,6 +78,31 @@ impl Context {
             default_session: None,
             default_tab: None,
             default_pane: None,
+        }
+    }
+
+    /// Builds a `Context` from a connection's own hello (TASK-1.51):
+    /// `session`/`tab`/`pane` are `steg_sdk::ClientHello`'s own fields of
+    /// the same name, as the connecting process gave them (raw
+    /// identifiers, never labels - doc-2 §4's own rule for `STEG_SESSION`/
+    /// `TAB`/`PANE`). Each is parsed independently with
+    /// [`SessionId`]/[`TabId`]/[`PaneId`]'s own `FromStr`; absence or a
+    /// value that fails to parse degrades that one field alone to `None`,
+    /// never refuses the whole handshake over it - the same "absence is
+    /// represented, not guessed" rule [`Context::none`] already states,
+    /// extended to "an unreadable value is absence too, not a protocol
+    /// error." A stale id (naming something that has since closed) is not
+    /// this function's concern either: whichever of `target_session`/
+    /// `target_tab`/`target_pane` (`dispatch/lookup.rs`) actually reads it
+    /// resolves it against the live tree at the point a request needs it,
+    /// and answers `NoSuchTarget` there if it no longer exists - the same
+    /// place every other stale or wrong target is already caught.
+    #[must_use]
+    pub fn from_hello(session: Option<&str>, tab: Option<&str>, pane: Option<&str>) -> Self {
+        Self {
+            default_session: session.and_then(|value| value.parse().ok()),
+            default_tab: tab.and_then(|value| value.parse().ok()),
+            default_pane: pane.and_then(|value| value.parse().ok()),
         }
     }
 }
@@ -365,5 +393,45 @@ mod tests {
         let error = not_implemented_yet("the terminal engine (TASK-1.40)");
         assert_eq!(error.code, ErrorCode::NotImplementedYet);
         assert!(error.message.contains("the terminal engine (TASK-1.40)"));
+    }
+
+    /// `Context::from_hello` (TASK-1.51, doc-2 §4): the one place a
+    /// connection's own hello becomes the defaults `dispatch/lookup.rs`'s
+    /// `target_session`/`target_tab`/`target_pane` read.
+    mod from_hello {
+        use super::super::Context;
+        use steg_sdk::{PaneId, SessionId, TabId};
+
+        #[test]
+        fn all_three_present_and_well_formed_resolve_to_the_named_ids() {
+            let context = Context::from_hello(Some("1"), Some("2"), Some("3"));
+            assert_eq!(context.default_session, Some(SessionId::from_raw(1)));
+            assert_eq!(context.default_tab, Some(TabId::from_raw(2)));
+            assert_eq!(context.default_pane, Some(PaneId::from_raw(3)));
+        }
+
+        /// A hello with no context at all (every client but a CLI run
+        /// inside a pane) builds exactly `Context::none()` - not merely an
+        /// equal-looking value by chance, but the identical one, since this
+        /// is the input a connection with no `STEG_*` env at all actually
+        /// sends.
+        #[test]
+        fn all_three_absent_is_context_none() {
+            assert_eq!(Context::from_hello(None, None, None), Context::none());
+        }
+
+        /// One malformed field never spoils the other two: parsing is
+        /// independent per field, so a corrupted or hand-edited
+        /// `STEG_TAB` (say) still leaves a real `STEG_SESSION`/`STEG_PANE`
+        /// usable - this is this function's own negative control, read the
+        /// other way: if parsing shared any state across the three
+        /// fields, this assertion is what would catch it.
+        #[test]
+        fn one_malformed_field_degrades_to_none_alone_the_other_two_still_resolve() {
+            let context = Context::from_hello(Some("1"), Some("not-a-number"), Some("3"));
+            assert_eq!(context.default_session, Some(SessionId::from_raw(1)));
+            assert_eq!(context.default_tab, None);
+            assert_eq!(context.default_pane, Some(PaneId::from_raw(3)));
+        }
     }
 }

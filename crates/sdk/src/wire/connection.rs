@@ -199,6 +199,38 @@ impl Connection {
         encode_frame(&Frame::hello(payload)).expect("a hello fits under the frame cap")
     }
 
+    /// Like [`Connection::send_hello`], carrying a connecting CLI's own
+    /// `STEG_SESSION`/`STEG_TAB`/`STEG_PANE` too (TASK-1.51, doc-2 section
+    /// 4) - used only by `steg_sdk::local_socket::one_handshake_attempt`,
+    /// the one real caller that has this context to give; every other
+    /// caller of `send_hello` (the app, and every test that builds a hello
+    /// by hand) has none and is unaffected by this addition.
+    ///
+    /// # Panics
+    /// Never in practice: a hello is a handful of fields, far under the 8
+    /// MiB frame cap.
+    #[must_use]
+    pub fn send_hello_with_context(
+        client: &str,
+        kind: ClientKind,
+        label: Option<&str>,
+        session: Option<&str>,
+        tab: Option<&str>,
+        pane: Option<&str>,
+    ) -> Vec<u8> {
+        let hello = ClientHello::with_context(
+            client,
+            PROTOCOL_VERSION,
+            kind,
+            label.map(str::to_owned),
+            session.map(str::to_owned),
+            tab.map(str::to_owned),
+            pane.map(str::to_owned),
+        );
+        let payload = serde_json::to_vec(&hello).expect("ClientHello always serializes to JSON");
+        encode_frame(&Frame::hello(payload)).expect("a hello fits under the frame cap")
+    }
+
     /// Calls a method by name, validated against this connection's own
     /// `Description` before anything is encoded (AC #5: no method is
     /// hand-written - this is the one path every call takes, whether a

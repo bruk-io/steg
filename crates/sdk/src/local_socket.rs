@@ -217,7 +217,12 @@ pub fn connect(options: &ConnectOptions) -> Result<UnixStream, ConnectError> {
 /// loop.
 ///
 /// `client`/`kind`/`label` are [`Connection::send_hello`]'s own parameters,
-/// passed straight through.
+/// passed straight through. `session`/`tab`/`pane` (TASK-1.51) are a
+/// connecting CLI's own `STEG_SESSION`/`STEG_TAB`/`STEG_PANE`, when it has
+/// them - carried through [`Connection::send_hello_with_context`] instead,
+/// so the server can build a per-connection default target (doc-2 section
+/// 4). `None` for all three is every caller outside a pane, unchanged from
+/// today.
 ///
 /// # Errors
 /// Anything [`connect`] itself can return; [`ConnectError::ClosedBeforeHello`]
@@ -233,10 +238,13 @@ pub fn connect_handshaken(
     client: &str,
     kind: ClientKind,
     label: Option<&str>,
+    session: Option<&str>,
+    tab: Option<&str>,
+    pane: Option<&str>,
 ) -> Result<(UnixStream, Vec<u8>), ConnectError> {
-    match one_handshake_attempt(options, client, kind, label)? {
+    match one_handshake_attempt(options, client, kind, label, session, tab, pane)? {
         Some(result) => Ok(result),
-        None => match one_handshake_attempt(options, client, kind, label)? {
+        None => match one_handshake_attempt(options, client, kind, label, session, tab, pane)? {
             Some(result) => Ok(result),
             None => Err(ConnectError::ClosedBeforeHello),
         },
@@ -282,9 +290,12 @@ fn one_handshake_attempt(
     client: &str,
     kind: ClientKind,
     label: Option<&str>,
+    session: Option<&str>,
+    tab: Option<&str>,
+    pane: Option<&str>,
 ) -> Result<Option<(UnixStream, Vec<u8>)>, ConnectError> {
     let mut stream = connect(options)?;
-    let hello = Connection::send_hello(client, kind, label);
+    let hello = Connection::send_hello_with_context(client, kind, label, session, tab, pane);
     match handshake_over(&mut stream, &hello, options.connect_timeout)? {
         Some(payload) => Ok(Some((stream, payload))),
         None => Ok(None),
@@ -624,6 +635,9 @@ mod tests {
             "steg-test",
             ClientKind::Cli,
             None,
+            None,
+            None,
+            None,
         );
 
         assert!(
@@ -656,6 +670,9 @@ mod tests {
             &options_for(path.clone()),
             "steg-test",
             ClientKind::Cli,
+            None,
+            None,
+            None,
             None,
         );
 
@@ -715,6 +732,9 @@ mod tests {
             &options_for(path.clone()),
             "steg-test",
             ClientKind::Cli,
+            None,
+            None,
+            None,
             None,
         );
 

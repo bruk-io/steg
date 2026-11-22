@@ -104,6 +104,22 @@ pub fn run(api: &Description, method: &Method, matches: &ArgMatches) -> i32 {
 /// On any failure, the message is already printed to stderr and `Err`
 /// carries the exit status doc-2 section 6 gives it, so every caller only
 /// has to `return` it.
+///
+/// Reads `STEG_SESSION`/`STEG_TAB`/`STEG_PANE` off this process's own
+/// environment and carries them on the hello (TASK-1.51, doc-2 §4): the
+/// server sets exactly these three in a pane's own program's environment
+/// (`crates/server/src/env.rs`), so a `steg` invoked with no target, run as
+/// a pane's own program, tells the server which pane, tab and session it is,
+/// with every other client (or a CLI run outside any pane) simply having all
+/// three absent, the same `None` this crate's own `connect_handshaken` call
+/// already sent before this task. No code reads or sets `STEG_SERVER` here:
+/// `steg_sdk::local_socket::resolve_path` already reads it directly (the
+/// identical explicit-override environment variable `STEG_SOCKET_PATH`
+/// named before TASK-1.147's rename), since `ConnectOptions.socket_path`
+/// below is already `None`, so adding a second reader of the same variable
+/// in this crate would be a second place that decides which socket to dial
+/// (`.claude/rules/architecture.md`: the sdk is steg's public interface, and
+/// a consumer only ever supplies the transport).
 pub(super) fn connect_and_handshake(autostart: bool) -> Result<(UnixStream, Connection), i32> {
     let binary = match std::env::current_exe() {
         Ok(path) => path,
@@ -119,11 +135,18 @@ pub(super) fn connect_and_handshake(autostart: bool) -> Result<(UnixStream, Conn
         connect_timeout: CONNECT_TIMEOUT,
     };
 
+    let session = std::env::var("STEG_SESSION").ok();
+    let tab = std::env::var("STEG_TAB").ok();
+    let pane = std::env::var("STEG_PANE").ok();
+
     let (stream, hello_payload) = match connect_handshaken(
         &options,
         &format!("steg-cli/{}", env!("CARGO_PKG_VERSION")),
         ClientKind::Cli,
         None,
+        session.as_deref(),
+        tab.as_deref(),
+        pane.as_deref(),
     ) {
         Ok(pair) => pair,
         Err(err) => {

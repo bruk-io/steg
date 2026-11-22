@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-21T19:55:00Z'
+updated_date: '2026-11-22T04:27:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -221,6 +221,36 @@ Engineer's decisions of 2026-11-20 (recorded by @bruk.o), design artifact versio
 Revised plan checked against doc-17 (R120 to R123), the design's Cursor atom and Foundations section 12 (artifact version 143) and the engineer's decisions of 2026-11-20 by @bruk.o: ok. Option 2B with its values read from foundations (TASK-1.136), no idle rest, stops whole on losing focus, Reduce Motion stub, animation held as parameters. The driver is a one-shot GPUI timer to the next step boundary, re-armed only from a paint with the gate open and dropped when it closes: about 9 to 10 repaints a second while focused, none otherwise; the cost is reasoned, not measured. Regaining focus restarts the cycle from whole: decided by the orchestrator, for the engineer to overrule. Known limit for review: that a closed gate arms nothing is argued from structure and the gate function's own tests, not shown by a test of the scheduling itself. Build waits on TASK-1.136 merging.
 
 Name to read from foundations, settled by @bruk.o on 2026-11-20: the whole-phase value this plan calls hold_fraction is exported by TASK-1.136 as phase_whole, in the entry motion.cursor-fade.shaded-dissolve. Reading it under that name is not a departure from this plan.
+
+Check FAILED: `cargo test -p steg-app piece_states_at_matches_the_engineers_own_table` exited 101 at 2026-11-22T04:27:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::piece_states_at_matches_the_engineers_own_table ... FAILED
+
+failures:
+
+---- terminal_element::tests::piece_states_at_matches_the_engineers_own_table stdout ----
+
+thread 'terminal_element::tests::piece_states_at_matches_the_engineers_own_table' (74919940) panicked at crates/app/src/terminal_element.rs:1301:13:
+assertion `left == right` failed: at fraction 0.43
+  left: [Shade, Shade, Shade, Shade, Shade, Shade]
+ right: [Whole, Whole, Whole, Shade, Whole, Whole]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::piece_states_at_matches_the_engineers_own_table
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

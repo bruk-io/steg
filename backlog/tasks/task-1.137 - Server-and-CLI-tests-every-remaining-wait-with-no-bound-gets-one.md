@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T04:27:00Z'
+updated_date: '2026-11-22T04:47:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.137-server-and-cli-tests-every-remaining
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '33d5d39c8d80'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -347,3 +350,16 @@ Sighting, 22 November 2026: crates/steg/tests/cli_connection_arbitration.rs a_ho
 
 Plan checked by @bruk.o, 22 November 2026: ok for the narrowed scope (the mechanical sweep; DRAFT-1 and DRAFT-2 hold the sighted problems). Covers each criterion; criterion 4 read as the files other in-flight tasks edit (listen.rs, login_environment.rs for TASK-1.146). Three things for the build, which the brief will carry: bring main in by merging, never by rebasing a pushed branch; narrow test runs go through the pinned Zig, and the final proof is just check; and since a control per site is not practical, record one representative control (one wrapped join made to outlive its bound, failing with its named message, then passing).
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-22T04:47:00Z
+
+---
+
+Plan approved by @bruk (33d5d39c8d80, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

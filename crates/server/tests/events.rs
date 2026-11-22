@@ -67,9 +67,13 @@ fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<(
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
     stop.stop();
-    run_bounded("the server thread to end after stop()", READ_DEADLINE, move || {
-        handle.join().expect("the server thread should not panic");
-    });
+    run_bounded(
+        "the server thread to end after stop()",
+        READ_DEADLINE,
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
 }
 
 /// Same shape as `routing.rs`'s own `connect_and_handshake`.

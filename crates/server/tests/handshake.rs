@@ -89,9 +89,13 @@ fn start_server(
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
     stop.stop();
-    run_bounded("the server thread to end after stop()", JOIN_DEADLINE, move || {
-        handle.join().expect("the server thread should not panic");
-    });
+    run_bounded(
+        "the server thread to end after stop()",
+        JOIN_DEADLINE,
+        move || {
+            handle.join().expect("the server thread should not panic");
+        },
+    );
 }
 
 #[test]
@@ -510,7 +514,9 @@ fn a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline() {
     let elapsed = connected_at.elapsed();
 
     run_bounded("the trickler thread to end", JOIN_DEADLINE, move || {
-        trickler.join().expect("the trickler thread should not panic");
+        trickler
+            .join()
+            .expect("the trickler thread should not panic");
     });
 
     match result {

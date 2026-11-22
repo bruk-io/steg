@@ -467,7 +467,22 @@ fn many_threads_opening_a_real_pty_at_once_never_fails() {
             .collect();
 
         for handle in handles {
-            let (thread, result) = handle.join().expect("the spawning thread itself panicked");
+            // Bounded the same way `wait_bounded` below is, rather than
+            // pulling in the `support` module for one site: a watcher
+            // thread does the real join, and this only ever blocks on a
+            // channel with `EVENT_TIMEOUT` (TASK-1.137) - the spawning
+            // thread itself should finish well under a second once the
+            // barrier releases it.
+            let (tx, rx) = mpsc::channel();
+            std::thread::spawn(move || {
+                let _ = tx.send(handle.join());
+            });
+            let (thread, result) = rx
+                .recv_timeout(EVENT_TIMEOUT)
+                .unwrap_or_else(|_| {
+                    panic!("the spawning thread never finished within {EVENT_TIMEOUT:?}")
+                })
+                .expect("the spawning thread itself panicked");
             match result {
                 Ok(spawned) => {
                     let status = wait_bounded(spawned.child, EVENT_TIMEOUT).unwrap_or_else(|_| {

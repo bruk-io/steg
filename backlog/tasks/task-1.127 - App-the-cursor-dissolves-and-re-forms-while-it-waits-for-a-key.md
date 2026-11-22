@@ -355,6 +355,34 @@ test terminal_element::tests::adjacent_pieces_share_an_exact_edge_at_an_odd_cell
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `cargo test -p steg-app the_fade_does_not_show_when_reduce_motion_is_on` exited 101 at 2026-11-22T04:28:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::the_fade_does_not_show_when_reduce_motion_is_on ... FAILED
+
+failures:
+
+---- terminal_element::tests::the_fade_does_not_show_when_reduce_motion_is_on stdout ----
+
+thread 'terminal_element::tests::the_fade_does_not_show_when_reduce_motion_is_on' (74933758) panicked at crates/app/src/terminal_element.rs:1438:9:
+assertion failed: !should_show_cursor_fade(true, true, true, true, true, false)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::the_fade_does_not_show_when_reduce_motion_is_on
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

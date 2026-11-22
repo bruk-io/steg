@@ -1,10 +1,11 @@
 ---
 id: TASK-1.137
 title: 'Server and CLI tests: every remaining wait with no bound gets one'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-21T22:10:00Z'
+updated_date: '2026-11-22T03:56:00Z'
 labels:
   - size-3
 milestone: m-3

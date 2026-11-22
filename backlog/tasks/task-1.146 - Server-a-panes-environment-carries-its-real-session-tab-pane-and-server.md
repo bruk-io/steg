@@ -449,6 +449,27 @@ test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; 
 
 error: test failed, to rerun pass `-p steg-server --test pane_environment`
 ```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-server --test pane_environment` exited 0 at 2026-11-22T05:19:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running tests/pane_environment.rs (target/debug/deps/pane_environment-59131389791f8161)
+
+running 9 tests
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::a_fresh_scoped_temp_dir_is_0700 ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test a_real_panes_steg_session_tab_pane_and_server_are_the_servers_own_real_values ... ok
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,11 +1,11 @@
 ---
 id: TASK-1.147
 title: 'Rename STEG_SOCKET_PATH to STEG_SERVER: one variable for reaching a server'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-21T20:23:00Z'
-updated_date: '2026-11-21T22:14:00Z'
+updated_date: '2026-11-22T03:57:00Z'
 labels:
   - size-2
   - review-passed

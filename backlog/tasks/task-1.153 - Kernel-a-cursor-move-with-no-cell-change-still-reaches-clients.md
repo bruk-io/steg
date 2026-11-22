@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T21:11:00Z'
+updated_date: '2026-11-22T21:12:00Z'
 labels:
   - size-2
   - changes-requested
@@ -591,6 +591,38 @@ running 1 test
 test terminal::tests::a_stale_callers_full_also_updates_last_reported_cursor ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 335 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-app a_delta_with_no_rows_still_moves_the_cursor` exited 101 at 2026-11-22T21:12:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 2b6fec0fa18c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_delta_with_no_rows_still_moves_the_cursor ... FAILED
+
+failures:
+
+---- model::tests::a_delta_with_no_rows_still_moves_the_cursor stdout ----
+
+thread 'model::tests::a_delta_with_no_rows_still_moves_the_cursor' (81115373) panicked at crates/app/src/model.rs:317:9:
+assertion `left == right` failed
+  left: Cursor { x: 0, y: 0, visible: true, blinking: false, shape: Block }
+ right: Cursor { x: 3, y: 0, visible: true, blinking: false, shape: Block }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    model::tests::a_delta_with_no_rows_still_moves_the_cursor
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.

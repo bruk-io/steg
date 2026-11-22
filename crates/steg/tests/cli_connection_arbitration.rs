@@ -38,41 +38,38 @@ fn run_steg(args: &[&str], socket: &std::path::Path) -> Output {
 }
 
 /// Binds a real `UnixListener` at `path`, on its own thread, accepts
-/// exactly **one** connection and drops it immediately with nothing
-/// written - the client-visible half of TASK-1.77's own race - then
-/// drops the listener itself, so the socket file answers nothing further
-/// and a later direct `connect()` there gets refused outright, the same
-/// way a real server's own socket behaves once it is truly gone (never a
-/// second hostile accept, which would consume this task's own one
-/// retry and leave nothing for a real autostart to reach). Signals
-/// `ready` once bound, so the test synchronises on "the listener is up"
-/// without spending an accept on a throwaway probe connection.
+/// exactly **one** connection, drops the listener, waits `gap`, then
+/// drops the accepted stream with nothing ever written to it - the
+/// client-visible half of TASK-1.77's own race. Signals `ready` once
+/// bound, so the test synchronises on "the listener is up" without
+/// spending an accept on a throwaway probe connection.
 ///
-/// **The listener is dropped before the accepted stream** (TASK-1.150) -
-/// the reverse of this function's own earlier order, which left a real
-/// race: a Unix-domain `connect()` completes into the kernel's listen
-/// backlog without needing a matching `accept()`, so the client's own
-/// retry - made the instant its first attempt sees EOF from `drop(stream)`
-/// below - could land in that backlog in the gap before `drop(listener)`
-/// ran, and be torn down when it did, reproducing this fixture's own
-/// EOF-before-hello signature with no real server ever involved
-/// (`ConnectError::ClosedBeforeHello` with autostart's own `spawn()`
-/// never reached - confirmed directly, not assumed: `crates/sdk/src/
-/// local_socket.rs`'s `connect()` only calls `spawn()` once the raw
-/// `connect()` above it has already returned `Err`, which it had not in
-/// either attempt of the failure this task found). Dropping the listener
-/// first closes that window entirely - a later `connect()` attempt is
-/// refused outright, nothing further queues - while the already
-/// -accepted stream, on its own independent descriptor, is unaffected and
-/// still delivers its EOF exactly as before. The same ordering discipline
-/// the real server already applies in its own shutdown path, for the
-/// identical reason (`crates/server/src/listen.rs`'s `run`, the comment
-/// on dropping `listener` immediately after the accept loop stops).
+/// **The listener is dropped before the accepted stream, not after**
+/// (TASK-1.150): a Unix-domain `connect()` completes into the kernel's
+/// listen backlog without needing a matching `accept()`, so dropping the
+/// stream first - the EOF a client's first attempt sees, and the signal
+/// its own immediate retry waits for - would leave a window, until the
+/// listener itself is actually dropped, in which that retry's own
+/// `connect()` could land in the same backlog and be torn down when the
+/// listener finally closed: `ClosedBeforeHello` on both attempts, with
+/// autostart's own `spawn()` never reached, and no real server ever
+/// involved (confirmed directly, not assumed - `crates/sdk/src/
+/// local_socket.rs`'s `connect()` only calls `spawn()` once a raw
+/// `connect()` has already returned `Err`, which it had not in either
+/// attempt of the failure this task found). Dropping the listener first
+/// closes that window entirely - a later `connect()` attempt is refused
+/// outright, nothing further queues - while the already-accepted
+/// stream, on its own independent descriptor, is unaffected and still
+/// delivers its EOF exactly as before, after `gap`. The same ordering
+/// discipline the real server already applies in its own shutdown path,
+/// for the identical reason (`crates/server/src/listen.rs`'s `run`, the
+/// comment on dropping `listener` immediately after the accept loop
+/// stops).
 ///
-/// `gap`, between the listener's drop and the stream's, is `Duration::ZERO`
-/// for this file's ordinary callers (nothing to wait for - the window
-/// this task found is already closed by the ordering itself) and an
-/// explicit, generous, adversarial pause for
+/// `gap` is `Duration::ZERO` for this file's ordinary callers (nothing
+/// to wait for - the window above is already closed by the ordering
+/// itself, not by timing) and an explicit, generous, adversarial pause
+/// for
 /// [`closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect`]
 /// alone: that one test's whole point is to drive *this* function, not a
 /// parallel copy of it, so that a regression here cannot leave it green.

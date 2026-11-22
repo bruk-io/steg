@@ -76,6 +76,12 @@ pub struct Terminal {
     /// the cursor fresh and unconditionally, every time it is called (the
     /// stale/just-armed attachment's own catch-up path in `pane.rs`), so
     /// there is nothing here for it to consult or update.
+    ///
+    /// This placement is an assumption about `run_tick`'s own current shape, not a fact
+    /// this type enforces: if `pane.rs` ever changed so that more than one caller could
+    /// call `changes_since` for the same pane in the same tick with different `seen`
+    /// values, this field's own invariant would need re-checking against that new shape
+    /// (the plan's own Risks section).
     last_reported_cursor: Option<Cursor>,
     /// Every [`CommandMark`] queued since the last [`Terminal::
     /// take_command_marks`] (doc-9 R14, OSC 133; TASK-1.79). Drained by

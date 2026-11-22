@@ -409,12 +409,18 @@ type StreamPanes = RefCell<HashMap<u32, PaneId>>;
 /// `connection.poll()` saying "need more bytes" forever. This is this
 /// task's own chosen design (TASK-1.45 §3), not a gap handed to another
 /// task.
+///
+/// `context` (TASK-1.51) is this connection's own default target, already
+/// built by `handle` from the hello it just accepted (`Context::from_hello`),
+/// and every request this loop answers reads it unchanged, through
+/// `ConnectionState`.
 fn run_post_handshake(
     stream: &mut UnixStream,
     connection: &mut Connection,
     runtime: &Runtime,
     client_id: ClientId,
     events: Option<Sender<ConnectionEvent>>,
+    context: Context,
 ) {
     // Four independent handles to the one underlying socket: `stream`
     // itself (this function's own reads), `write_half` (moved into the
@@ -473,7 +479,7 @@ fn run_post_handshake(
     let state = ConnectionState {
         runtime,
         description: description(),
-        context: Context::none(),
+        context,
         outbound: &outbound,
         client_id,
         pane_streams: &pane_streams,
@@ -926,9 +932,29 @@ pub fn handle(
             // one about to be refused. The id for the refused case is
             // never read: `accept_or_refuse` only ever embeds it in the
             // `Accept` branch of its own reply.
-            let client_id = match check_hello(&hello_payload, PROTOCOL_VERSION) {
-                Handshake::Accept { kind, label, .. } => runtime.connect_client(kind, label),
-                Handshake::Refuse(_) => ClientId::from_raw(0),
+            // `context` (TASK-1.51): built from this same hello, right
+            // here - a CLI run inside a pane carries its own `STEG_SESSION`/
+            // `STEG_TAB`/`STEG_PANE`, which `Context::from_hello` turns
+            // into this connection's own default target (doc-2 §4, AC #1).
+            // Every other client's hello carries none of the three, which
+            // `from_hello` already reads as `Context::none()` - unchanged
+            // from today. Built unconditionally, including on a refusal:
+            // never read in that case (`Handshake::Refuse`'s own arm below
+            // never calls `run_post_handshake`), the same way `client_id`'s
+            // own placeholder for a refused handshake is never read either.
+            let (client_id, context) = match check_hello(&hello_payload, PROTOCOL_VERSION) {
+                Handshake::Accept {
+                    kind,
+                    label,
+                    session,
+                    tab,
+                    pane,
+                    ..
+                } => (
+                    runtime.connect_client(kind, label),
+                    Context::from_hello(session.as_deref(), tab.as_deref(), pane.as_deref()),
+                ),
+                Handshake::Refuse(_) => (ClientId::from_raw(0), Context::none()),
             };
             let (handshake, reply) =
                 Connection::accept_or_refuse(&hello_payload, server_version, &api, client_id);
@@ -951,6 +977,7 @@ pub fn handle(
                     runtime,
                     client_id,
                     events.take(),
+                    context,
                 );
             }
         }

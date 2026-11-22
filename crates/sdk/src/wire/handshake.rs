@@ -30,8 +30,13 @@ pub const STEG_MAGIC: &str = "steg";
 
 /// The client's first frame. `steg` and `protocol` are required and are the
 /// only two decision-2 section 7 freezes; `kind` and `label` are doc-14's
-/// addition, allowed because unknown keys are ignored by any version that
-/// does not know them yet.
+/// addition, and `session`/`tab`/`pane` are TASK-1.51's (doc-2 section 4's
+/// `STEG_SESSION`/`STEG_TAB`/`STEG_PANE`, carried back by a CLI run inside a
+/// pane so the server can build a per-connection default target instead of
+/// having none at all - `None` here when the connecting process has no such
+/// context, exactly as it is outside a pane today) - each addition allowed
+/// because unknown keys are ignored by any version that does not know them
+/// yet.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientHello {
     pub steg: String,
@@ -40,6 +45,12 @@ pub struct ClientHello {
     pub kind: ClientKind,
     #[serde(default)]
     pub label: Option<String>,
+    #[serde(default)]
+    pub session: Option<String>,
+    #[serde(default)]
+    pub tab: Option<String>,
+    #[serde(default)]
+    pub pane: Option<String>,
 }
 
 impl ClientHello {
@@ -51,6 +62,38 @@ impl ClientHello {
             client: client.to_owned(),
             kind,
             label,
+            session: None,
+            tab: None,
+            pane: None,
+        }
+    }
+
+    /// Like [`ClientHello::new`], carrying a connecting CLI's own
+    /// `STEG_SESSION`/`STEG_TAB`/`STEG_PANE` too (TASK-1.51) - a separate
+    /// constructor rather than three more parameters on `new` itself, so
+    /// every one of `new`'s own existing callers (there are many, across
+    /// `app`/`server`/`steg`) stays unchanged; only
+    /// [`Connection::send_hello_with_context`][crate::wire::Connection::send_hello_with_context]
+    /// calls this one.
+    #[must_use]
+    pub fn with_context(
+        client: &str,
+        protocol: u32,
+        kind: ClientKind,
+        label: Option<String>,
+        session: Option<String>,
+        tab: Option<String>,
+        pane: Option<String>,
+    ) -> Self {
+        Self {
+            steg: STEG_MAGIC.to_owned(),
+            protocol,
+            client: client.to_owned(),
+            kind,
+            label,
+            session,
+            tab,
+            pane,
         }
     }
 }
@@ -138,6 +181,12 @@ pub enum Handshake {
         protocol: u32,
         kind: ClientKind,
         label: Option<String>,
+        /// `STEG_SESSION`/`STEG_TAB`/`STEG_PANE`, carried from the client's
+        /// own `ClientHello` (TASK-1.51) - `None` for a connection with no
+        /// such context, which is every client but a CLI run inside a pane.
+        session: Option<String>,
+        tab: Option<String>,
+        pane: Option<String>,
     },
     Refuse(Refusal),
 }
@@ -168,6 +217,9 @@ pub fn check_hello(payload: &[u8], server_protocol: u32) -> Handshake {
             protocol: hello.protocol,
             kind: hello.kind,
             label: hello.label,
+            session: hello.session,
+            tab: hello.tab,
+            pane: hello.pane,
         }
     } else {
         Handshake::Refuse(Refusal::Mismatch {
@@ -212,6 +264,9 @@ mod tests {
                 protocol: 1,
                 kind: ClientKind::Cli,
                 label: None,
+                session: None,
+                tab: None,
+                pane: None,
             }
         );
     }
@@ -333,7 +388,58 @@ mod tests {
                 protocol: 1,
                 kind: ClientKind::Plugin,
                 label: Some("agent".into()),
+                session: None,
+                tab: None,
+                pane: None,
             }
         );
+    }
+
+    /// TASK-1.51 AC #1's own wire half: a CLI's own `STEG_SESSION`/`STEG_TAB`/
+    /// `STEG_PANE`, carried through `ClientHello::with_context`, round-trip
+    /// through `check_hello` losslessly - the server reads these straight
+    /// off `Handshake::Accept`, so a value lost here would be a value the
+    /// server could never see at all.
+    #[test]
+    fn session_tab_and_pane_round_trip_through_the_hello_when_the_client_sends_them() {
+        let hello = ClientHello::with_context(
+            "steg-cli/0.1.0",
+            1,
+            ClientKind::Cli,
+            None,
+            Some("00000001".into()),
+            Some("00000002".into()),
+            Some("00000003".into()),
+        );
+        let payload = serde_json::to_vec(&hello).unwrap();
+        assert_eq!(
+            check_hello(&payload, 1),
+            Handshake::Accept {
+                client: "steg-cli/0.1.0".into(),
+                protocol: 1,
+                kind: ClientKind::Cli,
+                label: None,
+                session: Some("00000001".into()),
+                tab: Some("00000002".into()),
+                pane: Some("00000003".into()),
+            }
+        );
+    }
+
+    /// The other half: a client with no context at all (every client but a
+    /// CLI run inside a pane) still round-trips as `None` for all three -
+    /// `ClientHello::new`'s own ordinary path, not `with_context`, proving
+    /// the common case is unaffected by this addition.
+    #[test]
+    fn session_tab_and_pane_are_none_when_the_client_sends_no_context() {
+        let hello = ClientHello::new("steg-app", 1, ClientKind::App, None);
+        let payload = serde_json::to_vec(&hello).unwrap();
+        let Handshake::Accept {
+            session, tab, pane, ..
+        } = check_hello(&payload, 1)
+        else {
+            panic!("expected an accepted handshake");
+        };
+        assert_eq!((session, tab, pane), (None, None, None));
     }
 }

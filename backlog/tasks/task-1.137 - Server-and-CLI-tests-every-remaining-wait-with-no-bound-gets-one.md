@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T05:44:00Z'
+updated_date: '2026-11-22T05:48:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -500,6 +500,22 @@ Named exceptions, not fixed in this sweep (per the plan, section 1):
 - `crates/server/tests/fixtures/accept_backoff_attempt.rs`/`crates/server/tests/fixtures/race_attempt.rs`/`openpty_race_attempt.rs` - fixture binaries, outside the `tests/*.rs` glob this task scopes to (the open scope question the task's own description carried, not settled here).
 
 Every other `std::thread::sleep` site found (one-shot waits like `handshake.rs:181`'s deliberate `handshake_timeout * 5`, or a fixed pacing delay inside an already-bounded trickle, e.g. `handshake.rs:505`'s 40ms-per-byte write cadence) is not a retry-poll for an event at all - a single wait for a known fixed duration, or a deliberate write-cadence, not something AC #3's own wording targets.
+
+---
+
+created: 2026-11-22T05:48:00Z
+
+---
+
+Status correction, and a bound revised after a second look:
+
+Counts delivered so far vs. the plan's own totals (42 Category A, 24 Category B) - stating this explicitly rather than letting the plan's totals stand as if complete: Category A delivered is 41 of 42 (26 of 26 in tests/, 15 of 16 in src/) - crates/server/src/listen.rs's own one join is the outstanding site, held per the engineer's own instruction pending TASK-1.146. Category B delivered is 23 of 24 (14 of 14 in tests/, 9 of 10 in src/) - listen.rs's own one recv is the other outstanding site, same reason. Nothing else is deferred.
+
+attach.rs's stop_server bound, revised: the first version (60s) was picked from one local measurement (32.5s observed once). Re-derived instead from force_end's own documented worst case (crates/server/src/runtime/close.rs: force_grace + ESCALATE_CONFIRM_TIMEOUT + FORCE_JOIN_TIMEOUT, ~6s nominal for one pane; this file's own flood tests stop a server with two panes, so ~10s nominal for them specifically, pass 6 being sequential per pane) times the same ~5x contention multiplier this file's own pane_close_force_returns_within_its_bound... test already uses and justifies in its own comment (30s against a 6s single-pane nominal, "a generous bound... not a tight race against this machine's own CPU contention"). Landed on 90s - real margin above both that derivation and the one measured run, still well under cross_process_flood_guard's own 180s and steg-quiet's 900s per-step ceiling. Re-ran the full attach.rs suite (31 passed) after the change.
+
+The `just check` recorded earlier is now stale (a commit landed after it, and it did not cover listen.rs either way) - will record a fresh one at the final head once listen.rs is resolved, not before, to avoid recording it twice for the same reason.
+
+Also: found and removed a stray /tmp/attach.rs.bak this worktree's own earlier diagnostic step left behind (should have gone in the scratchpad) - confirmed gone, confirmed nothing else landed outside the worktree or the scratchpad.
 
 ---
 <!-- COMMENTS:END -->

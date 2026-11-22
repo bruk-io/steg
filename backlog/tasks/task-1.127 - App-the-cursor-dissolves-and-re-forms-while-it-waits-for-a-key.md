@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T05:43:00Z'
+updated_date: '2026-11-22T05:54:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -23,6 +23,8 @@ asdlc_branch: task-1.127-app-the-cursor-dissolves-and-re-forms
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e3032b0ac5e3'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -727,6 +729,15 @@ created: 2026-11-22T05:43:00Z
 ---
 
 @bruk.r1 released its review claim on TASK-1.127; another reviewer may claim it with asdlc review-next.
+
+---
+
+author: @bruk.r1
+created: 2026-11-22T05:54:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.127: a same-machine review: it waited 59m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

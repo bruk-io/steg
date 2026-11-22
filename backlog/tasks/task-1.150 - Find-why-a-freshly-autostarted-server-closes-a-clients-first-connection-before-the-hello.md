@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -719,6 +720,15 @@ This is a comment-only change (confirmed via git diff - no code lines touched). 
 - The 300-repetition run was NOT repeated for this change - stated explicitly rather than left implied, since nothing about the test's own behaviour or the code it exercises changed, only a doc comment.
 
 Commits since the last review: 55989f87 (the doc comment rewrite), then a merge of origin/main (board files only, no code conflicts). Everything above is recorded at that merged head.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T06:57:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.150: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

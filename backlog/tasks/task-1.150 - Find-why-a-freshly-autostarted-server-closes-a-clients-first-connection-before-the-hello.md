@@ -527,4 +527,51 @@ Findings: 2 Important, 1 nit. Cites: review. The diff matches the plan.
 Control repeated myself, in a scratch edit reverted after: in <repo>.worktrees/review-1.150 at the final head (76b48af4), flipped spawn_hostile_listener_with_gap's own two statements from drop(listener); sleep(gap); drop(stream) to drop(stream); sleep(gap); drop(listener) (nothing else touched) and ran cargo test -p steg --test cli_connection_arbitration -- closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect --exact: FAILED, panicking on the real CLI's own ClosedBeforeHello message (ruling out NoServerRunning and Timeout, which print different text) - confirming the control fails by the named mechanism, not another route. Reverted, git status clean, full file re-run with the committed order: 15/15 passed. Also confirmed crates/sdk/src/local_socket.rs:159-183 as written: connect() reaches command.spawn() only on the branch where the raw UnixStream::connect(&path) already returned Err, and crates/server/src/listen.rs:518-544 drops its own listener immediately after the accept loop stops for the identical stated reason this task cites as precedent - both claims check out. No product code is touched by this diff (crates/steg/tests/cli_connection_arbitration.rs only); the plan's "no change" to the SDK's single retry is consistent with that. Size-3 plan approval by @bruk is present and the diff matches the plan's named file and steps.
 
 ---
+
+created: 2026-11-22T06:16:00Z
+
+---
+
+Review findings addressed.
+
+1. The first recorded 300-run (fbaf49a6, "failed at run 1 of 300") was a false failure, not a real one: the script's `find ... -name 'cli_connection_arbitration-*' ! -name '*.d' | head -n 1` picked a compiler-generated `.rcgu.o` intermediate object file instead of the actual test executable - `find`'s output order is filesystem readdir order, not alphabetical, so this was non-deterministic. Reproducing that exact original find command afterwards confirmed it still returns a `.rcgu.o` path today. My immediate in-session fix (adding `-type f -perm -u+x` plus an exact-name regex) excluded those object files, and the very next run passed 300/300 - but that pass may have been of the right binary only by chance: this machine had, at points in this task, two distinct executable binaries for this test target (different cargo metadata hashes from different invocations, confirmed by listing target/debug/deps), and `head -n 1` over more than one valid match is still non-deterministic. The script no longer does any manual binary discovery: each of the 300 iterations now runs `cargo test --manifest-path <worktree>/Cargo.toml -p steg --test cli_connection_arbitration -- a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding --exact` directly, so cargo itself always resolves (and rebuilds if needed) the one binary matching current source - no ambiguity possible. Re-recorded at the final head: passed 300 of 300, exit 0.
+
+2. spawn_hostile_listener now takes the gap directly (Duration::ZERO for its two ordinary callers) instead of a separate spawn_hostile_listener_with_gap helper, so the new test drives the exact function every other test in the file uses - a regression there can no longer leave it green. Re-recorded the control against this one function at the final head: with the two drops temporarily flipped back to the pre-fix order, the new test fails with ConnectError::ClosedBeforeHello (stderr: "accepted the connection and closed it before a hello arrived, twice") - exit 101, confirming the backlog mechanism, not a different error. Reverted, full file passes 15/15, exit 0 - both recorded.
+
+3. All of the above, plus `just check`, are now recorded strictly after the last commit (d3478839, then a merge of origin/main with no code conflicts), at the actual final head - not before it as the first pass's notes inaccurately implied.
+
+Current script (chmod +x, takes the worktree path as its one argument):
+
+#!/bin/sh
+# TASK-1.150: AC #3's "recorded run of many repetitions" - repeats the one
+# exact test N times, stopping at the first failure. Each run goes through
+# `cargo test` itself (never a hand-picked binary path under target/debug/
+# deps/, which a review of this task's first pass found could pick a stale
+# or wrong build when more than one hash-named binary for this test target
+# exists) - cargo always resolves, and rebuilds if needed, the one binary
+# that matches the current source. Each run's own output goes to /dev/null
+# so a failing run's own text never reaches this script's own stdout/
+# stderr or, from there, the board - only the pass count or the number of
+# the run that failed is ever printed.
+set -e
+
+N=300
+WORKTREE="${1:?usage: TASK-1.150-repeat-run.sh <worktree path>}"
+
+i=1
+while [ "$i" -le "$N" ]; do
+    if ! cargo test --manifest-path "$WORKTREE/Cargo.toml" -p steg --test cli_connection_arbitration \
+        -- a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding --exact \
+        >/dev/null 2>&1; then
+        echo "TASK-1.150: failed at run $i of $N"
+        exit 1
+    fi
+    i=$((i + 1))
+done
+
+echo "TASK-1.150: passed $N of $N"
+
+just check at final head: recorded exit 0, all steps ok.
+
+---
 <!-- COMMENTS:END -->

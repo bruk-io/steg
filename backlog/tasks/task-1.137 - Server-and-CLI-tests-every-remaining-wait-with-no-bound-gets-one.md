@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T06:16:00Z'
+updated_date: '2026-11-22T06:24:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.123
@@ -21,8 +22,9 @@ asdlc_branch: task-1.137-server-and-cli-tests-every-remaining
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '33d5d39c8d80'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -624,6 +626,30 @@ created: 2026-11-22T06:16:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.137: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T06:24:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+No findings. Checked:
+
+1. Completeness: re-ran the plan's own inventory greps (bare .join(), bare .recv() excluding recv_timeout) over crates/server/tests, crates/steg/tests and the #[cfg(test)] modules of crates/server/src and crates/steg/src. Every remaining hit is either a named exception (the four file-local join_within/join_with_bound helpers' own internals, the Barrier::wait() sites, Drop backstops) or already wrapped in run_bounded/join_bounded with a recv_timeout bound. No unexplained bare wait remains.
+2. No production code changed: every diff hunk in idle.rs, listen.rs, outbound.rs, pane.rs, runtime/events.rs and runtime/mod.rs falls inside a #[cfg(test)] module (checked each file's own cfg(test) markers against the hunk line numbers). listen.rs's one production join/recv (before its own #[cfg(test)] at line 633) is untouched.
+3. Sampled failure messages at 15+ sites across attach.rs, events.rs, handshake.rs, idle.rs, listen.rs, outbound.rs, pane.rs, program.rs, race.rs, real_pty.rs, routing.rs, runtime.rs, runtime/events.rs, runtime/mod.rs, server_stop.rs, server_start.rs (steg) and shutdown.rs: each names what it waited for.
+4. runtime/mod.rs's a_panic_while_holding_the_lock_does_not_poison_a_later_call: run_bounded now returns the join's own Result, and the existing panicked.is_err() assertion is unchanged in meaning.
+5. attach.rs's 90s stop_server bound: verified FORCE_GRACE_DEFAULT/ESCALATE_CONFIRM_TIMEOUT/FORCE_JOIN_TIMEOUT are each 2s (6s single-pane nominal), confirmed the two-pane flood tests that use this stop_server, and confirmed 90s stays under cross_process_flood_guard's own 180s and quiet.py's 900s ceiling - not tight enough to flake, not long enough to hide a hang.
+6. Criterion 3: grepped every sleep( in scope; every retry-loop sleep carries its own Instant::now() < deadline assertion (spot-checked attach.rs and pane_wait.rs); the remaining one-shot "give it a moment" sleeps (routing.rs:781, runtime.rs's four forcing tests, steg/server_start.rs:272/797, cli_exit_statuses.rs:569) are pre-existing, untouched by this task, and covered by the notes' own blanket statement that a one-shot wait is not a retry-poll AC #3 targets.
+7. No overlap with TASK-1.149 (shutdown.rs's fd-count serialisation untouched, pane_wait.rs's wait_for_program_status untouched - only its own unrelated stop_server join was wrapped) or TASK-1.150 (cli_connection_arbitration.rs untouched).
+8. Evidence: repeated the control myself at a different site (pane_capture.rs's stop_server, 10s bound): inserted a scratch 11s sleep inside the run_bounded closure, ran cargo test -p steg-server --test pane_capture -- pane_capture_of_a_closed_pane_is_no_such_target --exact, got exactly "timed out after 10s waiting for: the server thread to end after stop()" at support/mod.rs:44:29 - this test's own assertions all run before stop_server, so no other branch or timeout on this path could produce the same failure. Reverted (clean diff), reran, passed. The author's own recorded control (server_stop.rs) was recorded at an intermediate head (a83377cd) rather than the final one, but server_stop.rs is never touched again before the final head, so the control still speaks to the final code. The final just check (e0be1986, the current HEAD) post-dates every code commit.
+
+Plan approved by @bruk (comment #1); diff touches exactly the files the plan names, in its own file-by-file commit order, with no design choice left open.
 
 ---
 <!-- COMMENTS:END -->

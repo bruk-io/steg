@@ -534,6 +534,14 @@ test session_show_with_no_target_inside_a_pane_resolves_to_that_panes_own_sessio
 
 test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
 ```
+
+Check passed: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig ZIG_GLOBAL_CACHE_DIR=/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/target/zig-global-cache cargo clippy -p steg-sdk -p steg-server -p steg --all-targets --features local-socket,fixtures` exited 0 at 2026-11-22T20:16:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51 on task-1.51-cli-act-on-the-terminal-it-runs-in at 55efff68d151 with uncommitted changes:
+
+```text
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.51/crates/steg)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.69s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

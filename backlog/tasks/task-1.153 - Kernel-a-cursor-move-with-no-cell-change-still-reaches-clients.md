@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T21:42:00Z'
+updated_date: '2026-11-22T21:47:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies: []
 references:
@@ -21,10 +22,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '036791db06dc'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -746,6 +745,29 @@ created: 2026-11-22T21:42:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.153: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-22T21:47:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Re-review (same-machine) of the fix to the first review's two findings.
+
+1. Diff 5eb25574..2b6fec0f contains only the requested one-line addition to last_reported_cursor's doc comment in crates/kernel/src/terminal.rs, flagging the invariant's dependence on pane.rs's current single-caller-per-tick shape. No behaviour-changing lines. The nit from the first review is resolved.
+
+2. All five control pairs recorded at this head (2b6fec0fa18c, commit time 21:09:48 UTC) are stamped after the commit (21:10:13-21:30:06 UTC), each failing recording with uncommitted changes and each passing recording clean. Read each assertion, not just exit status: the three cursor-only-Delta tests and both idle/stale tests fail with an unexpected Delta where Unchanged was wanted (the shared "drop the last_reported_cursor comparison" / "leave it stale on a behind caller's Full" controls), matching the plan's named mechanisms; the model.rs test fails with the cursor stuck at the old (0,0) instead of the moved (3,0) position, matching the "gate self.cursor = cursor behind rows non-empty" control. just check is recorded clean at this same head.
+
+3. Repeated the model.rs control myself (crates/app/src/model.rs:99, gating self.cursor = cursor behind rows.is_empty(), a different control from the stale-caller one the first review already repeated): same failure, left Cursor{x:0,y:0,...} right Cursor{x:3,y:0,...}, at the exact assertion the recorded run shows. Traced Model::apply: on a Delta, self.cursor is set only by that one gated line; the Full arm is a different match arm not reached by this test's Delta input, so no other branch gives the same result - this is the one and only path that could move the cursor here, confirming the control is evidence for the named mechanism alone. Reverted the edit before removing the scratch worktree.
+
+4. The notes' two corrections are accurate: the first (stamping provenance: all seven mechanisms' controls were originally recorded at the board-only commit 8e720fcfaf1a, not the final branch head 5eb25574, matching the first review's own forensic finding) and the second (ten recordings, not fourteen - five pairs: the three cursor-only-Delta tests share one command). Counted the actual recordings at 2b6fec0fa18c myself: five FAILED/passed pairs, ten recordings, matching the corrected count.
+
+CI green on PR 99 at head 2b6fec0fa18c (11m12s), confirmed via gh pr checks. No repository REVIEW.md on origin/main. No findings.
 
 ---
 <!-- COMMENTS:END -->

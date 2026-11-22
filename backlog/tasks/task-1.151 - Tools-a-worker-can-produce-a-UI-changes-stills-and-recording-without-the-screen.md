@@ -7,11 +7,12 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-22T04:52:00Z'
-updated_date: '2026-11-22T07:17:00Z'
+updated_date: '2026-11-22T19:57:00Z'
 labels:
   - size-3
 milestone: m-4
-dependencies: []
+dependencies:
+  - TASK-1.154
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -96,3 +97,9 @@ PROOF PER ACCEPTANCE CRITERION:
 
 Unknowns this spike could not establish: GitHub-hosted macOS runner GPU/window-server support for Route A (not needed per AC#1's own "machine it runs on" wording, if Route A's local recipe is what workers actually run - flagging rather than guessing); whether `HeadlessAppContext`'s `TestDispatcher` clock actually drives the real cursor-dissolve timer end to end once the real client/server/kernel pipeline is wired in (reasoned from this code's own `TestAppContext`/`TestDispatcher` machinery, not spiked against steg's own code - a (b)/(c)-stage risk, not an A-vs-B-vs-C one); whether the scenario's real local-socket server autostart needs anything beyond the throwaway-HOME convention this repo already uses elsewhere for live runs (per-task risk for (c), not this spike); whether `steg-boundaries`/`boundaries.toml` tooling treats a git-sourced dependency identically to a registry one (flagged above, not confirmed); whether every file in the `gpui-pre` snapshot matches upstream as cleanly as the two sampled here (spot-checked, not exhaustive).
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+22 Nov 2026 (@bruk.o): the engineer accepted the GPUI move as TASK-1.154 (git pin on zed-industries/zed; gpui-pre only as a fallback that comes back to the engineer). TASK-1.151 now depends on it and keeps parts (b), (c) and the rule wording (d) of its plan; part (a) is TASK-1.154's.
+<!-- SECTION:NOTES:END -->

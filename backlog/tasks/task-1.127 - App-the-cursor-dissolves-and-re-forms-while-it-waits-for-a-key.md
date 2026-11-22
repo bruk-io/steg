@@ -404,6 +404,36 @@ test terminal_element::tests::the_fade_shows_when_every_gate_is_open ... ok
 
 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `cargo test -p steg-app a_full_traversal_of_the_cycle_yields_exactly_the_expected_number_of_wakes` exited 101 at 2026-11-22T04:29:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::a_full_traversal_of_the_cycle_yields_exactly_the_expected_number_of_wakes ... FAILED
+
+failures:
+
+---- terminal_element::tests::a_full_traversal_of_the_cycle_yields_exactly_the_expected_number_of_wakes stdout ----
+
+thread 'terminal_element::tests::a_full_traversal_of_the_cycle_yields_exactly_the_expected_number_of_wakes' (74938484) panicked at crates/app/src/terminal_element.rs:1531:9:
+assertion `left == right` failed
+  left: 9
+ right: 14
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::a_full_traversal_of_the_cycle_yields_exactly_the_expected_number_of_wakes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

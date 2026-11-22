@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T04:36:00Z'
+updated_date: '2026-11-22T04:42:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -647,6 +647,41 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-22T04:42:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at d9e49be388f0:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg-app) (1.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (56.2s)
+ok      test (steg-server, race-fixture) (57.4s)
+ok      test (steg-server, pty-race-fixture) (63.3s)
+ok      test (steg-server, accept-backoff-fixture) (56.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.4s)
+ok      test (steg, fixtures) (5.6s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

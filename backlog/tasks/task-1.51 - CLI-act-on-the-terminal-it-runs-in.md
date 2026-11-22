@@ -1,11 +1,11 @@
 ---
 id: TASK-1.51
 title: 'CLI: act on the terminal it runs in'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-22T20:34:00Z'
+updated_date: '2026-11-22T20:50:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -15,6 +15,9 @@ dependencies:
   - TASK-1.119
   - TASK-1.146
   - TASK-1.147
+references:
+  - task-1.51-cli-act-on-the-terminal-it-runs-in
+  - https://github.com/bruk-io/steg/pull/100
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -744,6 +747,8 @@ test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild
 
 test result: ok. 226 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.03s
 ```
+
+Built the approved plan: ClientHello/Handshake::Accept gain session/tab/pane (additive, ClientHello::new and Connection::send_hello unchanged, zero existing call sites touched); connect_handshaken/one_handshake_attempt widened; Context::from_hello (dispatch/mod.rs) with 3 unit tests; connection.rs's handle/run_post_handshake build and carry a real Context instead of always Context::none(); connect.rs reads STEG_SESSION/TAB/PANE and sends them, with no new code for STEG_SERVER since resolve_path already reads it post-TASK-1.147. New end-to-end test file crates/steg/tests/cli_terminal_context.rs: a chain test (a real pane's own program is steg itself, proving AC #1's pane clause and AC #3 together with nothing hand-set), hand-set-environment tests with decoy panes for the tab and session clauses, and the unchanged outside-a-pane status-2 refusal (AC #2). Checks recorded: cargo test/clippy/fmt on steg-sdk, steg-server and steg (all clean); just check (30/30 steps ok); both negative controls recorded as failing-then-passing pairs at the final head (server-side: Context::from_hello -> Context::none(); CLI-side: the three context args -> None,None,None) - each traced to its own mechanism in the PR body, same 3 tests fail under both, none fails under only one (expected for a chain). Rebased onto origin/main before pushing (branch never pushed before); CI green on PR #100.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

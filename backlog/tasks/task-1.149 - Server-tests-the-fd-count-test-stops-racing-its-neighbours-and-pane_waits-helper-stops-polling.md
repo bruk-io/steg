@@ -3,10 +3,11 @@ id: TASK-1.149
 title: >-
   Server tests: the fd-count test stops racing its neighbours, and pane_wait's
   helper stops polling
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-22T04:12:00Z'
-updated_date: '2026-11-22T05:55:00Z'
+updated_date: '2026-11-22T19:55:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -14,6 +15,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.149-server-tests-the-fd-count-test-stops
 ---
 
 ## Description

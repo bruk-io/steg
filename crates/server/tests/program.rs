@@ -18,6 +18,20 @@ use steg_server::{Error, LaunchSpec, PaneEvent, ProgramLauncher, SpawnedProgram}
 /// `crates/server/src/pane.rs` and this crate's own `tests/` directory).
 const TEST_TICK: Duration = Duration::from_millis(1);
 
+/// How long any one wait in this file blocks before failing with a
+/// message instead of hanging the job (TASK-1.137) - generous, since
+/// every wait here is on a fake, in-process double, never a real
+/// process or socket.
+const EVENT_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// A bare `rx.recv()` with no bound, named (TASK-1.137): every call site
+/// below used to be `.recv().unwrap()`, whose panic message named
+/// nothing and whose wait had no bound.
+fn recv_bounded<T>(rx: &mpsc::Receiver<T>, what: &str) -> T {
+    rx.recv_timeout(EVENT_TIMEOUT)
+        .unwrap_or_else(|_| panic!("timed out after {EVENT_TIMEOUT:?} waiting for: {what}"))
+}
+
 /// What a `FakeLauncher`'s `spawn` call hands back to the test driving it:
 /// the write end of the pipe that stands in for the fake program's
 /// output, and the exit code it ends with.
@@ -68,10 +82,12 @@ impl portable_pty::Child for FakeChild {
     }
 
     fn wait(&mut self) -> std::io::Result<portable_pty::ExitStatus> {
+        // Bounded (TASK-1.137): a plain `recv()` here had no bound of
+        // its own.
         self.exit_code
             .lock()
             .expect("not poisoned: &mut self already keeps this exclusive")
-            .recv()
+            .recv_timeout(EVENT_TIMEOUT)
             .map(exit_status)
             .map_err(|_| std::io::Error::other("the fake program's exit was never reported"))
     }
@@ -179,12 +195,12 @@ fn a_programs_exit_code_reaches_the_event_channel() {
 
     let handle =
         steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
-    let driver = drivers.recv().unwrap();
+    let driver = recv_bounded(&drivers, "the launcher to hand back its own FakeDriver");
 
     driver.end(3);
 
     assert_eq!(
-        events_rx.recv().unwrap(),
+        recv_bounded(&events_rx, "the fake program's own PaneEvent"),
         PaneEvent::Exited { pane, exit_code: 3 }
     );
     handle.shutdown();
@@ -198,11 +214,11 @@ fn output_printed_before_exit_is_in_the_snapshot() {
 
     let handle =
         steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
-    let mut driver = drivers.recv().unwrap();
+    let mut driver = recv_bounded(&drivers, "the launcher to hand back its own FakeDriver");
 
     driver.print(b"hello");
     driver.end(0);
-    events_rx.recv().unwrap();
+    recv_bounded(&events_rx, "the fake program's own PaneEvent");
 
     let screen = handle.snapshot().unwrap();
     assert!(
@@ -221,16 +237,16 @@ fn restarting_keeps_the_same_terminal_so_old_output_survives_a_new_run() {
 
     let handle =
         steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
-    let mut first_driver = drivers.recv().unwrap();
+    let mut first_driver = recv_bounded(&drivers, "the launcher to hand back its own FakeDriver");
     first_driver.print(b"first-run");
     first_driver.end(3);
-    events_rx.recv().unwrap();
+    recv_bounded(&events_rx, "the fake program's own PaneEvent");
 
     handle.restart(spec()).unwrap();
-    let mut second_driver = drivers.recv().unwrap();
+    let mut second_driver = recv_bounded(&drivers, "the launcher to hand back its own FakeDriver");
     second_driver.print(b" second-run");
     second_driver.end(0);
-    events_rx.recv().unwrap();
+    recv_bounded(&events_rx, "the fake program's own PaneEvent");
 
     let screen = handle.snapshot().unwrap();
     let text = screen_text(&screen);
@@ -247,9 +263,9 @@ fn resize_reaches_the_terminal_even_with_no_program_running() {
 
     let handle =
         steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
-    let driver = drivers.recv().unwrap();
+    let driver = recv_bounded(&drivers, "the launcher to hand back its own FakeDriver");
     driver.end(0);
-    events_rx.recv().unwrap();
+    recv_bounded(&events_rx, "the fake program's own PaneEvent");
 
     // No program is running (between an exit and a restart) - resizing
     // must still succeed, since the terminal itself (and its scrollback)
@@ -267,9 +283,9 @@ fn a_pane_with_no_program_running_accepts_input_as_a_no_op() {
 
     let handle =
         steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
-    let driver = drivers.recv().unwrap();
+    let driver = recv_bounded(&drivers, "the launcher to hand back its own FakeDriver");
     driver.end(0);
-    events_rx.recv().unwrap();
+    recv_bounded(&events_rx, "the fake program's own PaneEvent");
 
     handle.send_input(b"ignored".to_vec()).unwrap();
 

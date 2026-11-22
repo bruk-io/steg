@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T05:43:00Z'
+updated_date: '2026-11-22T05:44:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -481,6 +481,25 @@ Representative control recorded (failing-then-passing pair at the final head, re
 Scratch edit: inserted `std::thread::sleep(Duration::from_secs(6))` as the first line inside the run_bounded closure (before the real `handle.join()`), so the watcher thread's own body takes longer than the 5s bound - the same effect, from run_bounded's own point of view, as the real joined thread itself taking too long. Ran unrecorded first (confirmed only the named panic message, nothing from the environment), then recorded: fails at `support/mod.rs:44:29` with exactly "timed out after 5s waiting for: the server thread to end after stop()" - the bound this fix added, not some other nearby timeout (the test's own prior assertions, on the refusal and the still-answering server, already passed before this point). Reverted (confirmed clean diff), re-ran, recorded passing.
 
 Chosen as representative: this is the `run_bounded`-around-a-plain-`.join()` shape every other mechanical site in this sweep uses verbatim (the dominant pattern across ~40 of the 42 real Category A fixes), on one of the shorter bounds (5s) so the control itself stays fast, and it is a site with no other timing-sensitive assertion nearby that could produce a false confirmation.
+
+---
+
+created: 2026-11-22T05:44:00Z
+
+---
+
+AC #3 - every remaining poll/sleep, named with its reason (criterion 3; this is a listing, not a fix, per the plan's own section 1):
+
+Confirmed while making the join/recv fixes above, file by file: every `loop {}` that polls with a `std::thread::sleep` in every file this task touched already carries its own `Instant::now() < deadline` (or equivalent) assertion with a named failure message - the established cross-process-liveness-poll exception TASK-1.123's own `race.rs::wait_until_accepting` set as precedent (no in-process event exists for "has this other process's socket started accepting yet" / "has the pid file appeared" / etc.). Spot-checked by comparing each touched file's own `loop {}` count against its own deadline-reference count (every file: deadline references well exceed loop counts) in addition to reading each site directly while fixing its own nearby join/recv. No new unguarded poll loop was found during this build.
+
+Named exceptions, not fixed in this sweep (per the plan, section 1):
+- `crates/sdk/src/local_socket.rs:193`'s 20ms poll inside `connect`'s own autostart wait - production code within the sdk's one permitted I/O exception (R103).
+- `crates/sdk/src/local_socket.rs:456`'s 30s sleep and `:586`'s 100ms sleep, in the `fake-server-for-tests`/`CooperativeHeldOpen` fixture - already TASK-1.123's own named, separate, size-1 follow-up.
+- `crates/server/tests/pane_wait.rs::start_server`'s own 5ms poll waiting for the socket to accept - unaffected by DRAFT-1's own `wait_for_program_status` fix, which is a different function in the same file.
+- `crates/steg/tests/fixtures/autostart_client.rs`'s `loop { sleep(3600) }` and the similarly-shaped park-forever fixtures in `crates/server/tests/support/mod.rs:419`/`crates/steg/tests/support/mod.rs:419`/`cli_exit_statuses.rs:536` - not a poll for an event at all: each is a deliberately parked process killed externally by a real signal from the test, already documented as such in its own comment. Listed here so this notes entry doesn't look like it missed them.
+- `crates/server/tests/fixtures/accept_backoff_attempt.rs`/`crates/server/tests/fixtures/race_attempt.rs`/`openpty_race_attempt.rs` - fixture binaries, outside the `tests/*.rs` glob this task scopes to (the open scope question the task's own description carried, not settled here).
+
+Every other `std::thread::sleep` site found (one-shot waits like `handshake.rs:181`'s deliberate `handshake_timeout * 5`, or a fixed pacing delay inside an already-bounded trickle, e.g. `handshake.rs:505`'s 40ms-per-byte write cadence) is not a retry-poll for an event at all - a single wait for a known fixed duration, or a deliberate write-cadence, not something AC #3's own wording targets.
 
 ---
 <!-- COMMENTS:END -->

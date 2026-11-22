@@ -3,13 +3,14 @@ id: TASK-1.150
 title: >-
   Find why a freshly autostarted server closes a client's first connection
   before the hello
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T06:28:00Z'
+updated_date: '2026-11-22T06:36:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '39ca1e575b3d'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
-asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r2
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -583,6 +583,28 @@ created: 2026-11-22T06:28:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.150: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T06:36:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Re-review after the worker's response to my first review's three findings.
+
+[Compliance, Important] crates/steg/tests/cli_connection_arbitration.rs:40-49: the plan's step 2 named these exact lines and said to rewrite them to describe the new, fixed drop order. They are byte-identical to the pre-fix text (diffed directly against origin/main) and still state, in the present tense, that the function "drops it [the accepted stream] immediately with nothing written ... then drops the listener itself" - the reverse of what the code now does. The worker instead appended a second paragraph (lines 51-78) below it that states the correct, fixed order and explicitly calls it "the reverse of this function's own earlier order" - so the two paragraphs now contradict each other in the same doc comment. Comment #2 says "Doc comment on the function rewritten accordingly," which overstates what was done: paragraph 1 was never touched. A reader or model trusting paragraph 1 alone would restore the pre-fix, buggy order - the exact regression this task exists to prevent, and exactly the kind of wording review policy's line 33 calls out.
+
+The three findings from my first review are resolved at the final head (9f4a6e19):
+1. [Evidence] resolved. The undisclosed "failed at run 1 of 300" is now explained: comment #2's quoted script (with -type f -perm -u+x and a regex) was already an in-session fix made before that comment was posted; the run that actually failed used an earlier find invocation that could pick a non-executable .rcgu.o object, and even the filtered version stayed exposed to head -n1 picking one of two valid same-target binaries with different cargo metadata hashes when both existed. The new script removes manual binary discovery entirely, running `cargo test --manifest-path ... -- ... --exact` each of the 300 iterations so cargo always resolves/rebuilds the one binary matching current source. Checked the script text myself: `if ! cargo test ...; then echo ...; exit 1; fi` keeps an honest exit status (no pipe hides it), and `>/dev/null 2>&1` keeps a failing run's own output off the script's own output. Re-recorded clean at the final head: "passed 300 of 300", exit 0.
+2. [Bugs/Compliance] resolved. spawn_hostile_listener now takes `gap: Duration` directly; both ordinary callers pass Duration::ZERO and the regression test passes 200ms - one implementation, no parallel helper. I repeated the control myself in a scratch worktree at the final head: flipped only this function's two statements back to the pre-fix order (drop(stream) then sleep(gap) then drop(listener)), ran the regression test, and it failed on the real CLI's own ClosedBeforeHello message (stderr: "the steg server accepted the connection and closed it before a hello arrived, twice"), ruling out NoServerRunning and Timeout, which print different text. Reverted; full 15/15 passed clean. The ordinary tests (gap zero) still pass with the fix in place, and a zero gap does not change the fixed order's guarantee: the guarantee is program order on one thread (the listening fd's close() completes before drop(stream) runs, so a later connect() gets refused by construction), not timing - the gap only makes the window adversarially observable for the one regression test, it does not provide the guarantee.
+3. [Evidence, Nit] resolved. Last code commit is d3478839 (2026-11-22 06:02:12 UTC), then the no-conflict merge of main, 9f4a6e19 (06:02:22 UTC). Every check cited as final-head proof is recorded after both, at 9f4a6e19: control-fails-old-order 06:03:06 UTC, control-passes-fixed-order 06:03:22 UTC, 300-run 06:10:40 UTC, just check 06:16:27 UTC. The "with uncommitted changes" tag on the control-fail step is inherent to running a control (a scratch flip) and isn't a defect.
+
+Diff remains test-only: crates/steg/tests/cli_connection_arbitration.rs, 71 insertions/6 deletions against origin/main, nothing else touched. Size-3 plan approval by @bruk is present and unaffected by this finding.
 
 ---
 <!-- COMMENTS:END -->

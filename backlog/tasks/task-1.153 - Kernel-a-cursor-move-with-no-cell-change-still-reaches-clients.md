@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T19:57:00Z'
+updated_date: '2026-11-22T20:05:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -134,6 +134,34 @@ No collisions with TASK-1.127 (crates/app/src/{terminal_element.rs,main.rs}, unt
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked by @bruk.o, 22 November 2026: ok. One file of product code (crates/kernel/src/terminal.rs): the kernel remembers the cursor it last reported and, when nothing else changed but the cursor did, reports a Delta with no rows. No sdk shape change, so no public API change; every site that matches on ScreenUpdate was checked and the app's model already takes the cursor from a Delta. Covers position, visibility and shape (each confirmed failing today by a scratch test) and keeps the idle case Unchanged. Several clients: the pane's tick calls changes_since once and fans the result out, so the remembered cursor sits beside seq. For review: the remembered cursor must be updated on every path that reports a cursor (Full and Delta with rows too), not only the new arm.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-kernel a_stale_callers_full_also_updates_last_reported_cursor` exited 101 at 2026-11-22T20:05:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 8e720fcfaf1a with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_kernel-9b3ea2512004541f)
+
+running 1 test
+test terminal::tests::a_stale_callers_full_also_updates_last_reported_cursor ... FAILED
+
+failures:
+
+---- terminal::tests::a_stale_callers_full_also_updates_last_reported_cursor stdout ----
+
+thread 'terminal::tests::a_stale_callers_full_also_updates_last_reported_cursor' (79193456) panicked at crates/kernel/src/terminal.rs:1884:9:
+assertion `left == right` failed
+  left: Delta { rows: [], cursor: Cursor { x: 4, y: 0, visible: true, blinking: false, shape: Block }, seq: 4 }
+ right: Unchanged
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal::tests::a_stale_callers_full_also_updates_last_reported_cursor
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 335 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

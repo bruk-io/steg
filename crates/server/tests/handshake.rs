@@ -22,7 +22,12 @@ use steg_server::{ConnectionEvent, ServerConfig, Stopper, serve};
 
 #[path = "support/mod.rs"]
 mod support;
-use support::{ScopedTempDir, scoped_socket_path};
+use support::{ScopedTempDir, run_bounded, scoped_socket_path};
+
+/// This file's own bound for its two bare joins (TASK-1.137): generous
+/// against the trickler's own up-to-`36 * 40ms` write cadence plus the
+/// handshake timeout it races against, without being open-ended.
+const JOIN_DEADLINE: Duration = Duration::from_secs(10);
 
 /// Reads one whole frame's payload off `stream`, looping reads until the
 /// sdk's own `Decoder` has a complete frame - the length-prefixed
@@ -84,7 +89,9 @@ fn start_server(
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
     stop.stop();
-    handle.join().expect("the server thread should not panic");
+    run_bounded("the server thread to end after stop()", JOIN_DEADLINE, move || {
+        handle.join().expect("the server thread should not panic");
+    });
 }
 
 #[test]
@@ -502,9 +509,9 @@ fn a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline() {
     let result = stream.read(&mut buf);
     let elapsed = connected_at.elapsed();
 
-    trickler
-        .join()
-        .expect("the trickler thread should not panic");
+    run_bounded("the trickler thread to end", JOIN_DEADLINE, move || {
+        trickler.join().expect("the trickler thread should not panic");
+    });
 
     match result {
         Ok(0) => {} // a clean close

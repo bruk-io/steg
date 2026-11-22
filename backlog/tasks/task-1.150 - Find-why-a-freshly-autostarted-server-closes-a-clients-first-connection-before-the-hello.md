@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T06:57:00Z'
+updated_date: '2026-11-22T06:59:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -23,10 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '39ca1e575b3d'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -729,6 +728,31 @@ created: 2026-11-22T06:57:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.150: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T06:59:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Third review (same-machine), of the comment-only fix for the second review's finding.
+
+1. Doc comment on spawn_hostile_listener (lines 40-75) is now one coherent description of current behaviour: accept, drop(listener), sleep(gap), drop(stream) - matching the function body line for line. No sentence states the old order in the present tense, and the two paragraphs no longer contradict each other; the history ("the reverse of this function's own earlier order") moved to the commit message as the notes say.
+
+2. git diff 9f4a6e19..d915004d -- crates/ touches only crates/steg/tests/cli_connection_arbitration.rs, and the whole hunk is inside the doc comment (77 insertions/15 deletions, all comment lines). No code line changed and no other file under crates/ is touched.
+
+3. Evidence at the new head (d915004d, confirmed via git log as 55989f87 + a no-conflict merge of main): the narrow full-file run, the control pair (fails with ClosedBeforeHello when flipped back to the old order, exit 101; passes 15/15 at the fix, exit 0) and just check are all recorded after the last commit, at this head. Not repeating the 300-run is acceptable given point 2 holds (comment-only, no code or test-behaviour change), and the notes say so plainly ("The 300-repetition run was NOT repeated for this change - stated explicitly"). I relied on the second review's own repeated 300-run and control at 9f4a6e19 for the underlying mechanism rather than repeating it again myself.
+
+4. The notes' wording matches what was actually done: "no code lines touched" is true, and the described control-pair results match the two check records' exit codes and timestamps at d915004d.
+
+PR #96 is green at this head (gh pr view 96: SUCCESS, headRefOid d915004dbd680617f49a47d9f08acc5f6c486771).
+
+No findings.
 
 ---
 <!-- COMMENTS:END -->

@@ -3,14 +3,13 @@ id: TASK-1.150
 title: >-
   Find why a freshly autostarted server closes a client's first connection
   before the hello
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T06:47:00Z'
+updated_date: '2026-11-22T06:57:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -532,6 +531,8 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 18, 17 without the Asdlc-Worker trailer.
+
+Re-review finding fixed: spawn_hostile_listener's doc comment was appended to, not rewritten - it still described the pre-fix order in the present tense alongside a second paragraph stating the real order. Rewritten as one coherent description of current behaviour; history moved to the commit message only. Comment-only change, confirmed via diff. Re-recorded at the new head (post-merge of origin/main, board files only): narrow test file run (exit 0), control pair (fails with ClosedBeforeHello when flipped, exit 101; passes at the fix, exit 0), just check (exit 0). The 300-repetition run was explicitly not repeated for this comment-only change. Pushed, CI green (10m13s, watched directly via gh pr checks).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

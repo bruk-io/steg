@@ -3,15 +3,18 @@ id: TASK-1.150
 title: >-
   Find why a freshly autostarted server closes a client's first connection
   before the hello
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T05:39:00Z'
+updated_date: '2026-11-22T05:43:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies: []
+references:
+  - task-1.150-find-why-a-freshly-autostarted-server
+  - https://github.com/bruk-io/steg/pull/96
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -287,6 +290,8 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Cause: H1 confirmed (test-fixture race in spawn_hostile_listener's drop order), H2 ruled out - full evidence and the recorded control on the task. Fix: swapped the drop order (listener before stream) in crates/steg/tests/cli_connection_arbitration.rs, matching listen.rs's own precedent; added a new permanent test with a deliberate adversarial pause proving it. Checks recorded on the task: narrow test file run (exit 0), control failing with the old order (exit 101) and passing with the fix (exit 0) at final head, 300/300 repetitions of the real test (exit 0), just check (exit 0). PR #96, CI green.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -15,7 +15,7 @@ use steg_server::{ConnectionEvent, ServeOutcome, ServerConfig, Stopper, serve};
 
 #[path = "support/mod.rs"]
 mod support;
-use support::{ScopedTempDir, scoped_socket_path};
+use support::{ScopedTempDir, run_bounded, scoped_socket_path};
 
 fn wait_until_accepting(path: &std::path::Path) {
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -203,10 +203,19 @@ fn stopping_closes_the_listener_removes_the_socket_and_releases_the_lock() {
     // Joined, not detached: the team rule this task picked up mid-build
     // (every spawned thread joined on every path) applies to this
     // test's own server thread too, not only to `run`'s connection
-    // threads.
-    server_thread
-        .join()
-        .expect("the server thread should not panic");
+    // threads. Bounded (TASK-1.137): the `done_rx` recv above already
+    // means the thread's own closure has done its real work and is
+    // about to return, but that is not the same guarantee as a bound on
+    // the join itself.
+    run_bounded(
+        "the server thread to finish returning",
+        Duration::from_secs(5),
+        move || {
+            server_thread
+                .join()
+                .expect("the server thread should not panic");
+        },
+    );
 
     assert!(
         !socket_path.exists(),
@@ -435,8 +444,20 @@ fn stop_called_twice_concurrently_on_an_idle_server_is_harmless() {
     let second = stop.clone();
     let a = std::thread::spawn(move || first.stop());
     let b = std::thread::spawn(move || second.stop());
-    a.join().expect("the first stop() should not panic");
-    b.join().expect("the second stop() should not panic");
+    run_bounded(
+        "the first stop() thread to finish",
+        Duration::from_secs(5),
+        move || {
+            a.join().expect("the first stop() should not panic");
+        },
+    );
+    run_bounded(
+        "the second stop() thread to finish",
+        Duration::from_secs(5),
+        move || {
+            b.join().expect("the second stop() should not panic");
+        },
+    );
 
     join_within(server_thread, Duration::from_secs(5));
 
@@ -488,9 +509,15 @@ fn stop_racing_a_client_connecting_still_returns_within_a_bound() {
             let _ = UnixStream::connect(&connect_path);
         });
         stop.stop();
-        connector
-            .join()
-            .unwrap_or_else(|_| panic!("the connector thread should not panic on round {round}"));
+        run_bounded(
+            &format!("the connector thread to finish on round {round}"),
+            Duration::from_secs(5),
+            move || {
+                connector.join().unwrap_or_else(|_| {
+                    panic!("the connector thread should not panic on round {round}")
+                });
+            },
+        );
 
         join_within(server_thread, Duration::from_secs(5));
 
@@ -549,9 +576,15 @@ fn stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bo
 
     stop.stop();
     join_within(server_thread, Duration::from_secs(5));
-    trickler_thread
-        .join()
-        .expect("the trickler thread should not panic");
+    run_bounded(
+        "the trickler thread to finish",
+        Duration::from_secs(5),
+        move || {
+            trickler_thread
+                .join()
+                .expect("the trickler thread should not panic");
+        },
+    );
 
     let _ = std::fs::remove_file(&socket_path);
     let lock_path = {

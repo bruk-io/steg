@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T20:06:00Z'
+updated_date: '2026-11-22T20:07:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -229,6 +229,34 @@ test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_visibi
 test terminal::tests::changes_since_reports_a_cursor_only_delta_when_only_the_cursor_moved ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 333 filtered out; finished in 0.00s
+```
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-kernel changes_since_reports_unchanged_when_nothing_happened` exited 101 at 2026-11-22T20:07:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 8e720fcfaf1a with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_kernel-9b3ea2512004541f)
+
+running 1 test
+test terminal::tests::changes_since_reports_unchanged_when_nothing_happened_since_the_last_call ... FAILED
+
+failures:
+
+---- terminal::tests::changes_since_reports_unchanged_when_nothing_happened_since_the_last_call stdout ----
+
+thread 'terminal::tests::changes_since_reports_unchanged_when_nothing_happened_since_the_last_call' (79251602) panicked at crates/kernel/src/terminal.rs:1726:9:
+assertion `left == right` failed
+  left: Delta { rows: [], cursor: Cursor { x: 2, y: 0, visible: true, blinking: false, shape: Block }, seq: 2 }
+ right: Unchanged
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal::tests::changes_since_reports_unchanged_when_nothing_happened_since_the_last_call
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 335 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

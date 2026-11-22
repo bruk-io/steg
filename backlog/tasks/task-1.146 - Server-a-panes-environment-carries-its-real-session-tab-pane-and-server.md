@@ -1,15 +1,18 @@
 ---
 id: TASK-1.146
 title: 'Server: a pane''s environment carries its real session, tab, pane and server'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-21T20:20:00Z'
-updated_date: '2026-11-22T05:19:00Z'
+updated_date: '2026-11-22T05:54:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.146-server-a-pane-s-environment-carries-its
+  - https://github.com/bruk-io/steg/pull/97
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -17,6 +20,8 @@ asdlc_branch: task-1.146-server-a-pane-s-environment-carries-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'bbbd420b5776'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r3
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -508,6 +513,91 @@ test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; 
 
 error: test failed, to rerun pass `-p steg-server --test pane_environment`
 ```
+
+Check passed: `just check` exited 0 at 2026-11-22T05:30:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 98ca618e9202 with uncommitted changes:
+
+```text
+ok      format check (0.4s)
+ok      lint (2.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (115.1s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.8s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (0.6s)
+ok      test (steg-server) (104.3s)
+wait    test (steg-server, race-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, race-fixture) (67.2s)
+wait    test (steg-server, pty-race-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, pty-race-fixture) (99.9s)
+wait    test (steg-server, accept-backoff-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, accept-backoff-fixture) (87.6s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.5s)
+ok      test (steg, fixtures) (11.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-22T05:39:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.146 on task-1.146-server-a-pane-s-environment-carries-its at 6b8cf04dc4a8:
+
+```text
+ok      format check (0.4s)
+ok      lint (2.2s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (76.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.5s)
+ok      test (steg-server) (65.9s)
+ok      test (steg-server, race-fixture) (86.1s)
+ok      test (steg-server, pty-race-fixture) (100.6s)
+ok      test (steg-server, accept-backoff-fixture) (89.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.5s)
+ok      test (steg, fixtures) (12.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.1s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Built to the approved plan (bbbd420b5776), no departures. launch_spec now takes server/session/tab/pane as real data from its one caller: Runtime::bind_server_address (new, called once by listen::run with its own socket_path) records the address on State next to the existing stopper field; start_and_dispatch lifts tab_id/session_id into local bindings under the same lock that minted the pane and reads server_address the same way, replacing the old empty-string/from_raw(0) placeholders.
+
+Proof: new crates/server/tests/pane_environment.rs - a real server over a real socket, an explicit pane program that prints only its own four STEG_* lines (never a full env dump), read once after pane.wait --for exit resolves (no polling). Checked, and verified to print nothing from the real environment before each recorded run (SAFETY).
+
+Two negative controls, each recorded failing then passing at the final head:
+- (a) identifiers restored to from_raw(0): failed only the three STEG_SESSION/TAB/PANE lines (00000000), STEG_SERVER still correct.
+- (b) server address restored to "": failed only STEG_SERVER (empty), identifiers still correct.
+
+just check green at the final head and at the pushed/rebased commit (6b8cf04dc4a8) - one known timing flake under heavy concurrent machine load, attach.rs's an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane, confirmed passing in isolation and on a full rerun; unrelated to any file this task touches. CI on PR #97 passed.
+
+No other open task's files touched (checked TASK-1.51's and TASK-1.140's own file lists against this diff). crates/steg/tests/login_environment.rs and start.rs's own steg_vars_and_term_always_win... test verified unaffected, as flagged in the plan's Risks.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -519,6 +609,15 @@ created: 2026-11-22T04:47:00Z
 ---
 
 Plan approved by @bruk (bbbd420b5776, size-2): its worker may build it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-22T05:54:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.146: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

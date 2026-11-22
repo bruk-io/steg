@@ -507,6 +507,22 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out;
 
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
+
+Check passed: `cargo test -p steg-app blend` exited 0 at 2026-11-22T04:30:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.97s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 2 tests
+test terminal_element::tests::blend_at_half_strength_is_the_rgb_midpoint ... ok
+test terminal_element::tests::blend_at_zero_strength_leaves_the_base_colour_unchanged ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 97 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

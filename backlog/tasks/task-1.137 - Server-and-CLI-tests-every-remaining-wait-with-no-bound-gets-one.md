@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T04:26:00Z'
+updated_date: '2026-11-22T04:27:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -344,4 +344,6 @@ Sighting 2026-11-21, by @bruk.o: crates/steg/tests/cli_connection_arbitration.rs
 From the review of TASK-1.140 (nit, 2026-11-21): crates/server/tests/pane_wait.rs wait_for_program_status polls pane.show with a 20 ms sleep instead of waiting on the pane.exited event. Fold into the sweep.
 
 Sighting, 22 November 2026: crates/steg/tests/cli_connection_arbitration.rs a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding failed again in CI, this time on main at 4ccc8344 (the merge of steg PR 91, which touches only crates/ui and tools). Assertion at line 101; the client reported that the server accepted the connection and closed it before a hello arrived, twice. Second sighting of this test; re-run once by @bruk.o.
+
+Plan checked by @bruk.o, 22 November 2026: ok for the narrowed scope (the mechanical sweep; DRAFT-1 and DRAFT-2 hold the sighted problems). Covers each criterion; criterion 4 read as the files other in-flight tasks edit (listen.rs, login_environment.rs for TASK-1.146). Three things for the build, which the brief will carry: bring main in by merging, never by rebasing a pushed branch; narrow test runs go through the pinned Zig, and the final proof is just check; and since a control per site is not practical, record one representative control (one wrapped join made to outlive its bound, failing with its named message, then passing).
 <!-- SECTION:NOTES:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T04:48:00Z'
+updated_date: '2026-11-22T05:00:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -30,6 +30,36 @@ Found by TASK-1.137's planner (22 November 2026). The test has failed twice in C
 - [ ] #2 Either the fix is made with a test that fails without it, or a follow-up task states the fix and why it was not made here
 - [ ] #3 crates/steg/tests/cli_connection_arbitration.rs a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding passes in a recorded run of many repetitions
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Cause (AC #1): H1 confirmed, H2 unsupported. This is a test-fixture race, not a product fault.
+
+Structural proof (not timing-dependent): `local_socket.rs::connect` (lines 159-183) only reaches `command.spawn()` on the branch where the raw `UnixStream::connect(&path)` returns `Err`. In every failing run observed (the 1/150 local baseline repeat and 20/20 reproductions below), both of `connect_handshaken`'s two `one_handshake_attempt` calls had their inner `connect()` return `Ok(stream)` - so by construction, autostart's spawn was never reached on either attempt. The retry's second raw connect landed back on the hostile fixture's own listener, not on a real server.
+
+Mechanism: `spawn_hostile_listener` (cli_connection_arbitration.rs:50-61) does `accept()` once, `drop(stream)`, then `drop(listener)` - two drops on the fixture's thread with no synchronisation against the client. A Unix-domain `connect()` completes at the kernel level into the listen backlog without needing a matching `accept()`, so the client's own second `connect()` (made the instant its first attempt sees EOF) can land in that backlog in the gap between the two drops, before the listener is actually closed. That queued connection is then torn down when `drop(listener)` runs, giving the client the identical EOF-before-hello signature as a second hostile accept, with no real server ever involved.
+
+Evidence gathered this phase (worktree reverted clean after, `git status` confirmed):
+- Baseline: the unmodified fixture, repeated 150 times locally (`cargo test -p steg --test cli_connection_arbitration`, scratch loop, reverted), reproduced the CI failure once (1/150, ~0.7%) - consistent with "twice in one CI day" for an intermittent race, and both `connect()`s in that failure returned `Ok` per the structural argument above.
+- Widened-gap control: a scratch copy of `spawn_hostile_listener` with an 80ms sleep inserted between `drop(stream)` and `drop(listener)` (widening exactly the gap the mechanism needs) reproduced the same failure 20/20 runs. An `lsof -t <lock path>` check after each run found no server process in every failure - corroborating, not the primary proof, since it only confirms "no server was left running," not "autostart was never reached."
+- Code read, no mechanism found for H2: traced the real autostart path (`arbiter::attempt`, `listen::run`, `idle.rs`) for anything that could close a freshly accepted first connection before its hello. The only timed teardown is the on-demand idle-stop checker, default 30s (`DEFAULT_IDLE_TIMEOUT`), against a test completing in well under a second - not a plausible collision. No other close-before-hello path exists in a fresh accept loop.
+
+Fix (files: crates/steg/tests/cli_connection_arbitration.rs only - test fixture, not product code):
+1. In `spawn_hostile_listener`, swap the two drops: `drop(listener)` immediately after `accept()` returns, then `drop(stream)`. This closes the listening socket before the hostile stream is dropped - the drop that produces the client's EOF - so the client's EOF-triggered retry's `connect()` happens causally after the listener is already closed (closing precedes the EOF by construction, not by timing). No sleep, no new flakiness risk: this is the same ordering discipline `listen.rs` lines 536-544 already applies in the real server's own shutdown path, whose comment states the identical reasoning (closing the listener before any slower work avoids leaving exactly this backlog window open) - production already does this; the fixture didn't.
+2. Rewrite `spawn_hostile_listener`'s doc comment (lines 40-49): it currently describes and justifies the old order ("accepts... drops it immediately... then drops the listener itself"). Update it to describe the new order and why (cite the mechanism and `listen.rs`'s own precedent).
+3. Check `the_hostile_listener_itself_accepts_and_closes_with_nothing_written` (line 118), which shares this fixture: under the reorder, its own `connect()` can still land in the backlog before `accept()` picks it up, and the accepted stream still sees a clean EOF once the listener later closes (the same property `listen.rs` 536-543 states for the product) - expected to keep passing unchanged. Confirm this in the build phase rather than assuming it; note the result either way.
+
+Proof (AC #2 and #3):
+- AC #2: the fix above *is* the fix, made in this task (not deferred) - it is a fixture change, not a product change, so say that plainly rather than leaving AC #2 looking unaddressed. Add one new permanent test, e.g. `closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect`: build a variant fixture that inserts an explicit, generous delay (e.g. 200ms) at the exact point the race lived - between `drop(stream)` and `drop(listener)` for the pre-fix order, between `drop(listener)` and `drop(stream)` for the fixed order - and assert the real CLI (`run_steg`) still exits 0 and prints `[]`. This is deterministic in both directions (not a sleep-based flake): run against today's ordering it must fail near-certainly (matches the 20/20 control above); run against the fixed ordering it must pass, because by the time the delay starts the listener is already gone. This one test is both "a test that fails without the fix" (AC #2) and a permanent regression guard - built in the implementation step, not carried over from this phase's throwaway scratch tests (which used a raw-connect probe during the delay instead of the real CLI; the committed test should assert on product behaviour, i.e. the real CLI's exit status, not on fixture internals).
+- AC #3: after the fix, run the real test `a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding` many times as one recorded command, e.g.:
+  `sh -c 'for i in $(seq 1 300); do cargo test -p steg --test cli_connection_arbitration -- a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding --exact || exit 1; done'`
+  run directly under `asdlc record-check`, with `ZIG` set from `mise which zig` first. Be honest about what this shows: at the measured 1/150 base rate, 300 reps only has ~87% power to catch a bug at that same rate if it somehow survived - this run is satisfying AC #3's literal wording and giving real additional confidence, not the primary proof that the fix works. The primary proof is the causal argument plus the deterministic new test above.
+
+Question for the engineer, with a recommended default: could a real server's own narrow shutdown window produce the same double-`ClosedBeforeHello` against a genuine (not test-fixture) server, meaning `connect_handshaken`'s exactly-one-retry (local_socket.rs) deserves widening? Recommended default: no change. Reason: `listen.rs` lines 536-544 already closes its listener immediately after the accept loop stops, specifically to avoid leaving this backlog window open at all in production - the discipline the fixture lacked is already applied where it matters; there's no evidence this has ever happened against a real server, and widening the retry count would only shrink an already-rare race's probability further, not eliminate it.
+
+Not splitting: this is one fixture reorder, one new deterministic test, and one recorded repetition run - a single size-3 change.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

@@ -83,14 +83,27 @@ fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<(
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
     stop.stop();
-    // 60s, not `REPLY_DEADLINE`: measured directly against this file's own
-    // flood tests (`force_end` on a still-stuck pane first), stopping
-    // alone took over 32s under this machine's own contention - a 20s
-    // bound was found flaky against exactly those tests, so this keeps
-    // real margin above a measured worst case rather than a guess.
+    // 90s, derived rather than measured once: `force_end`'s own nominal
+    // worst case for one pane is `force_grace + ESCALATE_CONFIRM_TIMEOUT +
+    // FORCE_JOIN_TIMEOUT` (2s + 2s + 2s = 6s, this file's own comment
+    // above `pane_close_force_returns_within_its_bound_even_while_the_
+    // panes_own_worker_is_stuck`), plus `force_end`'s own pass 6
+    // (`join_worker`) running sequentially per pane - the flood tests
+    // below stop a server with two panes (`stuck_pane`/`other_pane`),
+    // so up to one more `FORCE_JOIN_TIMEOUT` (2s) on top, ~10s nominal
+    // worst case for this file's own tests specifically. That same test's
+    // own already-reviewed bound for a single force_end-involving wait
+    // under this machine's own CPU contention is 30s - about 5x the
+    // single-pane nominal (6s) - a generosity this sweep found was
+    // itself not quite enough: this exact join measured over 32s once.
+    // Applying that same ~5x multiplier to the two-pane nominal (10s)
+    // gives ~50s; 90s keeps real margin above both that and the one
+    // measured run, while staying well under `cross_process_flood_
+    // guard`'s own 180s and the 900s per-step ceiling `steg-quiet`
+    // itself imposes (`tools/src/steg_tools/quiet.py`).
     run_bounded(
         "the server thread to end after stop()",
-        Duration::from_secs(60),
+        Duration::from_secs(90),
         move || {
             handle.join().expect("the server thread should not panic");
         },

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T14:03:00Z'
-updated_date: '2026-11-22T04:12:00Z'
+updated_date: '2026-11-22T04:16:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -92,40 +92,73 @@ lock added and the sibling test also taking it: passes (recorded: N/N passes). R
 the scratch test before building the real fix.
 
 ### 1b. `cli_connection_arbitration.rs::a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding`
-- root cause established by reading the CI log directly; not a missing bound, and not
-fixable inside this task's own scope
+- root cause narrowed to two candidates by reading the code and two independent CI
+logs; not a missing bound either way; which of the two actually occurred is not
+established, said plainly
 
-Fetched PR #91's own first (failed) CI attempt directly (`gh api
-repos/bruk-io/steg/actions/jobs/136994285808/logs`, run 44952822506 attempt 1,
-`just check` step). The failure is not a timeout: the panic is `ConnectError::
-ClosedBeforeHello` - meaning **both** `connect_handshaken` attempts in this run ended
-in EOF-before-hello: the hostile fixture's deliberate first closure, *and* the second
-attempt, against the real, freshly-autostarted server this test expects to succeed
-cleanly. (The log itself is not reproduced here or anywhere else on the board, per this
-task's own safety rule; the run/job/attempt ids above are enough for anyone with CI
-access to pull it again.)
+Two sightings now, both read directly from their own CI logs rather than guessed:
+PR #91's own first attempt (run 44952822506, attempt 1, `test (steg)` step) and main's
+own CI at commit 4ccc8344 (run 44982930304, attempt 1, `test (steg, fixtures)` step -
+a different build variant, so this is not specific to one feature combination). Both
+panic identically at this test's own line 101 on `ConnectError::ClosedBeforeHello`
+(exit code 4 - every `ConnectError` variant maps to that one bucket,
+`crates/steg/src/cli/exit.rs`, so the exit code alone does not distinguish variants;
+the panic's own message does, and it is the same message both times). Neither log nor
+the test's own output records whether a real server process was ever spawned - that
+detail is not instrumented anywhere this reading can see, so it is not available
+without changing the fixture or the test.
 
-Every wait on this path already has a bound with a named failure
-(`connect_timeout` 10s - `crates/steg/src/cli/connect.rs:32`; `arbitration_timeout` 5s
-with a 20ms poll - `crates/server/src/arbiter.rs`; the hostile listener's own
-`ready.recv_timeout(2s)`), so this is outside AC #1/#2 as written: nothing here is
-unbounded or unnamed. What the log shows instead is `connect_handshaken`'s own
-documented one-retry limit (TASK-1.77: "a second such closure... is not retried
-again") being hit for a reason that has nothing to do with this test's hostile
-fixture - something on the *real* server's own first accepted connection, under CI's
-own concurrent-build contention, produced the identical EOF-before-hello symptom the
-fixture is built to simulate. **What this reading cannot establish**: which server-side
-code path produced that second closure (a losing side of R99's own arbitration
-accepting one connection before it notices it lost and shuts down is the most likely
-candidate structurally, but that is not confirmed by reading alone, and confirming it
-means reading `arbiter.rs`/`listen.rs`'s own accept-loop interaction under genuine
-sibling-build contention, which is new investigation, not a bounded-wait fix).
+**Two candidates, read from the code, not assumed:**
+- **(H1) The retry re-meets the same hostile listener** - never reaches autostart at
+  all. `spawn_hostile_listener` calls `accept()` exactly once, then `drop(stream)`,
+  then (no intervening I/O) `drop(listener)`. A Unix domain listening socket keeps
+  accepting connections into its own kernel backlog for as long as the listening fd
+  stays open, independent of whether user code calls `accept()` again - ordinary POSIX
+  socket behaviour, not special to this codebase. If the client's *second* `connect()`
+  (the retry) lands in that backlog in the narrow window between `drop(stream)` and
+  `drop(listener)` - two back-to-back drops with no syscall between them, but still
+  non-zero wall-clock time, and racing against the *client's own* second `connect()`
+  syscall, which under CI's own concurrent-build contention can itself be delayed by
+  scheduling - the OS discards that queued connection once the listener closes, and the
+  client sees exactly the same EOF-before-hello its first attempt saw. Under H1,
+  `connect()`'s autostart branch (`command.spawn()`) never runs at all - the second
+  `UnixStream::connect(&path)` already succeeded at the kernel level, so `connect()`
+  returns `Ok(stream)` straight away, before ever checking `options.autostart`.
+- **(H2) A real server is spawned and its own first accepted connection also closes
+  before a hello** - the mechanism `connect_handshaken`'s own doc names
+  (TASK-1.77: the accept loop dropping a connection it took "in the instant it sees a
+  stop flag"), but nothing in this freshly-spawned, nothing-asking-it-to-stop server
+  obviously supplies that trigger; the most likely structural candidate reading finds
+  is a losing side of R99's own arbitration accepting one connection before it notices
+  it lost and shuts down, which is not confirmed by reading alone.
 
-**No code change proposed here.** Recommending either (a) a separate follow-up task to
-investigate the real server's own EOF-before-hello path under contention, since fixing
-it (if it is real) is a production retry-semantics question, not a test change, or (b)
-accepting one CI retry as the cost of this exact rare case, is the engineer's call
-(open question #2) - not decided unilaterally in a test-bounding sweep.
+**H1 is the better-supported reading, not merely the first one found**: it needs no
+new, unconfirmed production-code race (H2's own candidate mechanism is speculative
+even by its own account above), it rests on ordinary, well-documented socket backlog
+semantics rather than a guess, and it is consistent with both sightings landing under
+heavy concurrent-build CI load with no other symptom anywhere else in the suite of a
+freshly-spawned on-demand server itself failing its first handshake. It is still not
+proven: confirming it over H2 would need either strace/packet-level evidence from a
+failing run, or instrumenting the fixture to record whether `connect()`'s own
+`command.spawn()` branch ever ran (e.g. a counter file the test checks after a
+failure) - both are new investigation, beyond what reading the code and two CI logs
+can settle, and beyond this bounded-wait sweep's own scope either way.
+
+Every wait on this path already has a bound with a named failure (`connect_timeout`
+10s - `crates/steg/src/cli/connect.rs:32`; `arbitration_timeout` 5s with a 20ms poll -
+`crates/server/src/arbiter.rs`; the hostile listener's own `ready.recv_timeout(2s)`),
+so this is outside AC #1/#2 as written regardless of which hypothesis is correct -
+nothing here is unbounded or unnamed.
+
+**No code change proposed in this sweep.** If H1 is confirmed, the fix is in the test
+fixture (e.g. have the hostile thread drain and reject, non-blocking, any connection
+still queued before it drops the listener - closes this specific window, though the
+fixture's reliance on an unconfigurable std backlog stays inherently racy under
+adversarial scheduling), not in production code; if H2, it is a production
+retry-semantics question. Recommending a separate follow-up task to run the
+instrumented reproduction above and settle which one before anyone writes that fix,
+rather than guessing at a fix for the wrong hypothesis, is the engineer's call (open
+question #2) - not decided unilaterally in a test-bounding sweep.
 
 ### 1c. `pane_wait.rs::wait_for_program_status` - the review nit's own suggestion does
 not fit as stated; resolved by reading, not by picking
@@ -327,10 +360,17 @@ own answer to "which entries go where," not left to the split itself to decide l
 
 1. `shutdown.rs`: serialise all seven tests with a shared lock (recommended default),
    or change what the test measures instead?
-2. `cli_connection_arbitration.rs`: open a separate follow-up task to investigate the
-   real server's own EOF-before-hello path under contention (recommended default,
-   since this task's own scope is bounding waits, not production retry semantics), or
-   accept the rare CI retry as-is?
+2. `cli_connection_arbitration.rs`: now sighted twice (PR #91, and main at 4ccc8344),
+   both the identical `ConnectError::ClosedBeforeHello`, read from each CI log
+   directly. Section 1b narrows this to two candidates and recommends H1 (the retry
+   re-meeting the same hostile listener via a kernel backlog race, never reaching
+   autostart) as the better-supported one, but not proven over H2 (a freshly-spawned
+   server's own first connection independently closing early). Recommended default:
+   open a separate follow-up task to run the instrumented reproduction section 1b
+   describes (confirm whether `connect()`'s own autostart branch ever runs in a
+   failing case) before any fix is written, rather than fix the wrong hypothesis -
+   this task's own scope is bounding waits, not diagnosing or changing retry/fixture
+   semantics. Accepting the rare CI retry as-is, with no follow-up, is the alternative.
 3. `pane_wait.rs`: drop `wait_for_program_status`'s now-unused `expected` parameter
    (recommended default, both call sites pass the same literal), or keep it as a
    documented, enforced precondition?

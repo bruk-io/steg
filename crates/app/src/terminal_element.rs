@@ -826,6 +826,57 @@ impl CursorFadeState {
     }
 }
 
+/// A transition into focus - the window regaining activation, or (once a later task adds
+/// a second focusable pane) this one gaining it - restarts the cycle from whole: decided
+/// by the orchestrator against the engineer's own "stops, whole, when the window loses
+/// focus" (regained focus starts fresh, never resumes a frozen mid-fade phase). Seen by
+/// comparing `now_in_focus` against the *previous* paint's own `was_in_focus`, not a gpui
+/// subscription (`CursorFadeState`'s own doc) - so this is noticed on whichever paint
+/// happens to run next, not at the exact instant of the OS event. Called from every paint
+/// unconditionally, before any early return on the cursor's own visibility (review
+/// finding, nit: calling this only when the cursor is visible left `was_in_focus` stale
+/// across a focus change that happened while the cursor was hidden).
+fn update_focus_tracking(fade: &Rc<RefCell<CursorFadeState>>, now_in_focus: bool) {
+    let mut fade_state = fade.borrow_mut();
+    if now_in_focus && !fade_state.was_in_focus {
+        fade_state.cycle_started_at = Instant::now();
+    }
+    fade_state.was_in_focus = now_in_focus;
+}
+
+/// The scheduling decision [`paint_cursor`] itself acts on (review finding: AC#3's own
+/// "a test proves each case schedules no further frame" had nothing behind it beyond
+/// [`should_show_cursor_fade`]'s own boolean gate - this is the seam that lets a test
+/// reach the actual mutation the gate drives, not just the gate's own value).
+/// `should_run` is `true` only when the fade is actually going to paint this frame
+/// (`cursor.shape == CursorShape::Block && should_show_cursor_fade(...)`); when it is
+/// `false`, whatever wake was pending is cleared - dropping the `Task` (`CursorFadeState`'s
+/// own doc: "if you drop a task it will be cancelled immediately") cancels it outright, so
+/// nothing further wakes the app for this window's cursor. No gpui `Window`/`Task`
+/// construction is needed to prove this from a test: `Task::ready(())` (gpui's own
+/// context-free constructor) stands in for a real pending wake, and this function treats
+/// it the same either way - only whether `scheduled_wake` ends up `None` is observed.
+///
+/// Returns `should_run` unchanged - review finding, continued: this is also what
+/// [`paint_cursor`] branches on to decide whether to call [`paint_cursor_fade`], the one
+/// function that ever calls [`schedule_fade_wake`] (the only place `scheduled_wake` is
+/// ever set to `Some`). By making the branch use *this call's own return value*, rather
+/// than a second, separately-computed `should_run` that merely happens to agree with it,
+/// the two conditions cannot drift apart - there is exactly one decision, read twice, not
+/// two decisions that could disagree. A test cannot drive `paint_cursor_fade`/
+/// `schedule_fade_wake` themselves without a real gpui `Window` (the same limitation
+/// `every_glyph_sits_on_its_own_column` already has, TASK-1.126) - verified by the live
+/// run instead, not a unit test - but this return value, asserted on directly below, is
+/// what makes "the arm-a-new-wake path is only reachable when this returns `true`" a
+/// property of the code's own structure, not an argument about it.
+#[must_use]
+fn apply_fade_schedule_decision(fade: &Rc<RefCell<CursorFadeState>>, should_run: bool) -> bool {
+    if !should_run {
+        fade.borrow_mut().scheduled_wake = None;
+    }
+    should_run
+}
+
 /// Drives TASK-1.127's own cursor fade and paints the cursor - the six-piece dissolve for
 /// a focused, visible, blinking block cursor with Reduce Motion off, or the steady shape
 /// this function has always drawn otherwise (module doc, "Painting"). `fade`/`entity` are
@@ -852,28 +903,21 @@ fn paint_cursor(
     entity: &Entity<AppWindow>,
 ) {
     let cursor = model.cursor();
-    if !cursor.visible {
-        fade.borrow_mut().scheduled_wake = None;
-        return;
-    }
 
+    // Review finding (nit): this ran only after the `!cursor.visible` early return
+    // below, which meant a focus loss/regain while the cursor happened to be hidden
+    // left `was_in_focus` stale - a cursor that later becomes visible again could then
+    // skip the intended refocus-restarts-the-cycle behaviour. Read fresh and applied
+    // here, before any early return, so every paint updates it regardless of whether
+    // the cursor is visible this frame.
     let window_active = window.is_window_active();
     let pane_focused = focus_handle.is_focused(window);
     let now_in_focus = window_active && pane_focused;
-    {
-        let mut fade_state = fade.borrow_mut();
-        // A transition into focus - the window regaining activation, or (once a later
-        // task adds a second focusable pane) this one gaining it - restarts the cycle
-        // from whole: decided by the orchestrator against the engineer's own "stops,
-        // whole, when the window loses focus" (regained focus starts fresh, never
-        // resumes a frozen mid-fade phase). Seen by comparing against the *previous*
-        // paint's own state, not a gpui subscription (`CursorFadeState`'s own doc) -
-        // so this is noticed on whichever paint happens to run next, not at the exact
-        // instant of the OS event.
-        if now_in_focus && !fade_state.was_in_focus {
-            fade_state.cycle_started_at = Instant::now();
-        }
-        fade_state.was_in_focus = now_in_focus;
+    update_focus_tracking(fade, now_in_focus);
+
+    if !cursor.visible {
+        let _ = apply_fade_schedule_decision(fade, false);
+        return;
     }
 
     let origin = cell_origin(
@@ -894,15 +938,19 @@ fn paint_cursor(
         reduce_motion_enabled(),
         ended,
     );
+    // The one call that decides whether to arm a new wake - `paint_cursor_fade` (the
+    // only function that ever calls `schedule_fade_wake`) is reached only through this
+    // exact return value, below, never a second, separately-computed condition that
+    // could disagree with it (`apply_fade_schedule_decision`'s own doc).
+    let should_run = apply_fade_schedule_decision(fade, cursor.shape == CursorShape::Block && gate);
 
-    if cursor.shape == CursorShape::Block && gate {
+    if should_run {
         paint_cursor_fade(
             model, metrics, theme, origin, cursor, window, cx, row_cache, fade, entity,
         );
         return;
     }
 
-    fade.borrow_mut().scheduled_wake = None;
     match cursor.shape {
         CursorShape::Block => window.paint_quad(fill(Bounds::new(origin, size), colour)),
         CursorShape::BlockHollow => {
@@ -930,6 +978,18 @@ fn paint_cursor(
     }
 }
 
+/// The animation [`paint_cursor_fade`] actually paints with (review finding 3, continued):
+/// a named indirection with exactly one production caller, so a test can assert against
+/// *this function's own return value* and know it is asserting against what production
+/// uses - not a second, independent read of the same constant that merely happens to
+/// agree with it today. Still the real, generated `steg_ui::foundations::MOTION_CURSOR_
+/// FADE_SHADED_DISSOLVE` (doc-17 R121; TASK-1.136's own export) - this adds no logic, only
+/// one name both the production call site and the table test go through.
+#[must_use]
+fn active_cursor_fade_pattern() -> steg_ui::foundations::MotionCursorFadeShadedDissolve {
+    steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE
+}
+
 /// The six-piece dissolve itself, once [`paint_cursor`] has decided the gate is open and
 /// the shape is a block: computes the fraction through the cycle from elapsed time (the
 /// clock read once, here, in the imperative shell - everything downstream is a plain
@@ -952,7 +1012,7 @@ fn paint_cursor_fade(
     fade: &Rc<RefCell<CursorFadeState>>,
     entity: &Entity<AppWindow>,
 ) {
-    let pattern = steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE;
+    let pattern = active_cursor_fade_pattern();
     let cycle_started_at = fade.borrow().cycle_started_at;
     let elapsed_seconds = cycle_started_at.elapsed().as_secs_f32();
     let cycle_seconds = pattern.cycle.as_secs_f32();
@@ -1276,6 +1336,20 @@ mod tests {
 
     #[test]
     fn piece_states_at_matches_the_engineers_own_table() {
+        // Review finding (Important): the approved plan's own proof design read
+        // `steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE` directly, "not
+        // literals in the test" - as first built this read the local `ORDER`/`STEP`/
+        // `PHASE_WHOLE`/`PHASE_RETURNING` consts instead, so a wrong exported value
+        // would animate incorrectly with this test still green. Fixed, and tightened
+        // further at review: calling `active_cursor_fade_pattern()` - the one function
+        // `paint_cursor_fade` itself calls for this - rather than re-reading the same
+        // named constant independently. Two separate reads of one global would still
+        // agree today by construction (there is only one constant), which proves the
+        // table against *a* value, not against what production is actually wired to;
+        // going through the one production call site instead means a corruption of
+        // that call site is what this test would catch, not a second copy of it.
+        let pattern = active_cursor_fade_pattern();
+
         // Each row is a fraction at one of the cycle's own 14 boundaries, and the state
         // of pieces 0 through 5 at that instant - worked out independently from the
         // engineer's own per-rank table (TASK-1.127's plan), not from this function's own
@@ -1299,7 +1373,13 @@ mod tests {
         ];
         for (fraction, expected) in cases {
             assert_eq!(
-                piece_states_at(*fraction, &ORDER, STEP, PHASE_WHOLE, PHASE_RETURNING),
+                piece_states_at(
+                    *fraction,
+                    &pattern.order,
+                    pattern.step_fraction,
+                    pattern.phase_whole,
+                    pattern.phase_returning,
+                ),
                 *expected,
                 "at fraction {fraction}"
             );
@@ -1444,6 +1524,90 @@ mod tests {
         assert!(!should_show_cursor_fade(
             true, true, true, true, false, true
         ));
+    }
+
+    // --- apply_fade_schedule_decision (AC#3): the mechanism behind "schedules no
+    // --- further frame", one closed case per test, not just the boolean gate ----------
+    //
+    // Review finding (Important): AC#3's own "a test proves each case schedules no
+    // further frame" had nothing behind it - only `should_show_cursor_fade`'s own
+    // boolean-gate tests above existed. These chain the real gate function into the real
+    // scheduling-decision function `paint_cursor` itself calls, and check the thing that
+    // actually stops a further wake: `scheduled_wake` ending up `None`.
+
+    /// Seeds a fresh [`CursorFadeState`] with a wake already pending - `Task::ready(())`
+    /// needs no window or executor (gpui's own public constructor, confirmed by reading
+    /// `executor.rs`), standing in for a real one so clearing it is actually exercised.
+    fn fade_state_with_a_pending_wake() -> Rc<RefCell<CursorFadeState>> {
+        let fade = cursor_fade_state();
+        fade.borrow_mut().scheduled_wake = Some(Task::ready(()));
+        fade
+    }
+
+    #[test]
+    fn a_closed_gate_clears_any_pending_wake_for_every_named_case() {
+        // Each row is one of AC#3's own named cases (window not active, pane not
+        // focused, cursor hidden, no blink requested, Reduce Motion on, ended) - the
+        // same six argument tuples `should_show_cursor_fade`'s own tests above use,
+        // reused here rather than restated, so this is provably the same cases.
+        let closed_gate_cases: &[(bool, bool, bool, bool, bool, bool)] = &[
+            (false, true, true, true, false, false),
+            (true, false, true, true, false, false),
+            (true, true, false, true, false, false),
+            (true, true, true, false, false, false),
+            (true, true, true, true, true, false),
+            (true, true, true, true, false, true),
+        ];
+        for &(window_active, pane_focused, cursor_visible, blink_requested, reduce_motion, ended) in
+            closed_gate_cases
+        {
+            let gate = should_show_cursor_fade(
+                window_active,
+                pane_focused,
+                cursor_visible,
+                blink_requested,
+                reduce_motion,
+                ended,
+            );
+            assert!(!gate, "this case should be closed: {closed_gate_cases:?}");
+            // `cursor.shape == CursorShape::Block` is assumed `true` here - the gate
+            // alone is already closed, so `should_run` is `false` regardless of shape
+            // (`paint_cursor`'s own `cursor.shape == CursorShape::Block && gate`).
+            let fade = fade_state_with_a_pending_wake();
+            let should_run = apply_fade_schedule_decision(&fade, gate);
+            // The return value, not only the side effect: `paint_cursor` branches to
+            // `paint_cursor_fade` (the only caller of `schedule_fade_wake`, the only
+            // place that ever arms a new wake) on this exact value - asserting it is
+            // `false` here is what proves that branch is not reachable for this case,
+            // not merely that the field this call also touches ended up `None`.
+            assert!(
+                !should_run,
+                "a closed gate must never decide to run, case {gate:?} \
+                 ({window_active}, {pane_focused}, {cursor_visible}, {blink_requested}, \
+                 {reduce_motion}, {ended})"
+            );
+            assert!(
+                fade.borrow().scheduled_wake.is_none(),
+                "a closed gate must clear any pending wake, case {gate:?} \
+                 ({window_active}, {pane_focused}, {cursor_visible}, {blink_requested}, \
+                 {reduce_motion}, {ended})"
+            );
+        }
+    }
+
+    #[test]
+    fn an_open_gate_leaves_a_pending_wake_alone() {
+        // The complement of the test above: `apply_fade_schedule_decision` only ever
+        // clears, never arms (`schedule_fade_wake` is the one place that arms, and it is
+        // not this function's job) - an open decision must leave whatever was already
+        // pending untouched.
+        let fade = fade_state_with_a_pending_wake();
+        let should_run = apply_fade_schedule_decision(&fade, true);
+        assert!(
+            should_run,
+            "an open decision must say so in its own return value"
+        );
+        assert!(fade.borrow().scheduled_wake.is_some());
     }
 
     // --- next_wake (AC#3): the schedule itself, pure, no window -------------------------
@@ -1668,5 +1832,39 @@ mod tests {
              clock), never backward"
         );
         assert!(state.scheduled_wake.is_none());
+    }
+
+    // --- update_focus_tracking (review nit): a stale `was_in_focus` across a hidden
+    // --- cursor is fixed structurally (called unconditionally, before any early return
+    // --- on the cursor's own visibility) - this is what proves the function itself
+    // --- carries no notion of "hidden" to go stale on in the first place.
+
+    #[test]
+    fn update_focus_tracking_resets_the_cycle_only_on_the_false_to_true_transition() {
+        let fade = cursor_fade_state();
+        // A fresh `CursorFadeState` starts with `was_in_focus: false` (its own
+        // `Default`), so this first call is itself a false-to-true transition - this
+        // establishes the baseline the rest of the test builds on, rather than
+        // asserting anything about it.
+        update_focus_tracking(&fade, true);
+        let baseline = fade.borrow().cycle_started_at;
+
+        // Already in focus, called again with no transition: no reset.
+        update_focus_tracking(&fade, true);
+        assert_eq!(fade.borrow().cycle_started_at, baseline);
+        assert!(fade.borrow().was_in_focus);
+
+        // Loses focus: no reset (losing focus is handled by the schedule stopping, not
+        // by moving the cycle's own origin).
+        update_focus_tracking(&fade, false);
+        assert_eq!(fade.borrow().cycle_started_at, baseline);
+        assert!(!fade.borrow().was_in_focus);
+
+        // Regains focus - the one transition that resets the cycle to whole, per the
+        // orchestrator's own decision against "stops, whole, when the window loses
+        // focus" (module doc).
+        update_focus_tracking(&fade, true);
+        assert!(fade.borrow().cycle_started_at >= baseline);
+        assert!(fade.borrow().was_in_focus);
     }
 }

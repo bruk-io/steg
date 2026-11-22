@@ -1,14 +1,13 @@
 ---
 id: TASK-1.127
 title: 'App: the cursor dissolves and re-forms while it waits for a key'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T21:13:00Z'
+updated_date: '2026-11-22T21:42:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.126
@@ -17,6 +16,7 @@ dependencies:
 references:
   - task-1.127-app-the-cursor-dissolves-and-re-forms
   - https://github.com/bruk-io/steg/pull/95
+  - https://github.com/bruk-io/steg/pull/101
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -1137,6 +1137,8 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 177, 149 without the Asdlc-Worker trailer.
+
+Review findings fixed and tightened per plan-check: apply_fade_schedule_decision now returns should_run, and paint_cursor's own branch to paint_cursor_fade (the only caller of schedule_fade_wake) reads that exact return value rather than a second, separately-computed condition - closing finding 2's own gap (a test proving the arm-a-new-wake path is structurally unreachable, not only that should_show_cursor_fade's boolean gate computes false). active_cursor_fade_pattern() is now the one production call both paint_cursor_fade and the table test go through, so finding 3's control corrupts that single wiring point directly, not an independent copy. All four relevant control pairs re-recorded against the final commit 4bd36ab4 after both tightenings, verified by reading the stamps back from the board. just check recorded clean at that same head (one retry needed: an unrelated, pre-existing steg-server socket-arbitration race, reported to the orchestrator by name). CI green on PR 101 (12m39s). Finding 1 (recording, stills) is not addressed here - still owed by the engineer's own live run or the capture tool.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -38,24 +38,50 @@ fn run_steg(args: &[&str], socket: &std::path::Path) -> Output {
 }
 
 /// Binds a real `UnixListener` at `path`, on its own thread, accepts
-/// exactly **one** connection and drops it immediately with nothing
-/// written - the client-visible half of TASK-1.77's own race - then
-/// drops the listener itself, so the socket file answers nothing further
-/// and a later direct `connect()` there gets refused outright, the same
-/// way a real server's own socket behaves once it is truly gone (never a
-/// second hostile accept, which would consume this task's own one
-/// retry and leave nothing for a real autostart to reach). Signals
-/// `ready` once bound, so the test synchronises on "the listener is up"
-/// without spending an accept on a throwaway probe connection.
-fn spawn_hostile_listener(path: PathBuf) -> mpsc::Receiver<()> {
+/// exactly **one** connection, drops the listener, waits `gap`, then
+/// drops the accepted stream with nothing ever written to it - the
+/// client-visible half of TASK-1.77's own race. Signals `ready` once
+/// bound, so the test synchronises on "the listener is up" without
+/// spending an accept on a throwaway probe connection.
+///
+/// **The listener is dropped before the accepted stream, not after**
+/// (TASK-1.150): a Unix-domain `connect()` completes into the kernel's
+/// listen backlog without needing a matching `accept()`, so dropping the
+/// stream first - the EOF a client's first attempt sees, and the signal
+/// its own immediate retry waits for - would leave a window, until the
+/// listener itself is actually dropped, in which that retry's own
+/// `connect()` could land in the same backlog and be torn down when the
+/// listener finally closed: `ClosedBeforeHello` on both attempts, with
+/// autostart's own `spawn()` never reached, and no real server ever
+/// involved (confirmed directly, not assumed - `crates/sdk/src/
+/// local_socket.rs`'s `connect()` only calls `spawn()` once a raw
+/// `connect()` has already returned `Err`, which it had not in either
+/// attempt of the failure this task found). Dropping the listener first
+/// closes that window entirely - a later `connect()` attempt is refused
+/// outright, nothing further queues - while the already-accepted
+/// stream, on its own independent descriptor, is unaffected and still
+/// delivers its EOF exactly as before, after `gap`. The same ordering
+/// discipline the real server already applies in its own shutdown path,
+/// for the identical reason (`crates/server/src/listen.rs`'s `run`, the
+/// comment on dropping `listener` immediately after the accept loop
+/// stops).
+///
+/// `gap` is `Duration::ZERO` for this file's ordinary callers (nothing
+/// to wait for - the window above is already closed by the ordering
+/// itself, not by timing) and an explicit, generous, adversarial pause
+/// for
+/// [`closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect`]
+/// alone: that one test's whole point is to drive *this* function, not a
+/// parallel copy of it, so that a regression here cannot leave it green.
+fn spawn_hostile_listener(path: PathBuf, gap: Duration) -> mpsc::Receiver<()> {
     let (ready_tx, ready_rx) = mpsc::channel();
     std::thread::spawn(move || {
         let listener = UnixListener::bind(&path).expect("binding the hostile listener");
         ready_tx.send(()).expect("the test is still waiting");
-        if let Ok((stream, _)) = listener.accept() {
-            drop(stream);
-        }
+        let stream = listener.accept().ok().map(|(stream, _)| stream);
         drop(listener);
+        std::thread::sleep(gap);
+        drop(stream);
     });
     ready_rx
 }
@@ -91,7 +117,7 @@ impl Drop for ServerAtSocket {
 #[test]
 fn a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding() {
     let (_socket_dir, socket) = scoped_socket_path("arbitration.sock");
-    let ready = spawn_hostile_listener(socket.clone());
+    let ready = spawn_hostile_listener(socket.clone(), Duration::ZERO);
     ready
         .recv_timeout(Duration::from_secs(2))
         .expect("the hostile listener should bind within the bound");
@@ -117,7 +143,7 @@ fn a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding() {
 #[test]
 fn the_hostile_listener_itself_accepts_and_closes_with_nothing_written() {
     let (_socket_dir, socket) = scoped_socket_path("arbitration-sanity.sock");
-    let ready = spawn_hostile_listener(socket.clone());
+    let ready = spawn_hostile_listener(socket.clone(), Duration::ZERO);
     ready
         .recv_timeout(Duration::from_secs(2))
         .expect("the hostile listener should bind within the bound");
@@ -131,4 +157,40 @@ fn the_hostile_listener_itself_accepts_and_closes_with_nothing_written() {
         n, 0,
         "the hostile listener should write nothing before closing"
     );
+}
+
+/// TASK-1.150's own proof that `spawn_hostile_listener`'s drop order
+/// closes the race, not merely avoids it by luck: an explicit, generous
+/// pause sits between dropping the listener and dropping the stream -
+/// deliberately adversarial, not a wait on any event - during which the
+/// real `steg` binary's own first and second `connect()` attempts both
+/// have every opportunity to land in the listener's backlog if it were
+/// still open. With the listener already gone before the pause starts,
+/// neither can; the retry instead correctly finds nothing listening,
+/// autostarts a real server, and the whole call still succeeds. Drives
+/// `spawn_hostile_listener` itself (not a parallel copy), so a
+/// regression in the function every other test here also uses cannot
+/// leave this one green. Run with the two drops in the opposite order
+/// (the fixture's own order before this task), this same test fails
+/// with `ClosedBeforeHello` by exactly the mechanism this task found -
+/// confirmed directly, not assumed, and recorded on the task rather
+/// than repeated here, since this fixture's own order is the one thing
+/// this file should state only once.
+#[test]
+fn closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect() {
+    let (_socket_dir, socket) = scoped_socket_path("arbitration-gap.sock");
+    let ready = spawn_hostile_listener(socket.clone(), Duration::from_millis(200));
+    ready
+        .recv_timeout(Duration::from_secs(2))
+        .expect("the hostile listener should bind within the bound");
+    let _server_guard = ServerAtSocket(socket.clone());
+
+    let output = run_steg(&["session", "list", "--json"], &socket);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "[]");
 }

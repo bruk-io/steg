@@ -490,6 +490,36 @@ error: test failed, to rerun pass `-p steg-kernel --lib`
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg-kernel a_cursor_only_delta_is_reported_once_then_idle_stays_silent` exited 101 at 2026-11-22T21:10:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.153 on task-1.153-kernel-a-cursor-move-with-no-cell-change at 2b6fec0fa18c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_kernel-9b3ea2512004541f)
+
+running 1 test
+test terminal::tests::a_cursor_only_delta_is_reported_once_then_idle_stays_silent ... FAILED
+
+failures:
+
+---- terminal::tests::a_cursor_only_delta_is_reported_once_then_idle_stays_silent stdout ----
+
+thread 'terminal::tests::a_cursor_only_delta_is_reported_once_then_idle_stays_silent' (81062774) panicked at crates/kernel/src/terminal.rs:1848:9:
+assertion `left == right` failed
+  left: Delta { rows: [], cursor: Cursor { x: 3, y: 0, visible: true, blinking: false, shape: Block }, seq: 3 }
+ right: Unchanged
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal::tests::a_cursor_only_delta_is_reported_once_then_idle_stays_silent
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 335 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

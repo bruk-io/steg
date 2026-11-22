@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T06:01:00Z'
+updated_date: '2026-11-22T06:03:00Z'
 labels:
   - size-3
   - changes-requested
@@ -328,6 +328,37 @@ error: test failed, to rerun pass `-p steg --test cli_connection_arbitration`
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `env ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig cargo test -p steg --test cli_connection_arbitration -- closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect --exact` exited 101 at 2026-11-22T06:03:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.150 on task-1.150-find-why-a-freshly-autostarted-server at 9f4a6e1949b3 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/cli_connection_arbitration.rs (target/debug/deps/cli_connection_arbitration-dfa156c3f3528d90)
+
+running 1 test
+test closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect ... FAILED
+
+failures:
+
+---- closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect stdout ----
+
+thread 'closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect' (77764875) panicked at crates/steg/tests/cli_connection_arbitration.rs:196:5:
+assertion `left == right` failed: stderr: steg: the steg server accepted the connection and closed it before a hello arrived, twice
+
+  left: Some(4)
+ right: Some(0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    closing_the_hostile_listener_before_the_stream_leaves_no_window_for_a_late_connect
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.48s
+
+error: test failed, to rerun pass `-p steg --test cli_connection_arbitration`
+```
+
+Commits since the review: 29, 28 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

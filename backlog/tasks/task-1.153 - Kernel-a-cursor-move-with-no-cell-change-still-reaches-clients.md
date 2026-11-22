@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T05:07:00Z'
+updated_date: '2026-11-22T19:57:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -14,6 +14,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.153-kernel-a-cursor-move-with-no-cell-change
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '036791db06dc'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -132,3 +135,16 @@ No collisions with TASK-1.127 (crates/app/src/{terminal_element.rs,main.rs}, unt
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked by @bruk.o, 22 November 2026: ok. One file of product code (crates/kernel/src/terminal.rs): the kernel remembers the cursor it last reported and, when nothing else changed but the cursor did, reports a Delta with no rows. No sdk shape change, so no public API change; every site that matches on ScreenUpdate was checked and the app's model already takes the cursor from a Delta. Covers position, visibility and shape (each confirmed failing today by a scratch test) and keeps the idle case Unchanged. Several clients: the pane's tick calls changes_since once and fans the result out, so the remembered cursor sits beside seq. For review: the remembered cursor must be updated on every path that reports a cursor (Full and Delta with rows too), not only the new arm.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-22T19:57:00Z
+
+---
+
+Plan approved by @bruk (036791db06dc, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

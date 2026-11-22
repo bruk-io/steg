@@ -484,6 +484,19 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --test server_stop`
 ```
+
+Check passed: `cargo test -p steg-server --test server_stop -- server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running --exact` exited 0 at 2026-11-22T05:52:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137 on task-1.137-server-and-cli-tests-every-remaining at 52529634000d:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.137/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running tests/server_stop.rs (target/debug/deps/server_stop-e2ff52c6cb96857f)
+
+running 1 test
+test server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps_running ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.03s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -3,11 +3,11 @@ id: TASK-1.150
 title: >-
   Find why a freshly autostarted server closes a client's first connection
   before the hello
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-22T04:13:00Z'
-updated_date: '2026-11-22T06:59:00Z'
+updated_date: '2026-11-22T19:54:00Z'
 labels:
   - size-3
   - review-passed

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.127
 title: 'App: the cursor dissolves and re-forms while it waits for a key'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-22T21:42:00Z'
+updated_date: '2026-11-22T21:48:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.126
@@ -25,10 +26,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e3032b0ac5e3'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=2'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review", "app"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -1296,6 +1296,34 @@ created: 2026-11-22T21:42:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.127: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-22T21:48:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review, app. The diff matches the plan.
+
+Re-review of PR 101 (the review-fix branch, diff origin/main...origin/task-1.127-app-the-cursor-dissolves-and-re-forms at head 4bd36ab4). CI green on PR 101.
+
+Findings 2 and 3 from the first review (bruk.r1) are fixed, verified directly, not just taken on trust:
+
+- Finding 2 (AC#3's scheduling test): apply_fade_schedule_decision is now the one function that both clears scheduled_wake and returns the decision paint_cursor branches on to reach paint_cursor_fade (the only caller of schedule_fade_wake, the only place scheduled_wake is ever set to Some - confirmed by grep: no other call site). a_closed_gate_clears_any_pending_wake_for_every_named_case seeds a pending Task::ready(()) and asserts it clears to None for all six of should_show_cursor_fade's own named cases; an_open_gate_leaves_a_pending_wake_alone is its complement. Structurally there is no second branch that could arm a wake when the gate is closed.
+- Finding 3 (the pattern test using literals): active_cursor_fade_pattern() is now the single production call both paint_cursor_fade and piece_states_at_matches_the_engineers_own_table go through (grep confirms it's the only live read of steg_ui::foundations::MOTION_CURSOR_FADE_SHADED_DISSOLVE outside comments). I repeated this control myself in a reverted scratch edit (crates/ui/src/foundations/generated.rs, order [3,0,4,2,1,5] -> [0,3,4,2,1,5]): the test failed with the exact message the worker recorded (mismatch at fraction 0.43, [Shade,Whole,Whole,Whole,Whole,Whole] vs [Whole,Whole,Whole,Shade,Whole,Whole]), confirming the test genuinely depends on the real exported constant and no other branch masks the corruption. Reverted and reconfirmed green.
+- Nit (stale was_in_focus): update_focus_tracking is now called unconditionally before the !cursor.visible early return; its own signature carries no visibility parameter to go stale on.
+- Nit (controls recorded before final head): fixed - all four control pairs for this round are recorded at the final head 4bd36ab4, and the one just check run at that head is clean. The "unused variable `fade`" warning visible in one FAILED record is from that record's own deliberate negative control, not the committed code (the following PASSED record and the final just check carry no such warning).
+- The arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server retry: agree it is unrelated - this diff touches only crates/app/src/terminal_element.rs, and the flaky arbiter test is already tracked (DRAFT-5).
+- No behaviour changed beyond the focus-flag fix: the gate, the schedule/cancel structure, and the phase clock (Instant::now()/elapsed in paint_cursor_fade) are unchanged, only refactored into named, independently testable functions.
+
+Remaining Important finding:
+
+[Evidence/Compliance, Important] PR 101 (and the task as a whole) still carries no recording of the fade and no stills over real text. AC#4 and AC#5 name these explicitly, and PR 101's own body says so plainly: "Finding 1 ... is not addressed here ... Still owed before this merges." Team policy's Evidence pass ("no recording where the change is motion ... is an Important finding") and plugins/bruk-io-steg/rules/app.md ("a recording when the change is motion or a sequence") apply unconditionally - they don't carve out an exception for who is able to produce the evidence. I weighed the fact that workers on this machine cannot launch the app, inject input, or capture the screen, and that the capture tool that would let a worker do this is planned but not built (TASK-1.151, TASK-1.155): that explains why it's missing and who owes it, but it doesn't make AC#4's live-run still or AC#5's recording any less unmet. Until the recording and stills are actually on a pull request, these two acceptance criteria remain unmet, so the verdict is changes - independent of findings 2 and 3, which are resolved.
+
+No rule-change draft filed: DRAFT-1 and DRAFT-4 already cover the mistakes behind the first review's findings 2 and 3 (now fixed, not repeated here), and DRAFT-5 already covers the unrelated arbiter flake. Finding 1 here is a disclosed, tracked capability gap (TASK-1.151/1.155), not an unrecorded team mistake needing a new rule.
 
 ---
 <!-- COMMENTS:END -->

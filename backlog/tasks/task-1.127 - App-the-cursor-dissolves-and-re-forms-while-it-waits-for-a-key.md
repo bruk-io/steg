@@ -434,6 +434,23 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out;
 
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
+
+Check passed: `cargo test -p steg-app next_wake` exited 0 at 2026-11-22T04:29:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127 on task-1.127-app-the-cursor-dissolves-and-re-forms at 8ad1a1bd9cf4 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.127/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.93s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 3 tests
+test terminal_element::tests::next_wake_from_just_before_the_wrap_lands_on_the_cycles_own_last_boundary ... ok
+test terminal_element::tests::next_wake_falls_back_to_one_full_turn_when_nothing_is_strictly_ahead ... ok
+test terminal_element::tests::next_wake_lands_exactly_on_the_next_boundary ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 96 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

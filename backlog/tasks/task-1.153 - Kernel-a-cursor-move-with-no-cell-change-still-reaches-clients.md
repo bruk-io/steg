@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-22T04:58:00Z'
-updated_date: '2026-11-22T21:12:00Z'
+updated_date: '2026-11-22T21:13:00Z'
 labels:
   - size-2
   - changes-requested
@@ -680,6 +680,16 @@ Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
 [Compliance, Nit] crates/kernel/src/terminal.rs:66-78 - the plan's own Risks section asked for "a one-line comment at the field's own declaration" warning that last_reported_cursor's invariant rests on pane.rs's current single-caller-per-tick shape, for whoever next touches run_tick. The field's doc comment explains the current design at length but never flags it as an assumption to re-check if that architecture changes.
 
 Checked independently: fetched origin, built a detached worktree at origin/task-1.153-kernel-a-cursor-move-with-no-cell-change (head 5eb25574), read the full diff (crates/kernel/src/terminal.rs, crates/app/src/model.rs only, matching the plan's named files and order of work). Confirmed in crates/server/src/pane.rs that run_tick calls terminal.changes_since exactly once per tick with one pane-wide tracked_seq, backing the field's placement. Confirmed Cursor already derives PartialEq/Eq/Copy in crates/sdk/src/screen.rs and that no sdk/server file changed, matching the "no public API change" claim. Confirmed decision-2 (steg's wire protocol) supports the doc comments' claims about back-pressure and the cursor being part of a screen update. Confirmed PR #99's body plainly states the live run is still owed and that no image is needed (not a drawing change). Confirmed CI green on PR #99 (12m21s). Confirmed no repository REVIEW.md exists on origin/main. Repeated the stale-caller negative control myself in a scratch edit (gated the last_reported_cursor update to `is_current` only, reverted after), traced the failure to the stale caller's own Full arm leaving last_reported_cursor behind so a third, now-current call wrongly compares against the earlier cursor and emits a spurious empty Delta instead of Unchanged - no other branch or earlier condition on that path produces the same failure, since nothing is written between the second and third calls and Dirty stays Clean throughout.
+
+---
+
+created: 2026-11-22T21:13:00Z
+
+---
+
+Correction to this task's own Implementation Notes: "Every control recorded failing-then-passing via asdlc record-check at the final head (5eb25574)" was wrong - the review's own forensic reading was right. Every one of the seven negative-control pairs was recorded before the commit, at the board-only commit 8e720fcfaf1a with the fix still uncommitted; only the two just check runs (one of them at the true final head) were attested there. The mechanisms themselves were never in doubt (the reviewer's own independent reproduction of the stale-caller control already confirmed that), only the recordings' own provenance.
+
+Fixed: added the plan's own requested one-line comment at last_reported_cursor's declaration (new commit 2b6fec0f), then re-recorded all seven pairs against that exact commit - each failing run confirmed via `git rev-parse HEAD` immediately before recording, each reverted and confirmed `git status` clean before recording the passing run. All fourteen new recordings on this task now name 2b6fec0fa18c.
 
 ---
 <!-- COMMENTS:END -->
